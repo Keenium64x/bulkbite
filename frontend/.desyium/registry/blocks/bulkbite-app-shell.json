@@ -17,7 +17,7 @@
     "pageAlignment": "grid",
     "padding": "0",
     "gap": "var(--spacing-m)",
-    "containment": "Navigation and workflow content remain in separate grid territories; mobile navigation scrolls without clipping workflow content."
+    "containment": "A plain light sidebar and neutral page canvas separate navigation from workflow content; mobile navigation scrolls without clipping workflow content."
   },
   "surfaceContract": {
     "placement": "none",

@@ -10695,9 +10695,9 @@ export const systemCatalogue = Object.freeze({
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
-        "padding": "var(--spacing-xl-2xl) 0",
+        "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Period controls precede the read-only preview and dataset download action."
+        "containment": "A compact page header leads into one ordinary control panel, followed by the read-only preview and download action."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10740,7 +10740,7 @@ export const systemCatalogue = Object.freeze({
         "pageAlignment": "grid",
         "padding": "0",
         "gap": "var(--spacing-m)",
-        "containment": "Navigation and workflow content remain in separate grid territories; mobile navigation scrolls without clipping workflow content."
+        "containment": "A plain light sidebar and neutral page canvas separate navigation from workflow content; mobile navigation scrolls without clipping workflow content."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10786,9 +10786,9 @@ export const systemCatalogue = Object.freeze({
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
-        "padding": "var(--spacing-xl-2xl) 0",
+        "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Source capture, extraction result, human review, and application are separate normal-flow states."
+        "containment": "A compact page header precedes ordinary source, review, and application panels in normal flow."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10832,9 +10832,9 @@ export const systemCatalogue = Object.freeze({
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
-        "padding": "var(--spacing-xl-2xl) 0",
+        "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Plan selection precedes measurement; draft save and final posting remain separate action territories."
+        "containment": "A compact page header precedes plan selection and measurement panels; draft save and final posting remain separate actions."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10878,9 +10878,9 @@ export const systemCatalogue = Object.freeze({
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
-        "padding": "var(--spacing-xl-2xl) 0",
+        "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Evidence and receipt facts lead, reviewed item rows follow, and the receive action remains visually separated from draft creation."
+        "containment": "A compact page header precedes ordinary evidence and receipt panels; the receive action remains separated from draft creation."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10923,9 +10923,9 @@ export const systemCatalogue = Object.freeze({
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
-        "padding": "var(--spacing-xl-2xl) 0",
+        "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Summary, scan, stock, plan, and event regions remain in normal flow; wide records scroll within their own labelled region."
+        "containment": "A compact page header and summary row lead into ordinary scan, stock, plan, and activity panels; wide records scroll within their own labelled region."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10968,9 +10968,9 @@ export const systemCatalogue = Object.freeze({
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
-        "padding": "var(--spacing-xl-2xl) 0",
+        "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Count entry and reconciliation approval occupy separate framed territories with no hidden actions."
+        "containment": "A compact page header precedes ordinary count and reconciliation panels with no hidden actions."
       },
       "surfaceContract": {
         "placement": "none",
@@ -12692,72 +12692,74 @@ export const systemCatalogue = Object.freeze({
       "name": "BulkBite Operations",
       "status": "approved",
       "category": "Prepared-meal operations",
-      "purpose": "Express the BulkBite prepared-meal brand in a fast, direct, reviewable kitchen stock application",
+      "purpose": "Provide a quiet, conventional operations dashboard for BulkBite stock work, using the brand palette only for identity, active state, and primary actions",
       "keywords": [
         "bulkbite",
         "kitchen",
         "stock",
-        "operational",
-        "direct",
-        "substantial"
+        "operations",
+        "dashboard",
+        "plain",
+        "restrained"
       ],
       "identity": {
         "desiredPerception": [
-          "substantial",
-          "direct",
-          "fast",
-          "dependable"
+          "clear",
+          "familiar",
+          "dependable",
+          "easy to scan"
         ],
         "personality": [
           "practical",
-          "energetic",
-          "honest",
+          "quiet",
+          "direct",
           "calm under pressure"
         ],
         "tensions": [
-          "campaign energy and operational calm",
+          "brand recognition and operational restraint",
           "dense records and fast scanning"
         ],
         "antiValues": [
-          "soft SaaS styling",
+          "campaign styling",
           "decorative complexity",
+          "oversized typography",
           "ambiguous state"
         ]
       },
       "tokens": {
-        "--font-family-a": "Anton, Impact, sans-serif",
+        "--font-family-a": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         "--font-family-b": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         "--font-family-c": "ui-monospace, SFMono-Regular, Menlo, monospace",
         "--theme-primary": "#FF5A1F",
         "--theme-primary-foreground": "#101010",
-        "--theme-canvas": "#101010",
-        "--theme-surface": "#F5F0E6",
+        "--theme-canvas": "#F5F0E6",
+        "--theme-surface": "#FFFFFF",
         "--theme-surface-raised": "#FFFFFF",
         "--theme-field": "#FFFFFF",
         "--theme-popup": "#FFFFFF",
         "--theme-text": "#101010",
         "--theme-text-muted": "#6D6A64",
-        "--theme-secondary": "#ECE5D6",
+        "--theme-secondary": "#F5F0E6",
         "--theme-secondary-foreground": "#101010",
         "--theme-accent": "#FFC53D",
-        "--theme-accent-soft": "#F4DDA2",
-        "--theme-border": "#101010",
-        "--component-radius-button": "0px",
-        "--component-radius-field": "0px",
-        "--component-radius-card": "0px",
-        "--component-radius-block": "0px"
+        "--theme-accent-soft": "#FFF3D0",
+        "--theme-border": "#D8D2C6",
+        "--component-radius-button": "6px",
+        "--component-radius-field": "6px",
+        "--component-radius-card": "8px",
+        "--component-radius-block": "8px"
       },
       "composition": {
-        "hierarchy": "Current state and major quantity lead, followed by evidence, entry, review, and one explicit posting action.",
-        "negativeSpace": "Isolate important decisions and posting boundaries; keep repeated working rows compact.",
-        "geometry": "Sharp rectangular frames, hard rules, offset bands, and strong left axes.",
-        "density": "Spacious dashboard evidence and compact operational forms, tables, and measurement rows.",
-        "lighting": "Flat, high-contrast work surfaces. No glossy effects or atmospheric gradients."
+        "hierarchy": "Use a conventional dashboard hierarchy: compact page title, short description, summary cards, then forms, tables, and explicit actions.",
+        "negativeSpace": "Use ordinary dashboard spacing. Keep related content together and repeated working rows compact.",
+        "geometry": "Use familiar sidebar, card, table, and form geometry with light borders and modest radii.",
+        "density": "Compact operational forms and tables with enough spacing for clear labels and touch targets.",
+        "lighting": "Use flat neutral surfaces with no decorative lighting, gradients, textures, or atmospheric effects."
       },
       "componentTreatment": {
-        "buttons": "Broad square controls with explicit verb-object labels, orange reserved for the primary posting action.",
+        "buttons": "Use ordinary Frappe UI button sizing and shape with explicit labels; reserve orange for the primary action and active navigation.",
         "forms": "Frappe UI behavior with persistent labels, visible units, direct help, and explicit errors.",
-        "cards": "Use framed work zones only where containment improves scanning.",
+        "cards": "Use simple white cards with light borders and no decorative framing.",
         "presets": {
           "primary-action": {
             "component": "operational-button",
@@ -12813,30 +12815,26 @@ export const systemCatalogue = Object.freeze({
       },
       "primitiveTreatment": {
         "preferred": [
-          "solid-field",
-          "surface-frame",
-          "grain"
+          "solid-field"
         ],
-        "layerBudget": 2,
-        "rule": "Use framing for orientation and grain only as a subtle material cue; neither may carry operational state."
+        "layerBudget": 1,
+        "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from layout, borders, and spacing."
       },
       "recipeTreatment": {
         "preferred": [
           "precision-frame"
         ],
-        "rule": "Use a restrained precision frame for the one surface where stronger orientation is needed. Keep workflow behavior in blocks and application services."
+        "rule": "Keep precision-frame available for an exceptional evidence boundary, but do not apply decorative recipes to ordinary operational pages."
       },
       "blockTreatment": {
         "signature": [
-          "dashboard-overview",
-          "action-band",
-          "proof-band"
+          "dashboard-overview"
         ],
-        "rhythm": "Move from state to evidence to entry to review to explicit posting confirmation."
+        "rhythm": "Use one compact page header followed by ordinary cards, forms, tables, and a clearly separated final action."
       },
       "motion": {
-        "character": "Short, mechanical, and state-driven with crisp settling.",
-        "reduced": "Render final state immediately; no meaning depends on movement."
+        "character": "Still by default. Use only provider-native state transitions required for control feedback.",
+        "reduced": "Render final state immediately; no meaning or hierarchy depends on movement."
       },
       "voice": {
         "tone": [
@@ -12854,7 +12852,9 @@ export const systemCatalogue = Object.freeze({
       },
       "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
       "prohibitions": [
-        "Do not use orange for routine decoration.",
+        "Do not use orange outside identity, active state, warnings that require it, and the primary action.",
+        "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
+        "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
         "Do not use gradients, glossy surfaces, or excessive rounding.",
         "Do not place raw controls in pages when a selected System owner exists.",
         "Do not hide posting, reconciliation, or review state behind menus.",

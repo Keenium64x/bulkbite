@@ -15,9 +15,9 @@
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
-    "padding": "var(--spacing-xl-2xl) 0",
+    "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "Period controls precede the read-only preview and dataset download action."
+    "containment": "A compact page header leads into one ordinary control panel, followed by the read-only preview and download action."
   },
   "surfaceContract": {
     "placement": "none",

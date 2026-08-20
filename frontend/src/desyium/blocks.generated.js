@@ -38,9 +38,9 @@ export const installedBlocks = Object.freeze([
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
-      "padding": "var(--spacing-xl-2xl) 0",
+      "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "Period controls precede the read-only preview and dataset download action."
+      "containment": "A compact page header leads into one ordinary control panel, followed by the read-only preview and download action."
     },
     "surfaceContract": {
       "placement": "none",
@@ -83,7 +83,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "0",
       "gap": "var(--spacing-m)",
-      "containment": "Navigation and workflow content remain in separate grid territories; mobile navigation scrolls without clipping workflow content."
+      "containment": "A plain light sidebar and neutral page canvas separate navigation from workflow content; mobile navigation scrolls without clipping workflow content."
     },
     "surfaceContract": {
       "placement": "none",
@@ -129,9 +129,9 @@ export const installedBlocks = Object.freeze([
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
-      "padding": "var(--spacing-xl-2xl) 0",
+      "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "Source capture, extraction result, human review, and application are separate normal-flow states."
+      "containment": "A compact page header precedes ordinary source, review, and application panels in normal flow."
     },
     "surfaceContract": {
       "placement": "none",
@@ -175,9 +175,9 @@ export const installedBlocks = Object.freeze([
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
-      "padding": "var(--spacing-xl-2xl) 0",
+      "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "Plan selection precedes measurement; draft save and final posting remain separate action territories."
+      "containment": "A compact page header precedes plan selection and measurement panels; draft save and final posting remain separate actions."
     },
     "surfaceContract": {
       "placement": "none",
@@ -221,9 +221,9 @@ export const installedBlocks = Object.freeze([
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
-      "padding": "var(--spacing-xl-2xl) 0",
+      "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "Evidence and receipt facts lead, reviewed item rows follow, and the receive action remains visually separated from draft creation."
+      "containment": "A compact page header precedes ordinary evidence and receipt panels; the receive action remains separated from draft creation."
     },
     "surfaceContract": {
       "placement": "none",
@@ -266,9 +266,9 @@ export const installedBlocks = Object.freeze([
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
-      "padding": "var(--spacing-xl-2xl) 0",
+      "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "Summary, scan, stock, plan, and event regions remain in normal flow; wide records scroll within their own labelled region."
+      "containment": "A compact page header and summary row lead into ordinary scan, stock, plan, and activity panels; wide records scroll within their own labelled region."
     },
     "surfaceContract": {
       "placement": "none",
@@ -311,9 +311,9 @@ export const installedBlocks = Object.freeze([
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
-      "padding": "var(--spacing-xl-2xl) 0",
+      "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "Count entry and reconciliation approval occupy separate framed territories with no hidden actions."
+      "containment": "A compact page header precedes ordinary count and reconciliation panels with no hidden actions."
     },
     "surfaceContract": {
       "placement": "none",

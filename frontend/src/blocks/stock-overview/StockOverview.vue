@@ -27,8 +27,8 @@ function number(value, digits = 2) {
   <section data-block="stock-overview" class="workflow-block">
     <header class="workflow-header workflow-header--ink">
       <div>
-        <p class="eyebrow">LIVE STOCK POSITION</p>
-        <h1>KNOW WHAT<br />YOU CAN MAKE.</h1>
+        <p class="eyebrow">Operations</p>
+        <h1>Stock overview</h1>
         <p>Receipts add stock. Production uses it. Counts correct it. Every posted movement keeps its evidence.</p>
       </div>
       <div class="metric-board" aria-label="Workspace totals">
@@ -44,8 +44,8 @@ function number(value, digits = 2) {
 
     <div class="workflow-grid">
       <SystemCard class="work-panel work-panel--scan">
-        <p class="panel-index">01 / IDENTITY</p>
-        <h2>SCAN STOCK</h2>
+        <p class="panel-index">Stock lookup</p>
+        <h2>Find stock item</h2>
         <p>Scan a QR code or barcode, or type the code printed on the label.</p>
         <form class="inline-action" @submit.prevent="submitScan">
           <SystemFormControl v-model="scanCode" label="QR or barcode" placeholder="Scan or type code" size="lg" />
@@ -59,7 +59,7 @@ function number(value, digits = 2) {
       </SystemCard>
 
       <SystemCard class="work-panel work-panel--shortage">
-        <p class="panel-index">02 / PLAN CHECK</p>
+        <p class="panel-index">Plan status</p>
         <h2>{{ plan?.plan_title || "FOUR-WEEK PLAN" }}</h2>
         <p>{{ plan?.date_note || "The imported plan is relative until production dates are confirmed." }}</p>
         <div class="shortage-summary">
@@ -72,7 +72,7 @@ function number(value, digits = 2) {
 
     <section class="data-section" aria-labelledby="stock-heading">
       <div class="section-heading">
-        <div><p class="eyebrow">CURRENT POSITION</p><h2 id="stock-heading">INGREDIENT STOCK</h2></div>
+        <div><p class="eyebrow">Ingredients</p><h2 id="stock-heading">Current stock</h2></div>
         <SystemBadge>{{ inventory?.location || "Ingredients" }}</SystemBadge>
       </div>
       <div class="table-wrap">
@@ -94,7 +94,7 @@ function number(value, digits = 2) {
 
     <section class="data-section" aria-labelledby="requirements-heading">
       <div class="section-heading">
-        <div><p class="eyebrow">THEORY V REALITY</p><h2 id="requirements-heading">PLAN REQUIREMENTS</h2></div>
+        <div><p class="eyebrow">Planned demand</p><h2 id="requirements-heading">Plan requirements</h2></div>
         <SystemBadge>{{ plan?.status || "NO PLAN" }}</SystemBadge>
       </div>
       <div class="table-wrap">
@@ -115,7 +115,7 @@ function number(value, digits = 2) {
     </section>
 
     <section class="data-section" aria-labelledby="recent-heading">
-      <div class="section-heading"><div><p class="eyebrow">RECENT EVIDENCE</p><h2 id="recent-heading">POSTED AND IN REVIEW</h2></div></div>
+      <div class="section-heading"><div><p class="eyebrow">Activity</p><h2 id="recent-heading">Recent records</h2></div></div>
       <div class="record-grid">
         <article v-for="receipt in snapshot?.recent_receipts || []" :key="receipt.name" class="record-strip">
           <span>RECEIPT</span><strong>{{ receipt.supplier }}</strong><small>{{ receipt.invoice_date }} · {{ receipt.status }}</small><b>R {{ number(receipt.total_amount) }}</b>

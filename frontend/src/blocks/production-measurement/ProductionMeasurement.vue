@@ -38,7 +38,7 @@ async function postRun() {
 
 <template>
   <section data-block="production-measurement" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">EXPECTED V ACTUAL</p><h1>MEASURE<br />WHAT WAS USED.</h1><p>Choose the planned meal. For each ingredient, enter what was used or what was left. The system calculates the difference.</p></div><div class="step-rail"><span class="is-current">1 Plan</span><span>2 Measure</span><span>3 Post</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Production</p><h1>Production measurement</h1><p>Choose the planned meal. For each ingredient, enter what was used or what was left. The system calculates the difference.</p></div><div class="step-rail"><span class="is-current">1 Plan</span><span>2 Measure</span><span>3 Post</span></div></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <section class="form-section">
       <div class="field-grid">
@@ -48,7 +48,7 @@ async function postRun() {
       </div>
     </section>
     <section v-if="selectedRow" class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">RECIPE EXPECTATION</p><h2>{{ selectedRow.finished_item_name }}</h2></div><SystemBadge>WEEK {{ selectedRow.week_number }}</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Recipe expectation</p><h2>{{ selectedRow.finished_item_name }}</h2></div><SystemBadge>Week {{ selectedRow.week_number }}</SystemBadge></div>
       <div class="measurement-list">
         <article v-for="item in measurements" :key="item.item_code" class="measurement-row">
           <div><strong>{{ item.item_name }}</strong><small>Expected {{ Number(item.expected_qty).toFixed(3) }} {{ item.uom }} · Available {{ Number(item.available_qty).toFixed(3) }}</small></div>

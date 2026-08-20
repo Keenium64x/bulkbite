@@ -31,17 +31,17 @@ async function receiveStock() {
 
 <template>
   <section data-block="receipt-intake" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">PURCHASE EVIDENCE</p><h1>RECEIVE<br />WHAT ARRIVED.</h1><p>Upload the receipt, check every line, save the review, then add the quantities to stock.</p></div><div class="step-rail"><span class="is-current">1 Upload</span><span>2 Review</span><span>3 Receive</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Purchasing</p><h1>Receipt intake</h1><p>Upload the receipt, check every line, save the review, then add the quantities to stock.</p></div><div class="step-rail"><span class="is-current">1 Upload</span><span>2 Review</span><span>3 Receive</span></div></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <section class="form-section">
-      <div class="section-heading"><div><p class="eyebrow">SOURCE</p><h2>PRIVATE RECEIPT</h2></div><SystemBadge v-if="form.receipt_file">UPLOADED</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Source</p><h2>Receipt file</h2></div><SystemBadge v-if="form.receipt_file">Uploaded</SystemBadge></div>
       <SystemFileUploader :upload-args="{ private: true }" @success="onUpload">
         <template #default="upload"><SystemOperationalButton variant="outline" :loading="upload.uploading" @click="upload.openFileSelector">{{ form.receipt_file ? "Replace receipt" : "Upload receipt" }}</SystemOperationalButton></template>
       </SystemFileUploader>
       <p class="field-note">{{ form.receipt_file || "The source file stays private and attached to the receipt record." }}</p>
     </section>
     <section class="form-section">
-      <div class="section-heading"><div><p class="eyebrow">REVIEW</p><h2>SUPPLIER AND TOTALS</h2></div></div>
+      <div class="section-heading"><div><p class="eyebrow">Review</p><h2>Supplier and items</h2></div></div>
       <div class="field-grid">
         <label class="field-shell"><span>Supplier</span><SystemSelect v-model="form.supplier" :options="supplierOptions" placeholder="Choose supplier" size="lg" /></label>
         <SystemFormControl v-model="form.supplier_invoice_number" label="Invoice number" size="lg" />
@@ -58,7 +58,7 @@ async function receiveStock() {
         </article>
       </div>
       <SystemOperationalButton variant="outline" @click="addLine">Add receipt line</SystemOperationalButton>
-      <div class="receipt-total"><span>REVIEWED TOTAL</span><strong>R {{ total.toFixed(2) }}</strong></div>
+      <div class="receipt-total"><span>Reviewed total</span><strong>R {{ total.toFixed(2) }}</strong></div>
     </section>
     <footer class="posting-bar">
       <div><SystemBadge>{{ saved ? "DRAFT SAVED" : "NOT SAVED" }}</SystemBadge><p>Saving retains evidence. Receiving is the action that changes stock.</p></div>

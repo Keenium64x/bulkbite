@@ -15,9 +15,9 @@
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
-    "padding": "var(--spacing-xl-2xl) 0",
+    "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "Summary, scan, stock, plan, and event regions remain in normal flow; wide records scroll within their own labelled region."
+    "containment": "A compact page header and summary row lead into ordinary scan, stock, plan, and activity panels; wide records scroll within their own labelled region."
   },
   "surfaceContract": {
     "placement": "none",

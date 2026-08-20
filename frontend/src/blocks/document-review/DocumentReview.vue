@@ -21,7 +21,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
 
 <template>
   <section data-block="document-review" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">WORKER EVIDENCE</p><h1>REVIEW<br />BEFORE IT MOVES.</h1><p>The document and supplied OCR text produce suggestions only. A person must check the rows before anything is applied.</p></div><div class="step-rail"><span class="is-current">1 Source</span><span>2 Review</span><span>3 Apply</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Documents</p><h1>Worker sheet review</h1><p>The document and supplied OCR text produce suggestions only. A person must check the rows before anything is applied.</p></div><div class="step-rail"><span class="is-current">1 Source</span><span>2 Review</span><span>3 Apply</span></div></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <section v-if="!draft" class="form-section">
       <div class="field-grid">
@@ -36,7 +36,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       <SystemOperationalButton theme="blue" variant="solid" size="lg" :loading="busy" @click="extract">Create review draft</SystemOperationalButton>
     </section>
     <section v-else class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">HUMAN REVIEW</p><h2>PROPOSED MEASUREMENTS</h2></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Human review</p><h2>Proposed measurements</h2></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
       <p v-if="draft.warnings" class="safety-note">{{ draft.warnings }}</p>
       <div class="measurement-list">
         <article v-for="(row, index) in draft.rows" :key="index" class="measurement-row measurement-row--review">
