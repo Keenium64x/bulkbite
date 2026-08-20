@@ -17,7 +17,8 @@
     "lucide-vue-next": "^1.0.0",
     "reka-ui": "^2.10.3",
     "tailwind-merge": "^3.6.0",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@keenium86x/desyium": "/home/keenan/Design_System_CLI",

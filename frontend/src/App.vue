@@ -1,33 +1,60 @@
 <script setup>
-import { VisualSurface, surface } from "@/desyium"
+import { computed, onMounted, ref } from "vue"
+import {
+  SystemAccountantExport,
+  SystemBulkbiteAppShell,
+  SystemDocumentReview,
+  SystemProductionMeasurement,
+  SystemReceiptIntake,
+  SystemStockOverview,
+  SystemStockReconciliation,
+} from "@/desyium"
+import { getInventorySnapshot, getProductionPlanSnapshot, getWorkspaceSnapshot, resolveScanCode } from "@/resources/api"
 
-// Neutral construction proof only. Replace through the project brand primitive plan.
-const recipe = surface({
-  id: "starter-surface",
-  on: "[data-page='starter']",
-  layers: [
-  "solid-field",
-  "surface-frame",
-  "grain"
-],
-})
-import { useDesyiumPageExperiences } from "@/desyium/use-desyium-page-experiences.js"
-import { mountEntranceHierarchy } from "@/experiences/entrance-hierarchy.js"
+const sections = [
+  { id: "overview", number: "01", label: "Stock" },
+  { id: "receipts", number: "02", label: "Receipts" },
+  { id: "production", number: "03", label: "Production" },
+  { id: "documents", number: "04", label: "Worker sheets" },
+  { id: "counts", number: "05", label: "Stock count" },
+  { id: "export", number: "06", label: "Accountant export" },
+]
+const activeSection = ref(new URLSearchParams(window.location.search).get("work") || "overview")
+const snapshot = ref(null)
+const inventory = ref(null)
+const plan = ref(null)
+const scanResult = ref(null)
+const loading = ref(false)
+const error = ref("")
+const currentUser = computed(() => snapshot.value?.user || window.boot?.user || "")
 
-useDesyiumPageExperiences([{ root: "[data-experience-root]", mount: mountEntranceHierarchy }])
+function navigate(id) {
+  activeSection.value = id
+  const url = new URL(window.location.href)
+  id === "overview" ? url.searchParams.delete("work") : url.searchParams.set("work", id)
+  window.history.replaceState({}, "", url)
+  requestAnimationFrame(() => document.querySelector(".app-shell__work")?.focus())
+}
+
+async function loadAll() {
+  loading.value = true; error.value = ""
+  try {
+    const [workspaceData, inventoryData, planData] = await Promise.all([getWorkspaceSnapshot(), getInventorySnapshot("Ingredients"), getProductionPlanSnapshot(null, "Ingredients")])
+    snapshot.value = workspaceData; inventory.value = inventoryData; plan.value = planData
+  } catch (exception) { error.value = exception.message } finally { loading.value = false }
+}
+
+async function scan(code) { error.value = ""; try { scanResult.value = await resolveScanCode(code) } catch (exception) { error.value = exception.message } }
+onMounted(loadAll)
 </script>
 
 <template>
-  <main data-page="starter" data-experience-root class="starter">
-    <VisualSurface :recipe="recipe" />
-    <section class="starter__content" data-experience-item>
-      <p class="starter__eyebrow" data-experience-item>Desyium · Website preset</p>
-      <h1 data-experience-item>The system is installed.</h1>
-      <p data-experience-item>Build through the generated public route, selected components, and code-owned visual recipes.</p>
-    </section>
-  </main>
+  <SystemBulkbiteAppShell :sections="sections" :active-section="activeSection" :user="currentUser" :busy="loading" @navigate="navigate" @refresh="loadAll">
+    <SystemStockOverview v-if="activeSection === 'overview'" :snapshot="snapshot" :inventory="inventory" :plan="plan" :scan-result="scanResult" :loading="loading" :error="error" @scan="scan" @open-workflow="navigate" />
+    <SystemReceiptIntake v-else-if="activeSection === 'receipts'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
+    <SystemProductionMeasurement v-else-if="activeSection === 'production'" :snapshot="snapshot" :plan="plan" @changed="loadAll" />
+    <SystemDocumentReview v-else-if="activeSection === 'documents'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
+    <SystemStockReconciliation v-else-if="activeSection === 'counts'" :inventory="inventory" @changed="loadAll" />
+    <SystemAccountantExport v-else-if="activeSection === 'export'" />
+  </SystemBulkbiteAppShell>
 </template>
-
-<style scoped>
-.starter{position:relative;isolation:isolate;display:grid;min-height:100vh;place-items:center;padding:var(--spacing-l);overflow:hidden}.starter__content{position:relative;z-index:1;width:min(44rem,100%)}.starter__eyebrow{color:var(--theme-primary);font-size:var(--font-size--1);letter-spacing:.12em;text-transform:uppercase}h1{font:var(--font-weight-bold) var(--font-size-4)/var(--font-line-height-1) var(--font-family-a);margin:var(--spacing-xs) 0}p{font-size:var(--font-size-0);line-height:var(--font-line-height-5)}
-</style>
