@@ -16,19 +16,35 @@
     "button",
     "badge",
     "card",
-    "accordion",
     "dialog",
     "tabs",
     "progress",
-    "link",
-    "logo",
-    "responsive-media",
-    "stat",
-    "quote"
+    "form-control",
+    "text-input",
+    "textarea",
+    "select",
+    "combobox",
+    "multi-select",
+    "checkbox",
+    "switch",
+    "slider",
+    "rating",
+    "date-picker",
+    "date-range-picker",
+    "date-time-picker",
+    "month-picker",
+    "time-picker",
+    "file-uploader",
+    "operational-button",
+    "operational-progress",
+    "list-view",
+    "tree",
+    "calendar"
   ],
   "primitives": [
-    "solid-field",
-    "surface-frame",
+    "tonal-radial",
+    "cartesian-grid",
+    "focal-glow",
     "grain"
   ],
   "blocks": [],
@@ -53,11 +69,7 @@
       "engine": "gsap"
     }
   ],
-  "experiencePolicy": {
-    "default": "entrance-hierarchy",
-    "installByDefault": true,
-    "dependency": "gsap"
-  },
+  "experiencePolicy": null,
   "profile": "vue",
-  "preset": "website"
+  "preset": "app"
 }

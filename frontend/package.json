@@ -9,8 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.5.13",
-    "gsap": "^3.15.0"
+    "@vueuse/core": "^14.4.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "frappe-ui": "^0.1.278",
+    "gsap": "^3.15.0",
+    "lucide-vue-next": "^1.0.0",
+    "reka-ui": "^2.10.3",
+    "tailwind-merge": "^3.6.0",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
     "@keenium86x/desyium": "/home/keenan/Design_System_CLI",

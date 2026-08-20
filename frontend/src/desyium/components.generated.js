@@ -8,28 +8,40 @@ import { CardTitle as Provider2_2 } from "../components/ui/card"
 import { CardDescription as Provider2_3 } from "../components/ui/card"
 import { CardContent as Provider2_4 } from "../components/ui/card"
 import { CardFooter as Provider2_5 } from "../components/ui/card"
-import { Accordion as Provider3_0 } from "../components/ui/accordion"
-import { AccordionItem as Provider3_1 } from "../components/ui/accordion"
-import { AccordionTrigger as Provider3_2 } from "../components/ui/accordion"
-import { AccordionContent as Provider3_3 } from "../components/ui/accordion"
-import { Dialog as Provider4_0 } from "../components/ui/dialog"
-import { DialogTrigger as Provider4_1 } from "../components/ui/dialog"
-import { DialogContent as Provider4_2 } from "../components/ui/dialog"
-import { DialogHeader as Provider4_3 } from "../components/ui/dialog"
-import { DialogTitle as Provider4_4 } from "../components/ui/dialog"
-import { DialogDescription as Provider4_5 } from "../components/ui/dialog"
-import { DialogFooter as Provider4_6 } from "../components/ui/dialog"
-import { DialogClose as Provider4_7 } from "../components/ui/dialog"
-import { Tabs as Provider5_0 } from "../components/ui/tabs"
-import { TabsList as Provider5_1 } from "../components/ui/tabs"
-import { TabsTrigger as Provider5_2 } from "../components/ui/tabs"
-import { TabsContent as Provider5_3 } from "../components/ui/tabs"
-import { Progress as Provider6_0 } from "../components/ui/progress"
-import Provider7_0 from "../components/desyium/link/SystemLink.vue"
-import Provider8_0 from "../components/desyium/logo/SystemLogo.vue"
-import Provider9_0 from "../components/desyium/responsive-media/SystemResponsiveMedia.vue"
-import Provider10_0 from "../components/desyium/stat/SystemStat.vue"
-import Provider11_0 from "../components/desyium/quote/SystemQuote.vue"
+import { Dialog as Provider3_0 } from "../components/ui/dialog"
+import { DialogTrigger as Provider3_1 } from "../components/ui/dialog"
+import { DialogContent as Provider3_2 } from "../components/ui/dialog"
+import { DialogHeader as Provider3_3 } from "../components/ui/dialog"
+import { DialogTitle as Provider3_4 } from "../components/ui/dialog"
+import { DialogDescription as Provider3_5 } from "../components/ui/dialog"
+import { DialogFooter as Provider3_6 } from "../components/ui/dialog"
+import { DialogClose as Provider3_7 } from "../components/ui/dialog"
+import { Tabs as Provider4_0 } from "../components/ui/tabs"
+import { TabsList as Provider4_1 } from "../components/ui/tabs"
+import { TabsTrigger as Provider4_2 } from "../components/ui/tabs"
+import { TabsContent as Provider4_3 } from "../components/ui/tabs"
+import { Progress as Provider5_0 } from "../components/ui/progress"
+import { FormControl as Provider6_0 } from "frappe-ui"
+import { TextInput as Provider7_0 } from "frappe-ui"
+import { Textarea as Provider8_0 } from "frappe-ui"
+import { Select as Provider9_0 } from "frappe-ui"
+import { Combobox as Provider10_0 } from "frappe-ui"
+import { MultiSelect as Provider11_0 } from "frappe-ui"
+import { Checkbox as Provider12_0 } from "frappe-ui"
+import { Switch as Provider13_0 } from "frappe-ui"
+import { Slider as Provider14_0 } from "frappe-ui"
+import { Rating as Provider15_0 } from "frappe-ui"
+import { DatePicker as Provider16_0 } from "frappe-ui"
+import { DateRangePicker as Provider17_0 } from "frappe-ui"
+import { DateTimePicker as Provider18_0 } from "frappe-ui"
+import { MonthPicker as Provider19_0 } from "frappe-ui"
+import { TimePicker as Provider20_0 } from "frappe-ui"
+import { FileUploader as Provider21_0 } from "frappe-ui"
+import { Button as Provider22_0 } from "frappe-ui"
+import { Progress as Provider23_0 } from "frappe-ui"
+import { ListView as Provider24_0 } from "frappe-ui"
+import { Tree as Provider25_0 } from "frappe-ui"
+import { Calendar as Provider26_0 } from "frappe-ui"
 
 export const SystemButton = createSystemComponent({
   name: "button",
@@ -111,49 +123,9 @@ export const SystemCardFooter = createSystemComponent({
   dataAttributes: true,
 })
 
-export const SystemAccordion = createSystemComponent({
-  name: "accordion",
-  component: Provider3_0,
-  baseClass: "",
-  providerClass: "",
-  treatments: ["default"],
-  effects: ["none"],
-  dataAttributes: true,
-})
-
-export const SystemAccordionItem = createSystemComponent({
-  name: "accordion",
-  component: Provider3_1,
-  baseClass: "",
-  providerClass: "",
-  treatments: ["default"],
-  effects: ["none"],
-  dataAttributes: true,
-})
-
-export const SystemAccordionTrigger = createSystemComponent({
-  name: "accordion",
-  component: Provider3_2,
-  baseClass: "",
-  providerClass: "",
-  treatments: ["default"],
-  effects: ["none"],
-  dataAttributes: true,
-})
-
-export const SystemAccordionContent = createSystemComponent({
-  name: "accordion",
-  component: Provider3_3,
-  baseClass: "",
-  providerClass: "",
-  treatments: ["default"],
-  effects: ["none"],
-  dataAttributes: true,
-})
-
 export const SystemDialog = createSystemComponent({
   name: "dialog",
-  component: Provider4_0,
+  component: Provider3_0,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -163,7 +135,7 @@ export const SystemDialog = createSystemComponent({
 
 export const SystemDialogTrigger = createSystemComponent({
   name: "dialog",
-  component: Provider4_1,
+  component: Provider3_1,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -173,7 +145,7 @@ export const SystemDialogTrigger = createSystemComponent({
 
 export const SystemDialogContent = createSystemComponent({
   name: "dialog",
-  component: Provider4_2,
+  component: Provider3_2,
   baseClass: "system-popup",
   providerClass: "",
   treatments: ["default"],
@@ -183,7 +155,7 @@ export const SystemDialogContent = createSystemComponent({
 
 export const SystemDialogHeader = createSystemComponent({
   name: "dialog",
-  component: Provider4_3,
+  component: Provider3_3,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -193,7 +165,7 @@ export const SystemDialogHeader = createSystemComponent({
 
 export const SystemDialogTitle = createSystemComponent({
   name: "dialog",
-  component: Provider4_4,
+  component: Provider3_4,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -203,7 +175,7 @@ export const SystemDialogTitle = createSystemComponent({
 
 export const SystemDialogDescription = createSystemComponent({
   name: "dialog",
-  component: Provider4_5,
+  component: Provider3_5,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -213,7 +185,7 @@ export const SystemDialogDescription = createSystemComponent({
 
 export const SystemDialogFooter = createSystemComponent({
   name: "dialog",
-  component: Provider4_6,
+  component: Provider3_6,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -223,7 +195,7 @@ export const SystemDialogFooter = createSystemComponent({
 
 export const SystemDialogClose = createSystemComponent({
   name: "dialog",
-  component: Provider4_7,
+  component: Provider3_7,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -233,7 +205,7 @@ export const SystemDialogClose = createSystemComponent({
 
 export const SystemTabs = createSystemComponent({
   name: "tabs",
-  component: Provider5_0,
+  component: Provider4_0,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -243,7 +215,7 @@ export const SystemTabs = createSystemComponent({
 
 export const SystemTabsList = createSystemComponent({
   name: "tabs",
-  component: Provider5_1,
+  component: Provider4_1,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -253,7 +225,7 @@ export const SystemTabsList = createSystemComponent({
 
 export const SystemTabsTrigger = createSystemComponent({
   name: "tabs",
-  component: Provider5_2,
+  component: Provider4_2,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -263,7 +235,7 @@ export const SystemTabsTrigger = createSystemComponent({
 
 export const SystemTabsContent = createSystemComponent({
   name: "tabs",
-  component: Provider5_3,
+  component: Provider4_3,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -273,7 +245,7 @@ export const SystemTabsContent = createSystemComponent({
 
 export const SystemProgress = createSystemComponent({
   name: "progress",
-  component: Provider6_0,
+  component: Provider5_0,
   baseClass: "system-feedback",
   providerClass: "",
   treatments: ["default"],
@@ -281,51 +253,211 @@ export const SystemProgress = createSystemComponent({
   dataAttributes: true,
 })
 
-export const SystemLink = createSystemComponent({
-  name: "link",
+export const SystemFormControl = createSystemComponent({
+  name: "form-control",
+  component: Provider6_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemTextInput = createSystemComponent({
+  name: "text-input",
   component: Provider7_0,
-  baseClass: "system-link",
-  providerClass: "",
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
   treatments: ["default"],
   effects: ["none"],
   dataAttributes: true,
 })
 
-export const SystemLogo = createSystemComponent({
-  name: "logo",
+export const SystemTextarea = createSystemComponent({
+  name: "textarea",
   component: Provider8_0,
-  baseClass: "system-logo",
-  providerClass: "",
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
   treatments: ["default"],
   effects: ["none"],
   dataAttributes: true,
 })
 
-export const SystemResponsiveMedia = createSystemComponent({
-  name: "responsive-media",
+export const SystemSelect = createSystemComponent({
+  name: "select",
   component: Provider9_0,
-  baseClass: "system-media",
-  providerClass: "",
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
   treatments: ["default"],
   effects: ["none"],
   dataAttributes: true,
 })
 
-export const SystemStat = createSystemComponent({
-  name: "stat",
+export const SystemCombobox = createSystemComponent({
+  name: "combobox",
   component: Provider10_0,
-  baseClass: "system-stat",
-  providerClass: "",
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
   treatments: ["default"],
   effects: ["none"],
   dataAttributes: true,
 })
 
-export const SystemQuote = createSystemComponent({
-  name: "quote",
+export const SystemMultiSelect = createSystemComponent({
+  name: "multi-select",
   component: Provider11_0,
-  baseClass: "system-quote",
-  providerClass: "",
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemCheckbox = createSystemComponent({
+  name: "checkbox",
+  component: Provider12_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemSwitch = createSystemComponent({
+  name: "switch",
+  component: Provider13_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemSlider = createSystemComponent({
+  name: "slider",
+  component: Provider14_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemRating = createSystemComponent({
+  name: "rating",
+  component: Provider15_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemDatePicker = createSystemComponent({
+  name: "date-picker",
+  component: Provider16_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemDateRangePicker = createSystemComponent({
+  name: "date-range-picker",
+  component: Provider17_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemDateTimePicker = createSystemComponent({
+  name: "date-time-picker",
+  component: Provider18_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemMonthPicker = createSystemComponent({
+  name: "month-picker",
+  component: Provider19_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemTimePicker = createSystemComponent({
+  name: "time-picker",
+  component: Provider20_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemFileUploader = createSystemComponent({
+  name: "file-uploader",
+  component: Provider21_0,
+  baseClass: "system-field",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemOperationalButton = createSystemComponent({
+  name: "operational-button",
+  component: Provider22_0,
+  baseClass: "system-button",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemOperationalProgress = createSystemComponent({
+  name: "operational-progress",
+  component: Provider23_0,
+  baseClass: "system-feedback",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemListView = createSystemComponent({
+  name: "list-view",
+  component: Provider24_0,
+  baseClass: "frappe-data-surface",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemTree = createSystemComponent({
+  name: "tree",
+  component: Provider25_0,
+  baseClass: "frappe-tree-surface",
+  providerClass: "frappe-adapter",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
+export const SystemCalendar = createSystemComponent({
+  name: "calendar",
+  component: Provider26_0,
+  baseClass: "frappe-calendar-surface",
+  providerClass: "frappe-adapter",
   treatments: ["default"],
   effects: ["none"],
   dataAttributes: true,
