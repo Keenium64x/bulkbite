@@ -10,6 +10,7 @@ export declare const SystemCardTitle: Component
 export declare const SystemCardDescription: Component
 export declare const SystemCardContent: Component
 export declare const SystemCardFooter: Component
+export declare const SystemChart: Component
 export declare const SystemCheckbox: Component
 export declare const SystemCombobox: Component
 export declare const SystemDatePicker: Component
@@ -25,6 +26,7 @@ export declare const SystemDialogFooter: Component
 export declare const SystemDialogClose: Component
 export declare const SystemFileUploader: Component
 export declare const SystemFormControl: Component
+export declare const SystemLink: Component
 export declare const SystemListView: Component
 export declare const SystemMonthPicker: Component
 export declare const SystemMultiSelect: Component
@@ -34,6 +36,7 @@ export declare const SystemProgress: Component
 export declare const SystemRating: Component
 export declare const SystemSelect: Component
 export declare const SystemSlider: Component
+export declare const SystemStat: Component
 export declare const SystemSwitch: Component
 export declare const SystemTabs: Component
 export declare const SystemTabsList: Component

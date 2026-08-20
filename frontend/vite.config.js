@@ -8,7 +8,7 @@ const frappeWebServerPort = Number(process.env.FRAPPE_WEB_SERVER_PORT || 8000)
 
 export default defineConfig(({ command }) => ({
   base: command === "serve" ? "/" : "/assets/bulkbite/frontend/",
-  optimizeDeps: { exclude: ["frappe-ui"], include: ["feather-icons"] },
+  optimizeDeps: { exclude: ["frappe-ui"], include: ["debug", "feather-icons"] },
   plugins: [
     frappeui({
       frappeProxy: false,
