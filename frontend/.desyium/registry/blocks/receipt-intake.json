@@ -17,7 +17,7 @@
     "pageAlignment": "grid",
     "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "A compact page header precedes ordinary evidence and receipt panels; the receive action remains separated from draft creation."
+    "containment": "A compact page header and numbered workflow guide precede the current evidence and receipt work; review, draft save, and stock posting remain visibly separate."
   },
   "surfaceContract": {
     "placement": "none",

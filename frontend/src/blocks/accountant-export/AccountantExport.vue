@@ -16,9 +16,14 @@ function download() { window.location.assign(accountantExportUrl(form.from_date,
 
 <template>
   <section data-block="accountant-export" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Reporting</p><h1>Accountant export</h1><p>Choose a period and dataset. The export is operational evidence only and never changes stock.</p></div><SystemBadge>Read only</SystemBadge></header>
+    <header class="workflow-header"><div><p class="eyebrow">Export</p><h1>Prepare records for the accountant</h1><p>Choose the period, preview what is included, then download a CSV. Nothing here changes stock.</p></div><SystemBadge>Read only</SystemBadge></header>
+    <ol class="workflow-steps" aria-label="Export progress">
+      <li :class="{ 'is-current': !preview, 'is-complete': preview }"><span>1</span><div><strong>Choose records</strong><small>Select the period and dataset.</small></div></li>
+      <li :class="{ 'is-complete': preview }"><span>2</span><div><strong>Check preview</strong><small>Confirm the record counts and note.</small></div></li>
+      <li :class="{ 'is-current': preview }"><span>3</span><div><strong>Download CSV</strong><small>Send the selected records to the accountant.</small></div></li>
+    </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section">
+    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Choose what to export</h2><p>The preview covers the whole period. The CSV contains the selected dataset.</p></div></div>
       <div class="field-grid"><SystemFormControl v-model="form.from_date" type="date" label="From date" size="lg" /><SystemFormControl v-model="form.to_date" type="date" label="To date" size="lg" /><label class="field-shell"><span>Dataset</span><SystemSelect v-model="form.dataset" :options="datasets" size="lg" /></label></div>
       <div class="button-row"><SystemOperationalButton variant="outline" size="lg" :loading="busy" @click="loadPreview">Preview period</SystemOperationalButton><SystemOperationalButton theme="blue" variant="solid" size="lg" :disabled="!preview" @click="download">Download CSV</SystemOperationalButton></div>
     </section>

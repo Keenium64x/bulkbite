@@ -38,9 +38,14 @@ async function postRun() {
 
 <template>
   <section data-block="production-measurement" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Production</p><h1>Production measurement</h1><p>Choose the planned meal. For each ingredient, enter what was used or what was left. The system calculates the difference.</p></div><div class="step-rail"><span class="is-current">1 Plan</span><span>2 Measure</span><span>3 Post</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Production</p><h1>Record a meal run</h1><p>Choose the planned meal, enter what was used or left, then review the calculated stock change.</p></div></header>
+    <ol class="workflow-steps" aria-label="Production progress">
+      <li :class="{ 'is-current': !selectedRow, 'is-complete': selectedRow }"><span>1</span><div><strong>Choose plan</strong><small>Select the meal that was made.</small></div></li>
+      <li :class="{ 'is-current': selectedRow && !run, 'is-complete': run }"><span>2</span><div><strong>Enter actuals</strong><small>Record meals made and ingredient measurements.</small></div></li>
+      <li :class="{ 'is-current': run && !run.docstatus, 'is-complete': run?.docstatus }"><span>3</span><div><strong>Review and post</strong><small>Confirm the stock movement.</small></div></li>
+    </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section">
+    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Choose the planned meal</h2><p>The recipe supplies the expected quantities for comparison.</p></div></div>
       <div class="field-grid">
         <label class="field-shell field-shell--wide"><span>Planned meal</span><SystemSelect v-model="selectedRowName" :options="planOptions" placeholder="Choose one plan row" size="lg" /></label>
         <SystemFormControl v-model="productionDate" type="date" label="Production date" size="lg" />
@@ -48,7 +53,7 @@ async function postRun() {
       </div>
     </section>
     <section v-if="selectedRow" class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">Recipe expectation</p><h2>{{ selectedRow.finished_item_name }}</h2></div><SystemBadge>Week {{ selectedRow.week_number }}</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Enter what happened</h2><p>{{ selectedRow.finished_item_name }}: compare each actual measurement with the recipe expectation.</p></div><SystemBadge>Week {{ selectedRow.week_number }}</SystemBadge></div>
       <div class="measurement-list">
         <article v-for="item in measurements" :key="item.item_code" class="measurement-row">
           <div><strong>{{ item.item_name }}</strong><small>Expected {{ Number(item.expected_qty).toFixed(3) }} {{ item.uom }} · Available {{ Number(item.available_qty).toFixed(3) }}</small></div>
@@ -61,7 +66,7 @@ async function postRun() {
       <SystemTextarea v-model="notes" placeholder="Production notes or reason for a large difference" :rows="3" />
     </section>
     <footer class="posting-bar">
-      <div><SystemBadge>{{ run ? (run.docstatus ? "POSTED" : "DRAFT SAVED") : "NOT SAVED" }}</SystemBadge><p>The draft keeps measurements. Posting changes ingredient and finished-meal stock.</p></div>
+      <div><SystemBadge>{{ run ? (run.docstatus ? "STOCK UPDATED" : "READY TO POST") : "MEASUREMENTS NOT SAVED" }}</SystemBadge><p>{{ run ? (run.docstatus ? "Ingredient use and finished meals are now reflected in stock." : "Review the saved measurements, then post the production run.") : "Save the measurements first. Stock will not change yet." }}</p></div>
       <SystemOperationalButton v-if="!run || !run.docstatus" variant="outline" size="lg" :loading="busy" :disabled="!selectedRow" @click="saveRun">Save measurements</SystemOperationalButton>
       <SystemOperationalButton v-if="run && !run.docstatus" theme="blue" variant="solid" size="lg" :loading="busy" @click="postRun">Post production</SystemOperationalButton>
     </footer>

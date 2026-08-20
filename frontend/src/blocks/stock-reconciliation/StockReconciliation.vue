@@ -19,9 +19,14 @@ async function approve() { busy.value = true; error.value = ""; try { draft.valu
 
 <template>
   <section data-block="stock-reconciliation" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Physical count</p><h1>Stock reconciliation</h1><p>Enter what is physically present. Saving creates a draft only. A manager approves the differences before stock is reconciled.</p></div><div class="step-rail"><span class="is-current">1 Count</span><span>2 Review</span><span>3 Approve</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Stock count</p><h1>Match the system to physical stock</h1><p>Enter what is actually present, review every difference, then let a manager approve the correction.</p></div></header>
+    <ol class="workflow-steps" aria-label="Stock count progress">
+      <li :class="{ 'is-current': !draft, 'is-complete': draft }"><span>1</span><div><strong>Count stock</strong><small>Enter the physical quantity for each item.</small></div></li>
+      <li :class="{ 'is-complete': draft }"><span>2</span><div><strong>Review differences</strong><small>Check what will increase or decrease.</small></div></li>
+      <li :class="{ 'is-current': draft && !draft.docstatus, 'is-complete': draft?.docstatus }"><span>3</span><div><strong>Manager approval</strong><small>Post the reviewed corrections.</small></div></li>
+    </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section"><SystemFormControl v-model="postingDate" type="date" label="Count date" size="lg" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" placeholder="Who counted, where, and any unusual conditions" /></label></section>
+    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Enter the physical count</h2><p>Record when and how this count was completed.</p></div></div><SystemFormControl v-model="postingDate" type="date" label="Count date" size="lg" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" placeholder="Who counted, where, and any unusual conditions" /></label></section>
     <section class="data-section">
       <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>Counted stock</h2></div><SystemBadge>{{ changedCounts.length }} differences</SystemBadge></div>
       <div class="measurement-list">
@@ -32,6 +37,6 @@ async function approve() { busy.value = true; error.value = ""; try { draft.valu
         </article>
       </div>
     </section>
-    <footer class="posting-bar"><div><SystemBadge>{{ draft ? (draft.docstatus ? "APPROVED" : "DRAFT SAVED") : "NOT SAVED" }}</SystemBadge><p>Approval appends reconciliation events. It does not rewrite previous events.</p></div><SystemOperationalButton v-if="!draft" variant="outline" size="lg" :loading="busy" @click="saveCount">Save count draft</SystemOperationalButton><SystemOperationalButton v-else-if="!draft.docstatus" theme="blue" variant="solid" size="lg" :loading="busy" @click="approve">Approve reconciliation</SystemOperationalButton></footer>
+    <footer class="posting-bar"><div><SystemBadge>{{ draft ? (draft.docstatus ? "STOCK RECONCILED" : "READY FOR APPROVAL") : "COUNT NOT SAVED" }}</SystemBadge><p>{{ draft ? (draft.docstatus ? "The approved differences are now reflected in stock." : "A manager must check and approve these differences before stock changes.") : "Saving creates a review draft only. Stock will not change yet." }}</p></div><SystemOperationalButton v-if="!draft" variant="outline" size="lg" :loading="busy" @click="saveCount">Save count draft</SystemOperationalButton><SystemOperationalButton v-else-if="!draft.docstatus" theme="blue" variant="solid" size="lg" :loading="busy" @click="approve">Approve reconciliation</SystemOperationalButton></footer>
   </section>
 </template>

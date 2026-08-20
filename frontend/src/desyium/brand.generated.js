@@ -73,9 +73,9 @@ export const activeBrand = Object.freeze({
     ],
     "recognitionCues": [
       "large quantities",
-      "ink and warm-paper work zones",
+      "neutral canvas and white work zones",
       "one orange posting action",
-      "sharp rectangular framing"
+      "soft rounded working surfaces"
     ]
   },
   "messaging": {
@@ -109,7 +109,7 @@ export const activeBrand = Object.freeze({
   "selectedTerritory": {
     "id": "operations-territory",
     "concept": "A substantial kitchen field manual: stock truth is framed with the same bold, direct energy as the BulkBite customer brand, while dense work stays calm and legible.",
-    "sharedVisualGrammar": "Ink structural fields, warm-paper work surfaces, sharp frames, large numeric evidence, compact operational labels, and one orange action signal per screen.",
+    "sharedVisualGrammar": "Neutral structural fields, white work surfaces, soft rounded boundaries, clear numeric evidence, compact operational labels, and one orange action signal per screen.",
     "projectTranslationBoundary": "References supply evidence and principles only; the approved project theme must be translated from this project's brief and must not copy a reference identity."
   },
   "interpretations": [
@@ -119,7 +119,7 @@ export const activeBrand = Object.freeze({
       "meaning": "Operational screens should feel recognisably BulkBite without sacrificing working clarity.",
       "implication": "Scale, contrast, and one orange action establish hierarchy; controls remain familiar and explicit.",
       "owner": "theme",
-      "expression": "Anton display role, ink canvas, warm-paper surfaces, orange primary action, square geometry, and system-sans controls.",
+      "expression": "System-sans hierarchy, neutral canvas, white work surfaces, orange primary action, rounded geometry, and familiar controls.",
       "proof": "Dashboard and receipt intake workflows",
       "confidence": "confirmed"
     },

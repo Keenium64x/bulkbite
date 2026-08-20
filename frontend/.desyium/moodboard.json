@@ -13,7 +13,7 @@
         "fast",
         "dependable"
       ],
-      "sharedVisualGrammar": "Ink structural fields, warm-paper work surfaces, sharp frames, large numeric evidence, compact operational labels, and one orange action signal per screen.",
+      "sharedVisualGrammar": "Neutral structural fields, white work surfaces, soft rounded boundaries, clear numeric evidence, compact operational labels, and one orange action signal per screen.",
       "alignmentRhythm": "A twelve-column desktop grid and reduced mobile flow use strong left axes, 8 px spacing increments, dense work zones, and generous separation around decisions.",
       "references": [
         {
@@ -29,9 +29,9 @@
           "doNotCopy": "Do not place poster slogans, tracked QR advertising, or unverified appetite claims in operational workflows."
         }
       ],
-      "typography": "Anton in uppercase owns short page titles, major quantities, and decisive state labels. System sans owns instructions, forms, tables, metadata, and long reading.",
-      "colorMaterial": "Ink is the structural canvas, warm paper and white hold work, orange marks the primary action or active state, amber is reserved for money, and muted grey carries low-priority context.",
-      "geometryLines": "Rectangular panels, visible one-pixel rules, offset bands, and square controls. Avoid excessive rounding, floating pills, glossy depth, and gradients.",
+      "typography": "System sans owns page titles, quantities, instructions, forms, tables, metadata, and long reading. Operational hierarchy comes from weight and spacing, not display typography.",
+      "colorMaterial": "A very light neutral canvas supports white work surfaces. Charcoal carries text, orange marks the primary action or current step, and muted grey carries low-priority context.",
+      "geometryLines": "Soft one-pixel borders, 12 to 16 pixel surface radii, and 8 to 10 pixel control radii. Avoid sharp poster framing, floating pills, glossy depth, and gradients.",
       "imagery": "Use the supplied wordmark or symbol assets only. Operational meaning uses simple line icons and textual evidence. Food imagery is unnecessary in the stock app.",
       "spacingDensity": "Dashboard claims receive breathing room; forms and tables become compact where repeated entry benefits from density. Touch targets remain at least 44 px.",
       "composition": "Every workflow moves from current state to evidence, entry, review, and one explicit posting action. Mobile stacks this order without hiding units or status.",

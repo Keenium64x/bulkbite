@@ -17,7 +17,7 @@
     "pageAlignment": "grid",
     "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "A compact page header leads into one ordinary control panel, followed by the read-only preview and download action."
+    "containment": "A compact page header leads into a simple choose, preview, and download flow with read-only status visible throughout."
   },
   "surfaceContract": {
     "placement": "none",

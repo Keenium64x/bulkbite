@@ -31,17 +31,22 @@ async function receiveStock() {
 
 <template>
   <section data-block="receipt-intake" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Purchasing</p><h1>Receipt intake</h1><p>Upload the receipt, check every line, save the review, then add the quantities to stock.</p></div><div class="step-rail"><span class="is-current">1 Upload</span><span>2 Review</span><span>3 Receive</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Receipts</p><h1>Add bought stock</h1><p>Keep the receipt, check what arrived, then add the reviewed quantities to stock.</p></div></header>
+    <ol class="workflow-steps" aria-label="Receipt progress">
+      <li :class="{ 'is-current': !form.receipt_file, 'is-complete': form.receipt_file }"><span>1</span><div><strong>Upload receipt</strong><small>Attach the private source document.</small></div></li>
+      <li :class="{ 'is-current': form.receipt_file && !saved, 'is-complete': saved }"><span>2</span><div><strong>Check details</strong><small>Confirm the supplier, items, quantities, and rates.</small></div></li>
+      <li :class="{ 'is-current': saved && !saved.docstatus, 'is-complete': saved?.docstatus }"><span>3</span><div><strong>Add to stock</strong><small>Post the reviewed quantities once.</small></div></li>
+    </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <section class="form-section">
-      <div class="section-heading"><div><p class="eyebrow">Source</p><h2>Receipt file</h2></div><SystemBadge v-if="form.receipt_file">Uploaded</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Upload the receipt</h2><p>Use the receipt as evidence for this stock entry.</p></div><SystemBadge v-if="form.receipt_file">Uploaded</SystemBadge></div>
       <SystemFileUploader :upload-args="{ private: true }" @success="onUpload">
         <template #default="upload"><SystemOperationalButton variant="outline" :loading="upload.uploading" @click="upload.openFileSelector">{{ form.receipt_file ? "Replace receipt" : "Upload receipt" }}</SystemOperationalButton></template>
       </SystemFileUploader>
       <p class="field-note">{{ form.receipt_file || "The source file stays private and attached to the receipt record." }}</p>
     </section>
     <section class="form-section">
-      <div class="section-heading"><div><p class="eyebrow">Review</p><h2>Supplier and items</h2></div></div>
+      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Check what was bought</h2><p>Enter each ingredient exactly as it arrived.</p></div></div>
       <div class="field-grid">
         <label class="field-shell"><span>Supplier</span><SystemSelect v-model="form.supplier" :options="supplierOptions" placeholder="Choose supplier" size="lg" /></label>
         <SystemFormControl v-model="form.supplier_invoice_number" label="Invoice number" size="lg" />
@@ -61,9 +66,9 @@ async function receiveStock() {
       <div class="receipt-total"><span>Reviewed total</span><strong>R {{ total.toFixed(2) }}</strong></div>
     </section>
     <footer class="posting-bar">
-      <div><SystemBadge>{{ saved ? "DRAFT SAVED" : "NOT SAVED" }}</SystemBadge><p>Saving retains evidence. Receiving is the action that changes stock.</p></div>
+      <div><SystemBadge>{{ saved ? (saved.docstatus ? "STOCK ADDED" : "READY TO ADD") : "REVIEW NOT SAVED" }}</SystemBadge><p>{{ saved ? (saved.docstatus ? "The reviewed quantities are now in stock." : "Review the saved receipt once more, then add it to stock.") : "Save the review first. Stock will not change yet." }}</p></div>
       <SystemOperationalButton v-if="!saved" theme="blue" variant="solid" size="lg" :loading="busy" @click="saveDraft">Save reviewed receipt</SystemOperationalButton>
-      <SystemOperationalButton v-else theme="blue" variant="solid" size="lg" :loading="busy" @click="receiveStock">Receive stock now</SystemOperationalButton>
+      <SystemOperationalButton v-else-if="!saved.docstatus" theme="blue" variant="solid" size="lg" :loading="busy" @click="receiveStock">Add reviewed stock</SystemOperationalButton>
     </footer>
   </section>
 </template>

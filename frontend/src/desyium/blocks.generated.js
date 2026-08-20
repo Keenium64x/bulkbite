@@ -40,7 +40,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "A compact page header leads into one ordinary control panel, followed by the read-only preview and download action."
+      "containment": "A compact page header leads into a simple choose, preview, and download flow with read-only status visible throughout."
     },
     "surfaceContract": {
       "placement": "none",
@@ -77,13 +77,13 @@ export const installedBlocks = Object.freeze([
     "primitives": [],
     "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
     "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-    "responsiveBehaviour": "Use a fixed workflow rail at large layout, a wrapped compact navigation band at intermediate layout, and a horizontally scrollable labelled action row on mobile.",
+    "responsiveBehaviour": "Use a quiet top application bar and horizontal workflow navigation at large layout, then keep the labelled navigation horizontally scrollable on narrow screens.",
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
       "padding": "0",
       "gap": "var(--spacing-m)",
-      "containment": "A plain light sidebar and neutral page canvas separate navigation from workflow content; mobile navigation scrolls without clipping workflow content."
+      "containment": "A neutral top bar establishes identity and session state, a separate quiet navigation row exposes every workflow, and the work area remains full width below."
     },
     "surfaceContract": {
       "placement": "none",
@@ -131,7 +131,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "A compact page header precedes ordinary source, review, and application panels in normal flow."
+      "containment": "A compact page header and numbered workflow guide keep source evidence, human review, and application as distinct stages in normal flow."
     },
     "surfaceContract": {
       "placement": "none",
@@ -177,7 +177,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "A compact page header precedes plan selection and measurement panels; draft save and final posting remain separate actions."
+      "containment": "A compact page header and numbered workflow guide precede plan selection and measurement work; draft save, review, and final posting remain separate actions."
     },
     "surfaceContract": {
       "placement": "none",
@@ -223,7 +223,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "A compact page header precedes ordinary evidence and receipt panels; the receive action remains separated from draft creation."
+      "containment": "A compact page header and numbered workflow guide precede the current evidence and receipt work; review, draft save, and stock posting remain visibly separate."
     },
     "surfaceContract": {
       "placement": "none",
@@ -268,7 +268,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "A compact page header and summary row lead into ordinary scan, stock, plan, and activity panels; wide records scroll within their own labelled region."
+      "containment": "A compact orientation header and restrained summary strip lead into clear lookup, plan, stock, and activity regions; wide records scroll inside their labelled region."
     },
     "surfaceContract": {
       "placement": "none",
@@ -313,7 +313,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "var(--spacing-l) 0",
       "gap": "var(--spacing-m)",
-      "containment": "A compact page header precedes ordinary count and reconciliation panels with no hidden actions."
+      "containment": "A compact page header and numbered workflow guide keep counting, difference review, and manager approval distinct with no hidden action."
     },
     "surfaceContract": {
       "placement": "none",

@@ -4,15 +4,16 @@ export const activeTheme = Object.freeze({
   "name": "BulkBite Operations",
   "status": "approved",
   "category": "Prepared-meal operations",
-  "purpose": "Provide a quiet, conventional operations dashboard for BulkBite stock work, using the brand palette only for identity, active state, and primary actions",
+  "purpose": "Provide a neutral, self-explanatory operations dashboard for BulkBite stock work, using brand colour only for focus, active state, warnings, and primary actions",
   "keywords": [
     "bulkbite",
     "kitchen",
     "stock",
     "operations",
     "dashboard",
-    "plain",
-    "restrained"
+    "neutral",
+    "rounded",
+    "clear"
   ],
   "identity": {
     "desiredPerception": [
@@ -42,36 +43,36 @@ export const activeTheme = Object.freeze({
     "--font-family-a": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     "--font-family-b": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     "--font-family-c": "ui-monospace, SFMono-Regular, Menlo, monospace",
-    "--theme-primary": "#FF5A1F",
-    "--theme-primary-foreground": "#101010",
-    "--theme-canvas": "#F5F0E6",
+    "--theme-primary": "#E14709",
+    "--theme-primary-foreground": "#FFFFFF",
+    "--theme-canvas": "#F7F7F5",
     "--theme-surface": "#FFFFFF",
     "--theme-surface-raised": "#FFFFFF",
     "--theme-field": "#FFFFFF",
     "--theme-popup": "#FFFFFF",
-    "--theme-text": "#101010",
-    "--theme-text-muted": "#6D6A64",
-    "--theme-secondary": "#F5F0E6",
-    "--theme-secondary-foreground": "#101010",
-    "--theme-accent": "#FFC53D",
-    "--theme-accent-soft": "#FFF3D0",
-    "--theme-border": "#D8D2C6",
-    "--component-radius-button": "6px",
-    "--component-radius-field": "6px",
-    "--component-radius-card": "8px",
-    "--component-radius-block": "8px"
+    "--theme-text": "#252522",
+    "--theme-text-muted": "#6F706B",
+    "--theme-secondary": "#F1F1EE",
+    "--theme-secondary-foreground": "#252522",
+    "--theme-accent": "#E14709",
+    "--theme-accent-soft": "#FFF1EA",
+    "--theme-border": "#E2E2DE",
+    "--component-radius-button": "10px",
+    "--component-radius-field": "10px",
+    "--component-radius-card": "14px",
+    "--component-radius-block": "16px"
   },
   "composition": {
-    "hierarchy": "Use a conventional dashboard hierarchy: compact page title, short description, summary cards, then forms, tables, and explicit actions.",
-    "negativeSpace": "Use ordinary dashboard spacing. Keep related content together and repeated working rows compact.",
-    "geometry": "Use familiar sidebar, card, table, and form geometry with light borders and modest radii.",
-    "density": "Compact operational forms and tables with enough spacing for clear labels and touch targets.",
+    "hierarchy": "Use a compact page title, one-sentence purpose, visible workflow stages, one main work area, and a separate review or posting boundary.",
+    "negativeSpace": "Use calm dashboard spacing. Group each decision with its evidence and next action while keeping repeated rows efficient.",
+    "geometry": "Use a quiet top bar, horizontal workflow navigation, white surfaces, soft neutral borders, and generous but consistent rounding.",
+    "density": "Keep forms and tables efficient without making the task feel cramped. Touch targets remain at least 44 pixels high.",
     "lighting": "Use flat neutral surfaces with no decorative lighting, gradients, textures, or atmospheric effects."
   },
   "componentTreatment": {
-    "buttons": "Use ordinary Frappe UI button sizing and shape with explicit labels; reserve orange for the primary action and active navigation.",
+    "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry; reserve orange for the primary action while active navigation stays neutral.",
     "forms": "Frappe UI behavior with persistent labels, visible units, direct help, and explicit errors.",
-    "cards": "Use simple white cards with light borders and no decorative framing.",
+    "cards": "Use white work surfaces with soft borders and 14 to 16 pixel rounding. Add a boundary only when it clarifies one task or evidence group.",
     "presets": {
       "primary-action": {
         "component": "operational-button",
@@ -130,7 +131,7 @@ export const activeTheme = Object.freeze({
       "solid-field"
     ],
     "layerBudget": 1,
-    "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from layout, borders, and spacing."
+    "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from flow, spacing, soft borders, and white surfaces."
   },
   "recipeTreatment": {
     "preferred": [
@@ -142,7 +143,7 @@ export const activeTheme = Object.freeze({
     "signature": [
       "dashboard-overview"
     ],
-    "rhythm": "Use one compact page header followed by ordinary cards, forms, tables, and a clearly separated final action."
+    "rhythm": "Orient the user, show numbered stages, present one current work area, then expose review and posting as an explicit final boundary."
   },
   "motion": {
     "character": "Still by default. Use only provider-native state transitions required for control feedback.",
@@ -164,10 +165,10 @@ export const activeTheme = Object.freeze({
   },
   "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
   "prohibitions": [
-    "Do not use orange outside identity, active state, warnings that require it, and the primary action.",
+    "Do not use orange outside focus, the active workflow step, warnings that require it, and the primary action.",
     "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
     "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
-    "Do not use gradients, glossy surfaces, or excessive rounding.",
+    "Do not use gradients, glossy surfaces, strong colour fields, dominant sidebars, or decorative panels.",
     "Do not place raw controls in pages when a selected System owner exists.",
     "Do not hide posting, reconciliation, or review state behind menus.",
     "Do not use accounting dimensions in worker entry workflows."

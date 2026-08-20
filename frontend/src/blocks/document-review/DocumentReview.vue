@@ -21,9 +21,14 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
 
 <template>
   <section data-block="document-review" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Documents</p><h1>Worker sheet review</h1><p>The document and supplied OCR text produce suggestions only. A person must check the rows before anything is applied.</p></div><div class="step-rail"><span class="is-current">1 Source</span><span>2 Review</span><span>3 Apply</span></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Worker sheets</p><h1>Turn a written sheet into a draft</h1><p>Upload the evidence, paste its text, and check every suggested row before applying it.</p></div></header>
+    <ol class="workflow-steps" aria-label="Worker sheet progress">
+      <li :class="{ 'is-current': !draft, 'is-complete': draft }"><span>1</span><div><strong>Add source</strong><small>Upload the sheet and provide its text.</small></div></li>
+      <li :class="{ 'is-current': draft && draft.status !== 'Reviewed' && draft.status !== 'Applied', 'is-complete': draft?.status === 'Reviewed' || draft?.status === 'Applied' }"><span>2</span><div><strong>Check suggestions</strong><small>Correct matches and accept valid rows.</small></div></li>
+      <li :class="{ 'is-current': draft?.status === 'Reviewed', 'is-complete': draft?.status === 'Applied' }"><span>3</span><div><strong>Apply rows</strong><small>Send only approved rows to a draft.</small></div></li>
+    </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section v-if="!draft" class="form-section">
+    <section v-if="!draft" class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Add the worker sheet</h2><p>The uploaded file stays as evidence. The system reads only the text supplied here.</p></div></div>
       <div class="field-grid">
         <label class="field-shell"><span>Document type</span><SystemSelect v-model="form.document_type" :options="typeOptions" size="lg" /></label>
         <label class="field-shell"><span>Default location</span><SystemSelect v-model="form.default_location" :options="locationOptions" size="lg" /></label>
@@ -36,7 +41,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       <SystemOperationalButton theme="blue" variant="solid" size="lg" :loading="busy" @click="extract">Create review draft</SystemOperationalButton>
     </section>
     <section v-else class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">Human review</p><h2>Proposed measurements</h2></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Check every suggestion</h2><p>Fix the item or quantity, then accept only rows that match the written sheet.</p></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
       <p v-if="draft.warnings" class="safety-note">{{ draft.warnings }}</p>
       <div class="measurement-list">
         <article v-for="(row, index) in draft.rows" :key="index" class="measurement-row measurement-row--review">

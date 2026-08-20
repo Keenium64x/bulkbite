@@ -25,11 +25,11 @@ function number(value, digits = 2) {
 
 <template>
   <section data-block="stock-overview" class="workflow-block">
-    <header class="workflow-header workflow-header--ink">
+    <header class="workflow-header">
       <div>
-        <p class="eyebrow">Operations</p>
-        <h1>Stock overview</h1>
-        <p>Receipts add stock. Production uses it. Counts correct it. Every posted movement keeps its evidence.</p>
+        <p class="eyebrow">Stock</p>
+        <h1>What is in the kitchen now</h1>
+        <p>See what is available, what the meal plan needs, and where stock needs attention.</p>
       </div>
       <div class="metric-board" aria-label="Workspace totals">
         <div><strong>{{ snapshot?.counts?.ingredients || 0 }}</strong><span>ingredients</span></div>
@@ -42,10 +42,19 @@ function number(value, digits = 2) {
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <div v-if="loading && !inventory" class="state-message" role="status">Loading current stock...</div>
 
+    <section class="flow-guide" aria-labelledby="flow-guide-heading">
+      <div><p class="eyebrow">How stock moves</p><h2 id="flow-guide-heading">Keep stock correct in three steps</h2></div>
+      <ol>
+        <li><span>1</span><div><strong>Add purchases</strong><small>Upload a receipt and add reviewed quantities.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Open receipts</SystemOperationalButton></li>
+        <li><span>2</span><div><strong>Record meal use</strong><small>Compare recipe theory with what was used or left.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'production')">Open production</SystemOperationalButton></li>
+        <li><span>3</span><div><strong>Check physical stock</strong><small>Count what is present and reconcile differences.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'counts')">Open stock count</SystemOperationalButton></li>
+      </ol>
+    </section>
+
     <div class="workflow-grid">
       <SystemCard class="work-panel work-panel--scan">
-        <p class="panel-index">Stock lookup</p>
-        <h2>Find stock item</h2>
+        <p class="panel-index">Quick check</p>
+        <h2>Find an ingredient</h2>
         <p>Scan a QR code or barcode, or type the code printed on the label.</p>
         <form class="inline-action" @submit.prevent="submitScan">
           <SystemFormControl v-model="scanCode" label="QR or barcode" placeholder="Scan or type code" size="lg" />
@@ -59,8 +68,8 @@ function number(value, digits = 2) {
       </SystemCard>
 
       <SystemCard class="work-panel work-panel--shortage">
-        <p class="panel-index">Plan status</p>
-        <h2>{{ plan?.plan_title || "FOUR-WEEK PLAN" }}</h2>
+        <p class="panel-index">Meal plan</p>
+        <h2>{{ plan?.plan_title || "Four-week plan" }}</h2>
         <p>{{ plan?.date_note || "The imported plan is relative until production dates are confirmed." }}</p>
         <div class="shortage-summary">
           <strong>{{ plan?.total_requirements?.filter(item => item.shortage_qty > 0).length || 0 }}</strong>
