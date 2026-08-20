@@ -1,0 +1,18 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "BB-RECIPE-.#####", "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["recipe_name", "version", "status", "finished_item", "nominal_output_qty", "output_uom", "source_workbook", "source_sheet", "ingredients", "notes"],
+ "fields": [
+  {"fieldname": "recipe_name", "fieldtype": "Data", "in_list_view": 1, "label": "Recipe Name", "reqd": 1},
+  {"default": "1", "fieldname": "version", "fieldtype": "Int", "in_list_view": 1, "label": "Version", "reqd": 1},
+  {"default": "Approved", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nApproved\nRetired", "reqd": 1},
+  {"fieldname": "finished_item", "fieldtype": "Link", "in_list_view": 1, "label": "Finished Meal", "options": "BulkBite Item", "reqd": 1},
+  {"default": "100", "fieldname": "nominal_output_qty", "fieldtype": "Float", "label": "Nominal Output", "non_negative": 1, "reqd": 1},
+  {"default": "Kg", "fieldname": "output_uom", "fieldtype": "Data", "label": "Output Unit", "read_only": 1, "reqd": 1},
+  {"fieldname": "source_workbook", "fieldtype": "Data", "label": "Source Workbook", "read_only": 1},
+  {"fieldname": "source_sheet", "fieldtype": "Data", "label": "Source Sheet", "read_only": 1},
+  {"fieldname": "ingredients", "fieldtype": "Table", "label": "Controlled Ingredients", "options": "BulkBite Recipe Ingredient", "reqd": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-20 18:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Recipe", "owner": "Administrator",
+ "permissions": [{"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}, {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1}, {"read": 1, "role": "BulkBite Worker"}], "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 1
+}

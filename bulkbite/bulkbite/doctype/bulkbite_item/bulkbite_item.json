@@ -1,0 +1,33 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:item_code",
+ "creation": "2026-08-20 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["item_code", "item_name", "item_type", "stock_uom", "track_stock", "purchasable", "enabled", "scan_codes", "theory_valuation_rate", "description"],
+ "fields": [
+  {"fieldname": "item_code", "fieldtype": "Data", "in_list_view": 1, "label": "Item Code", "reqd": 1, "unique": 1},
+  {"fieldname": "item_name", "fieldtype": "Data", "in_list_view": 1, "label": "Item Name", "reqd": 1},
+  {"fieldname": "item_type", "fieldtype": "Select", "in_list_view": 1, "label": "Item Type", "options": "Ingredient\nFinished Meal\nPackaging", "reqd": 1},
+  {"fieldname": "stock_uom", "fieldtype": "Select", "in_list_view": 1, "label": "Stock Unit", "options": "Kg\nLitre\nEach", "reqd": 1},
+  {"default": "1", "fieldname": "track_stock", "fieldtype": "Check", "label": "Track Stock"},
+  {"default": "1", "fieldname": "purchasable", "fieldtype": "Check", "label": "Purchasable"},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"description": "One code per line. Supports supplier barcodes and internal QR values.", "fieldname": "scan_codes", "fieldtype": "Small Text", "label": "Scan Codes"},
+  {"default": "0", "fieldname": "theory_valuation_rate", "fieldtype": "Currency", "label": "Theory Rate per Stock Unit", "non_negative": 1},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-20 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Item",
+ "owner": "Administrator",
+ "permissions": [{"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}, {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1}, {"read": 1, "role": "BulkBite Worker"}, {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}],
+ "sort_field": "item_name",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

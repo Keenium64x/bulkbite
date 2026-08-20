@@ -1,0 +1,15 @@
+{
+ "actions": [], "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "editable_grid": 1, "engine": "InnoDB",
+ "field_order": ["item_code", "location", "expected_qty", "counted_qty", "variance_qty", "uom", "valuation_rate", "stock_event"],
+ "fields": [
+  {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Item", "options": "BulkBite Item", "reqd": 1},
+  {"fieldname": "location", "fieldtype": "Link", "in_list_view": 1, "label": "Location", "options": "BulkBite Location", "reqd": 1},
+  {"fieldname": "expected_qty", "fieldtype": "Float", "in_list_view": 1, "label": "System Quantity", "read_only": 1},
+  {"fieldname": "counted_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Counted Quantity", "non_negative": 1, "reqd": 1},
+  {"fieldname": "variance_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Variance", "read_only": 1},
+  {"fieldname": "uom", "fieldtype": "Data", "label": "Unit", "read_only": 1},
+  {"fieldname": "valuation_rate", "fieldtype": "Currency", "label": "Rate", "read_only": 1},
+  {"fieldname": "stock_event", "fieldtype": "Link", "label": "Stock Event", "options": "BulkBite Stock Event", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "istable": 1, "links": [], "modified": "2026-08-20 18:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Stock Audit Line", "owner": "Administrator", "permissions": [], "states": []
+}

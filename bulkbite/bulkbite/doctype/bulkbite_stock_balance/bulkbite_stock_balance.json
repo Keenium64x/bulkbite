@@ -1,0 +1,16 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "format:{item_code}-{location}", "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["item_code", "location", "actual_qty", "uom", "valuation_rate", "stock_value", "last_event", "last_posting_datetime"],
+ "fields": [
+  {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Item", "options": "BulkBite Item", "read_only": 1, "reqd": 1},
+  {"fieldname": "location", "fieldtype": "Link", "in_list_view": 1, "label": "Location", "options": "BulkBite Location", "read_only": 1, "reqd": 1},
+  {"fieldname": "actual_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Available Quantity", "read_only": 1},
+  {"fieldname": "uom", "fieldtype": "Data", "label": "Unit", "read_only": 1},
+  {"fieldname": "valuation_rate", "fieldtype": "Currency", "label": "Average Rate", "read_only": 1},
+  {"fieldname": "stock_value", "fieldtype": "Currency", "in_list_view": 1, "label": "Stock Value", "read_only": 1},
+  {"fieldname": "last_event", "fieldtype": "Link", "label": "Last Stock Event", "options": "BulkBite Stock Event", "read_only": 1},
+  {"fieldname": "last_posting_datetime", "fieldtype": "Datetime", "label": "Last Posted At", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-20 18:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Stock Balance", "owner": "Administrator",
+ "permissions": [{"export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager"}, {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager"}, {"read": 1, "role": "BulkBite Worker"}, {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}], "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 0
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "../node_modules/@keenium86x/desyium/schema/brief.schema.json",
+  "schemaVersion": 1,
+  "status": "approved",
+  "project": {
+    "name": "BulkBite Operations",
+    "type": "operational application",
+    "purpose": "Keep kitchen stock truth fast, reviewable, and dependable",
+    "primaryAction": "Record stock truth"
+  },
+  "company": {
+    "meaning": "More food, less stock uncertainty",
+    "intent": "Make receiving, production use, and physical counts obvious to kitchen workers",
+    "evidence": [
+      "Reviewed receipts, approved recipes, measured usage, physical counts, immutable stock events, and accountant exports"
+    ]
+  },
+  "audience": {
+    "primary": "BulkBite kitchen workers and managers",
+    "needs": [
+      "A quick way to receive stock, record what was used or left, and reconcile real stock"
+    ],
+    "desiredPerception": [
+      "substantial",
+      "direct",
+      "energetic",
+      "honest"
+    ]
+  },
+  "constraints": [
+    "Frappe remains the host, authentication, database, permission, and API boundary",
+    "ERPNext is not installed and cannot be a runtime dependency",
+    "Worker documents create review drafts only and never post stock automatically",
+    "Every component job uses one selected Desyium owner and public System export",
+    "Frappe UI owns form and operational controls before shadcn-vue or project providers",
+    "No raster image inspection is used for design or validation"
+  ],
+  "openQuestions": []
+}

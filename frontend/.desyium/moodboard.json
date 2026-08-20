@@ -1,0 +1,50 @@
+{
+  "$schema": "../node_modules/@keenium86x/desyium/schema/moodboard.schema.json",
+  "schemaVersion": 1,
+  "selectedTerritory": "operations-territory",
+  "territories": [
+    {
+      "id": "operations-territory",
+      "name": "Substantial kitchen truth",
+      "concept": "A substantial kitchen field manual: stock truth is framed with the same bold, direct energy as the BulkBite customer brand, while dense work stays calm and legible.",
+      "desiredPerception": [
+        "substantial",
+        "direct",
+        "fast",
+        "dependable"
+      ],
+      "sharedVisualGrammar": "Ink structural fields, warm-paper work surfaces, sharp frames, large numeric evidence, compact operational labels, and one orange action signal per screen.",
+      "alignmentRhythm": "A twelve-column desktop grid and reduced mobile flow use strong left axes, 8 px spacing increments, dense work zones, and generous separation around decisions.",
+      "references": [
+        {
+          "source": "BulkBite design system.txt and the public bulkbite.co.za HTML/CSS",
+          "evidence": "Anton display type, #101010 ink, #F5F0E6 warm paper, #FF5A1F orange, large quantities, direct copy, and sharp rectangular framing.",
+          "principleToBorrow": "Use scale and contrast to make the important quantity and next action obvious within seconds.",
+          "doNotCopy": "Do not copy public sales-page content, food photography, or marketing-only interactions into the kitchen application."
+        },
+        {
+          "source": "BulkBite Poster Campaign: Final Creative Brief",
+          "evidence": "Campaign compositions use one dominant statement, restrained orange emphasis, short supporting copy, and one tested action.",
+          "principleToBorrow": "Each operational screen should have one dominant job and one clear posting action.",
+          "doNotCopy": "Do not place poster slogans, tracked QR advertising, or unverified appetite claims in operational workflows."
+        }
+      ],
+      "typography": "Anton in uppercase owns short page titles, major quantities, and decisive state labels. System sans owns instructions, forms, tables, metadata, and long reading.",
+      "colorMaterial": "Ink is the structural canvas, warm paper and white hold work, orange marks the primary action or active state, amber is reserved for money, and muted grey carries low-priority context.",
+      "geometryLines": "Rectangular panels, visible one-pixel rules, offset bands, and square controls. Avoid excessive rounding, floating pills, glossy depth, and gradients.",
+      "imagery": "Use the supplied wordmark or symbol assets only. Operational meaning uses simple line icons and textual evidence. Food imagery is unnecessary in the stock app.",
+      "spacingDensity": "Dashboard claims receive breathing room; forms and tables become compact where repeated entry benefits from density. Touch targets remain at least 44 px.",
+      "composition": "Every workflow moves from current state to evidence, entry, review, and one explicit posting action. Mobile stacks this order without hiding units or status.",
+      "primitiveFamilies": [
+        "solid-field",
+        "surface-frame",
+        "grain"
+      ],
+      "motion": "Fast state confirmation and short directional transitions. Reduced motion renders the final hierarchy immediately, with no information depending on movement.",
+      "systemCompatibility": "Desyium theme tokens own color, type, radius, spacing treatment, motion policy, and prohibitions. Frappe UI component owners supply operational controls through generated System exports. Blocks own workflow composition.",
+      "projectTranslationBoundary": "References supply evidence and principles only; the approved project theme must be translated from this project's brief and must not copy a reference identity.",
+      "openQuestions": [],
+      "status": "selected"
+    }
+  ]
+}

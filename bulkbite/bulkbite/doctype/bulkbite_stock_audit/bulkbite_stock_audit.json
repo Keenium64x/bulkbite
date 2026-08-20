@@ -1,0 +1,14 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "BB-AUDIT-.YYYY.-.#####", "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["audit_date", "status", "source_document", "notes", "items", "stock_events_posted"],
+ "fields": [
+  {"default": "Today", "fieldname": "audit_date", "fieldtype": "Date", "in_list_view": 1, "label": "Audit Date", "reqd": 1},
+  {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nApproved", "read_only": 1},
+  {"fieldname": "source_document", "fieldtype": "Link", "label": "Worker Document", "options": "BulkBite Document Intake", "read_only": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Audit Notes"},
+  {"fieldname": "items", "fieldtype": "Table", "label": "Physical Counts", "options": "BulkBite Stock Audit Line", "reqd": 1},
+  {"default": "0", "fieldname": "stock_events_posted", "fieldtype": "Check", "hidden": 1, "label": "Stock Events Posted", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "is_submittable": 1, "links": [], "modified": "2026-08-20 18:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Stock Audit", "owner": "Administrator",
+ "permissions": [{"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "submit": 1, "write": 1}, {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "submit": 1, "write": 1}, {"create": 1, "read": 1, "role": "BulkBite Worker", "write": 1}, {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}], "sort_field": "audit_date", "sort_order": "DESC", "states": [], "track_changes": 1
+}

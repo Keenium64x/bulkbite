@@ -1,0 +1,65 @@
+import frappe
+from frappe import _
+from frappe.model.document import Document
+from frappe.utils import flt
+
+from bulkbite.stock_production import apply_run_variances, get_available_stock, load_expected_usage, post_production_run, record_production_event
+
+
+# =============================================================================
+# region PRODUCTION RUN LIFECYCLE
+# =============================================================================
+
+
+class BulkBiteProductionRun(Document):
+	def validate(self):
+		self._validate_submission_boundary()
+		self._load_theory_when_needed()
+		self._validate_actuals()
+		apply_run_variances(self)
+
+	def on_submit(self):
+		output_event = post_production_run(self)
+		event = record_production_event(self, output_event.name)
+		self.db_set(
+			{"stock_events_posted": 1, "output_stock_event": output_event.name, "truth_event": event.name},
+			update_modified=False,
+		)
+
+	def on_cancel(self):
+		frappe.throw(_("Posted production runs remain immutable. Create a correcting production or audit record."))
+
+	def _load_theory_when_needed(self):
+		if not self.recipe or (
+			self.ingredients and not self.has_value_changed("recipe") and not self.has_value_changed("planned_output_qty")
+		):
+			return
+		expectation = load_expected_usage(self.recipe, self.planned_output_qty, self.source_location)
+		self.finished_item = expectation["finished_item"]
+		self.set("ingredients", expectation["ingredients"])
+
+	def _validate_actuals(self):
+		if flt(self.planned_output_qty) <= 0:
+			frappe.throw(_("Planned output must be greater than zero."))
+		if flt(self.actual_output_qty) <= 0:
+			frappe.throw(_("Actual output must be greater than zero before posting."))
+		if not self.ingredients:
+			frappe.throw(_("The selected recipe has no ingredient rows."))
+		for row in self.ingredients:
+			if flt(row.actual_qty) < 0:
+				frappe.throw(_("Actual usage cannot be negative for {0}.").format(row.item_code))
+			if self._action == "submit" and row.measurement_method == "Remaining":
+				current = get_available_stock(row.item_code, row.source_location or self.source_location)
+				if abs(current - flt(row.available_before_measurement)) > 0.000001:
+					frappe.throw(
+						_("Stock for {0} changed after the remaining quantity was saved. Save the measurement again before posting.").format(
+							row.item_code
+						)
+					)
+
+	def _validate_submission_boundary(self):
+		if self.stock_events_posted and self.docstatus == 0:
+			frappe.throw(_("A posted production run cannot return to draft."))
+
+
+# endregion PRODUCTION RUN LIFECYCLE

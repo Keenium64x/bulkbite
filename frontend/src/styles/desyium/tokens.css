@@ -1,0 +1,507 @@
+/* Central Design System */
+/* Status: AUTHORITATIVE COPY-PASTEABLE CSS TOKEN FILE */
+/* Purpose: portable CSS custom properties. JavaScript renderers and implementation notes live separately. */
+
+:root {
+  color-scheme: light;
+
+/*
+ * ====================================================================================================
+ * SYSTEM CONTROL LAYER
+ * ====================================================================================================
+ */
+
+/*
+ * Utopia is the calculator, not something this token file tries to recreate.
+ * Recalculate there, paste the generated CSS here, then refine the token names if needed.
+ * Utopia: https://utopia.fyi/
+ * Type calculator: https://utopia.fyi/type/calculator/
+ * Space calculator: https://utopia.fyi/space/calculator/
+ * Grid calculator: https://utopia.fyi/grid/calculator/
+ * Clamp calculator: https://utopia.fyi/clamp/calculator/
+ */
+
+
+/*
+ * ====================================================================================================
+ * SPACING SYSTEM
+ * ====================================================================================================
+ */
+
+/* Utopia Space Scale */
+  --spacing-3xs: clamp(0.3125rem, 0.3125rem + 0vw, 0.3125rem);
+  --spacing-2xs: clamp(0.5625rem, 0.5369rem + 0.1136vw, 0.625rem);
+  --spacing-xs: clamp(0.875rem, 0.8494rem + 0.1136vw, 0.9375rem);
+  --spacing-s: clamp(1.125rem, 1.0739rem + 0.2273vw, 1.25rem);
+  --spacing-m: clamp(1.6875rem, 1.6108rem + 0.3409vw, 1.875rem);
+  --spacing-l: clamp(2.25rem, 2.1477rem + 0.4545vw, 2.5rem);
+  --spacing-xl: clamp(3.375rem, 3.2216rem + 0.6818vw, 3.75rem);
+  --spacing-2xl: clamp(4.5rem, 4.2955rem + 0.9091vw, 5rem);
+  --spacing-3xl: clamp(6.75rem, 6.4432rem + 1.3636vw, 7.5rem);
+
+/* Utopia Space Pairs */
+  --spacing-3xs-2xs: clamp(0.3125rem, 0.1847rem + 0.5682vw, 0.625rem);
+  --spacing-2xs-xs: clamp(0.5625rem, 0.4091rem + 0.6818vw, 0.9375rem);
+  --spacing-xs-s: clamp(0.875rem, 0.7216rem + 0.6818vw, 1.25rem);
+  --spacing-s-m: clamp(1.125rem, 0.8182rem + 1.3636vw, 1.875rem);
+  --spacing-m-l: clamp(1.6875rem, 1.3551rem + 1.4773vw, 2.5rem);
+  --spacing-l-xl: clamp(2.25rem, 1.6364rem + 2.7273vw, 3.75rem);
+  --spacing-xl-2xl: clamp(3.375rem, 2.7102rem + 2.9545vw, 5rem);
+  --spacing-2xl-3xl: clamp(4.5rem, 3.2727rem + 5.4545vw, 7.5rem);
+
+/* Custom Space Pairs */
+  --spacing-s-l: clamp(1.125rem, 0.5625rem + 2.5vw, 2.5rem);
+
+
+/*
+ * ====================================================================================================
+ * GRID SYSTEM
+ * ====================================================================================================
+ */
+
+  --grid-max-width: 77.5rem;
+  --grid-gutter: var(--spacing-s-l, clamp(1.125rem, 0.5625rem + 2.5vw, 2.5rem));
+  --grid-columns: 12;
+
+
+/*
+ * ====================================================================================================
+ * TYPOGRAPHY SYSTEM
+ * ====================================================================================================
+ */
+
+/* Font Family Values */
+  --font-family-a: "TODO", system-ui, sans-serif;
+  --font-family-b: "TODO", system-ui, sans-serif;
+  --font-family-c: "TODO", Georgia, serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+/* Utopia Type Scale */
+  --font-size--2: clamp(0.7813rem, 0.7736rem + 0.0341vw, 0.8rem);
+  --font-size--1: clamp(0.9375rem, 0.9119rem + 0.1136vw, 1rem);
+  --font-size-0: clamp(1.125rem, 1.0739rem + 0.2273vw, 1.25rem);
+  --font-size-1: clamp(1.35rem, 1.2631rem + 0.3864vw, 1.5625rem);
+  --font-size-2: clamp(1.62rem, 1.4837rem + 0.6057vw, 1.9531rem);
+  --font-size-3: clamp(1.944rem, 1.7405rem + 0.9044vw, 2.4414rem);
+  --font-size-4: clamp(2.3328rem, 2.0387rem + 1.3072vw, 3.0518rem);
+  --font-size-5: clamp(2.7994rem, 2.384rem + 1.8461vw, 3.8147rem);
+
+/* Line Height Values */
+  --font-line-height-1: 1;
+  --font-line-height-2: 1.1;
+  --font-line-height-3: 1.25;
+  --font-line-height-4: 1.4;
+  --font-line-height-5: 1.5;
+  --font-line-height-6: 1.7;
+
+/* Letter Spacing Values */
+  --font-letter-spacing--2: -0.04em;
+  --font-letter-spacing--1: -0.02em;
+  --font-letter-spacing-0: 0em;
+  --font-letter-spacing-1: 0.02em;
+  --font-letter-spacing-2: 0.04em;
+  --font-letter-spacing-3: 0.08em;
+
+/* Weight Values */
+  --font-weight-300: 300;
+  --font-weight-400: 400;
+  --font-weight-500: 500;
+  --font-weight-600: 600;
+  --font-weight-700: 700;
+  --font-weight-800: 800;
+
+
+/*
+ * ====================================================================================================
+ * COLOR PRIMITIVES
+ * ====================================================================================================
+ */
+
+/* Ramps use 100-900 only. Lower numbers are lighter; higher numbers are darker in every mode. */
+
+/* Primary Palette */
+  --color-primary-100: oklch(94% 0.04 250);
+  --color-primary-200: oklch(88% 0.07 250);
+  --color-primary-300: oklch(80% 0.10 250);
+  --color-primary-400: oklch(70% 0.14 250);
+  --color-primary-500: oklch(60% 0.18 250);
+  --color-primary-600: oklch(52% 0.17 250);
+  --color-primary-700: oklch(44% 0.15 250);
+  --color-primary-800: oklch(36% 0.12 250);
+  --color-primary-900: oklch(28% 0.09 250);
+
+/* Secondary Palette */
+  --color-secondary-100: oklch(94% 0.04 160);
+  --color-secondary-200: oklch(88% 0.07 160);
+  --color-secondary-300: oklch(80% 0.10 160);
+  --color-secondary-400: oklch(72% 0.13 160);
+  --color-secondary-500: oklch(65% 0.16 160);
+  --color-secondary-600: oklch(55% 0.15 160);
+  --color-secondary-700: oklch(46% 0.13 160);
+  --color-secondary-800: oklch(37% 0.10 160);
+  --color-secondary-900: oklch(29% 0.07 160);
+
+/* Neutral Palette */
+  --color-neutral-100: oklch(95% 0.008 250);
+  --color-neutral-200: oklch(90% 0.012 250);
+  --color-neutral-300: oklch(82% 0.016 250);
+  --color-neutral-400: oklch(68% 0.018 250);
+  --color-neutral-500: oklch(55% 0.02 250);
+  --color-neutral-600: oklch(45% 0.018 250);
+  --color-neutral-700: oklch(36% 0.016 250);
+  --color-neutral-800: oklch(27% 0.014 250);
+  --color-neutral-900: oklch(20% 0.012 250);
+
+/* Accent Palette */
+  --color-accent-100: oklch(94% 0.04 70);
+  --color-accent-200: oklch(88% 0.07 70);
+  --color-accent-300: oklch(82% 0.10 70);
+  --color-accent-400: oklch(76% 0.14 70);
+  --color-accent-500: oklch(70% 0.18 70);
+  --color-accent-600: oklch(58% 0.17 70);
+  --color-accent-700: oklch(48% 0.14 70);
+  --color-accent-800: oklch(38% 0.11 70);
+  --color-accent-900: oklch(30% 0.08 70);
+
+/* Success Palette */
+  --color-success-100: oklch(93% 0.06 145);
+  --color-success-200: oklch(87% 0.10 145);
+  --color-success-300: oklch(79% 0.14 145);
+  --color-success-400: oklch(70% 0.17 145);
+  --color-success-500: oklch(62% 0.18 145);
+  --color-success-600: oklch(53% 0.16 145);
+  --color-success-700: oklch(44% 0.13 145);
+  --color-success-800: oklch(35% 0.10 145);
+  --color-success-900: oklch(27% 0.07 145);
+
+/* Warning Palette */
+  --color-warning-100: oklch(95% 0.06 80);
+  --color-warning-200: oklch(90% 0.10 80);
+  --color-warning-300: oklch(84% 0.14 80);
+  --color-warning-400: oklch(78% 0.17 80);
+  --color-warning-500: oklch(72% 0.18 80);
+  --color-warning-600: oklch(62% 0.16 80);
+  --color-warning-700: oklch(51% 0.13 80);
+  --color-warning-800: oklch(40% 0.10 80);
+  --color-warning-900: oklch(31% 0.07 80);
+
+/* Error Palette */
+  --color-error-100: oklch(93% 0.06 25);
+  --color-error-200: oklch(87% 0.10 25);
+  --color-error-300: oklch(79% 0.14 25);
+  --color-error-400: oklch(70% 0.18 25);
+  --color-error-500: oklch(62% 0.20 25);
+  --color-error-600: oklch(53% 0.18 25);
+  --color-error-700: oklch(44% 0.15 25);
+  --color-error-800: oklch(35% 0.12 25);
+  --color-error-900: oklch(27% 0.09 25);
+
+/* Info Palette */
+  --color-info-100: oklch(93% 0.06 240);
+  --color-info-200: oklch(87% 0.10 240);
+  --color-info-300: oklch(79% 0.14 240);
+  --color-info-400: oklch(70% 0.17 240);
+  --color-info-500: oklch(62% 0.18 240);
+  --color-info-600: oklch(53% 0.16 240);
+  --color-info-700: oklch(44% 0.13 240);
+  --color-info-800: oklch(35% 0.10 240);
+  --color-info-900: oklch(27% 0.07 240);
+
+/*
+ * ====================================================================================================
+ * WHITE AND BLACK TONE RAMPS
+ * ====================================================================================================
+ */
+
+/* Softened material tones. Avoid pure white and pure black as default surfaces. */
+
+/* White Tone Palette */
+  --color-white-100: oklch(98.5% 0.004 75);
+  --color-white-200: oklch(97% 0.005 75);
+  --color-white-300: oklch(95% 0.006 75);
+  --color-white-400: oklch(92.5% 0.007 75);
+  --color-white-500: oklch(89% 0.008 75);
+  --color-white-600: oklch(84% 0.009 75);
+  --color-white-700: oklch(76% 0.010 75);
+  --color-white-800: oklch(66% 0.011 75);
+  --color-white-900: oklch(54% 0.012 75);
+
+/* Black Tone Palette */
+  --color-black-100: oklch(45% 0.014 70);
+  --color-black-200: oklch(38% 0.014 70);
+  --color-black-300: oklch(32% 0.014 70);
+  --color-black-400: oklch(27% 0.014 70);
+  --color-black-500: oklch(22% 0.013 70);
+  --color-black-600: oklch(18% 0.013 70);
+  --color-black-700: oklch(14.5% 0.012 70);
+  --color-black-800: oklch(11.5% 0.011 70);
+  --color-black-900: oklch(8.5% 0.010 70);
+
+
+/*
+ * ====================================================================================================
+ * AUTOMATIC THEME INTERFACE
+ * ====================================================================================================
+ */
+
+/* Components consume these roles instead of choosing ramp steps directly. */
+  --theme-canvas: var(--color-white-300);
+  --theme-surface: var(--color-white-400);
+  --theme-surface-raised: var(--color-white-100);
+  --theme-field: var(--color-white-400);
+  --theme-popup: var(--color-white-100);
+  --theme-text: var(--color-black-800);
+  --theme-text-muted: var(--color-black-200);
+  --theme-border: var(--color-white-600);
+
+  --theme-primary: var(--color-primary-600);
+  --theme-primary-foreground: var(--color-white-100);
+  --theme-secondary: var(--color-secondary-600);
+  --theme-secondary-foreground: var(--color-white-100);
+  --theme-accent: var(--color-accent-600);
+  --theme-accent-soft: color-mix(in oklch, var(--theme-accent) 14%, var(--theme-surface-raised));
+
+  --theme-success: var(--color-success-600);
+  --theme-warning: var(--color-warning-600);
+  --theme-error: var(--color-error-600);
+  --theme-error-foreground: var(--color-white-100);
+  --theme-info: var(--color-info-600);
+
+
+/*
+ * ====================================================================================================
+ * SHAPE AND STROKE VALUES
+ * ====================================================================================================
+ */
+
+/* Controls the shared geometry of corners, borders, and drawn strokes. */
+
+/* Radius Scale */
+  --radius-0: 0;
+  --radius-1: 0.125rem;
+  --radius-2: 0.25rem;
+  --radius-3: 0.5rem;
+  --radius-4: 0.75rem;
+  --radius-5: 1rem;
+  --radius-6: 1.5rem;
+  --radius-full: 9999px;
+
+/* Independent Component Radius Values */
+  --component-radius-sm: var(--radius-3);
+  --component-radius-md: var(--radius-4);
+  --component-radius-lg: var(--radius-5);
+  --component-radius-field: var(--radius-3);
+  --component-radius-button: var(--radius-5);
+  --component-radius-card: var(--radius-4);
+  --component-radius-block: var(--radius-5);
+
+/* Component Size And Density Values */
+  --component-scale: 1;
+  --control-height-sm: calc(2rem * var(--component-scale));
+  --control-height-md: calc(2.5rem * var(--component-scale));
+  --control-height-lg: calc(3rem * var(--component-scale));
+  --control-padding-x-sm: calc(0.75rem * var(--component-scale));
+  --control-padding-x-md: calc(1rem * var(--component-scale));
+  --control-padding-x-lg: calc(1.5rem * var(--component-scale));
+  --control-gap: calc(0.5rem * var(--component-scale));
+  --control-icon-size: calc(1rem * var(--component-scale));
+
+/* Border Width Values */
+  --border-width-0: 0;
+  --border-width-1: 1px;
+  --border-width-2: 2px;
+  --border-width-3: 3px;
+  --border-width-4: 4px;
+
+/* Border Style Values */
+  --border-style-solid: solid;
+  --border-style-dashed: dashed;
+  --border-style-dotted: dotted;
+  --border-style-double: double;
+
+/* Outline Values */
+  --outline-width-1: 1px;
+  --outline-width-2: 2px;
+  --outline-width-3: 4px;
+  --outline-offset-1: 2px;
+  --outline-offset-2: 4px;
+  --outline-offset-3: 8px;
+
+/* Stroke Width Values */
+  --stroke-width-1: 1px;
+  --stroke-width-2: 1.5px;
+  --stroke-width-3: 2px;
+  --stroke-width-4: 3px;
+  --stroke-width-5: 4px;
+
+/* SVG Stroke Values */
+  --stroke-linecap-butt: butt;
+  --stroke-linecap-round: round;
+  --stroke-linecap-square: square;
+  --stroke-linejoin-miter: miter;
+  --stroke-linejoin-round: round;
+  --stroke-linejoin-bevel: bevel;
+  --stroke-dash-1: 1 1;
+  --stroke-dash-2: 2 2;
+  --stroke-dash-3: 4 4;
+  --stroke-dash-4: 8 4;
+  --stroke-dash-5: 12 6;
+
+
+/*
+ * ====================================================================================================
+ * SHADOW AND DEPTH VALUES
+ * ====================================================================================================
+ */
+
+/* Supplies reusable depth, focus, glow, blur, and transparency values. */
+
+/* Shadow Scale */
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-2: 0 1px 3px rgb(0 0 0 / 0.08);
+  --shadow-3: 0 8px 20px rgb(0 0 0 / 0.10);
+  --shadow-4: 0 16px 40px rgb(0 0 0 / 0.12);
+  --shadow-5: 0 24px 64px rgb(0 0 0 / 0.16);
+  --shadow-6: 0 40px 100px rgb(0 0 0 / 0.22);
+
+/* Inset Shadow Values */
+  --shadow-inset-1: inset 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-inset-2: inset 0 2px 4px rgb(0 0 0 / 0.10);
+  --shadow-inset-3: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  --shadow-inset-4: inset 0 0 16px rgb(0 0 0 / 0.14);
+
+/* Layered Shadow Values */
+  --shadow-layered-1: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 4px rgb(0 0 0 / 0.06);
+  --shadow-layered-2: 0 2px 4px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.10);
+  --shadow-layered-3: 0 8px 16px rgb(0 0 0 / 0.08), 0 24px 64px rgb(0 0 0 / 0.14);
+
+/* Glow Values */
+  --shadow-glow-1: 0 0 40px rgb(37 99 235 / 0.35);
+  --shadow-glow-2: 0 0 40px rgb(13 148 136 / 0.35);
+  --shadow-glow-3: 0 0 40px rgb(245 158 11 / 0.35);
+
+/* Blur Values */
+  --blur-1: 4px;
+  --blur-2: 8px;
+  --blur-3: 12px;
+  --blur-4: 24px;
+  --blur-5: 48px;
+
+/* Opacity Values */
+  --opacity-0: 0;
+  --opacity-1: 0.04;
+  --opacity-2: 0.08;
+  --opacity-3: 0.12;
+  --opacity-4: 0.24;
+  --opacity-5: 0.48;
+  --opacity-6: 0.72;
+  --opacity-7: 0.88;
+  --opacity-8: 1;
+
+
+/*
+ * ====================================================================================================
+ * MOTION VALUES
+ * ====================================================================================================
+ */
+
+/* Keeps animation timing and easing consistent across implementations. */
+
+/* GSAP reads timing values as numeric seconds and ease values as strings. */
+
+/* Duration Values */
+  --motion-duration-0: 0;
+  --motion-duration-1: 0.1;
+  --motion-duration-2: 0.15;
+  --motion-duration-3: 0.3;
+  --motion-duration-4: 0.6;
+  --motion-duration-5: 1;
+  --motion-duration-6: 1.6;
+
+/* Delay Values */
+  --motion-delay-0: 0;
+  --motion-delay-1: 0.06;
+  --motion-delay-2: 0.12;
+  --motion-delay-3: 0.24;
+  --motion-delay-4: 0.48;
+
+/* Stagger Values */
+  --motion-stagger-0: 0;
+  --motion-stagger-1: 0.03;
+  --motion-stagger-2: 0.06;
+  --motion-stagger-3: 0.1;
+  --motion-stagger-4: 0.16;
+
+/* GSAP Ease Values */
+  --motion-ease-linear: none;
+  --motion-ease-in: power2.in;
+  --motion-ease-out: power2.out;
+  --motion-ease-in-out: power2.inOut;
+  --motion-ease-strong-in: power4.in;
+  --motion-ease-strong-out: power4.out;
+  --motion-ease-strong-in-out: power4.inOut;
+  --motion-ease-back-in: back.in(1.4);
+  --motion-ease-back-out: back.out(1.4);
+  --motion-ease-elastic-out: elastic.out(1, 0.4);
+  --motion-ease-bounce-out: bounce.out;
+
+/* Transform Values */
+  --motion-distance-1: 4px;
+  --motion-distance-2: 8px;
+  --motion-distance-3: 16px;
+  --motion-distance-4: 32px;
+  --motion-distance-5: 64px;
+  --motion-scale-in: 0.96;
+  --motion-scale-out: 1.04;
+  --motion-rotation-1: 3deg;
+  --motion-rotation-2: 8deg;
+  --motion-rotation-3: 16deg;
+  --motion-perspective-1: 600px;
+  --motion-perspective-2: 1000px;
+  --motion-perspective-3: 1600px;
+
+
+
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+/*
+ * ====================================================================================================
+ * DARK MODE THEME
+ * ====================================================================================================
+ */
+
+/* Primitive ramps remain unchanged. Dark mode selects different ramp steps. */
+  --theme-canvas: var(--color-black-900);
+  --theme-surface: var(--color-black-800);
+  --theme-surface-raised: var(--color-black-700);
+  --theme-field: var(--color-black-600);
+  --theme-popup: var(--color-black-700);
+  --theme-text: var(--color-white-200);
+  --theme-text-muted: var(--color-white-800);
+  --theme-border: var(--color-black-400);
+
+/* Lighter, less aggressive tones remain legible without vibrating on dark surfaces. */
+  --theme-primary: var(--color-primary-300);
+  --theme-primary-foreground: var(--color-black-800);
+  --theme-secondary: var(--color-secondary-300);
+  --theme-secondary-foreground: var(--color-black-800);
+  --theme-accent: var(--color-accent-300);
+  --theme-accent-soft: color-mix(in oklch, var(--theme-accent) 16%, var(--theme-surface-raised));
+  --theme-success: var(--color-success-300);
+  --theme-warning: var(--color-warning-300);
+  --theme-error: var(--color-error-300);
+  --theme-error-foreground: var(--color-black-800);
+  --theme-info: var(--color-info-300);
+
+/* Dark elevation uses lighter surfaces and restrained shadows. */
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.24);
+  --shadow-2: 0 2px 8px rgb(0 0 0 / 0.28);
+  --shadow-3: 0 8px 24px rgb(0 0 0 / 0.32);
+  --shadow-4: 0 16px 40px rgb(0 0 0 / 0.36);
+  --shadow-5: 0 24px 64px rgb(0 0 0 / 0.40);
+  --shadow-6: 0 40px 100px rgb(0 0 0 / 0.48);
+
+}

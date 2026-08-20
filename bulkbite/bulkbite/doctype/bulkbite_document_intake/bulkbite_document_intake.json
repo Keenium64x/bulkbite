@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-DOC-.YYYY.-.#####",
+ "creation": "2026-08-20 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["status", "document_type", "source_file", "source_hash", "business_name", "production_run", "default_location", "extraction_section", "raw_text", "rows", "review_section", "warnings", "reviewed_by", "reviewed_at", "applied_reference_doctype", "applied_reference"],
+ "fields": [
+  {"default": "Extracted Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Extracted Draft\nNeeds Review\nReviewed\nApplied\nRejected", "read_only": 1},
+  {"fieldname": "document_type", "fieldtype": "Select", "in_list_view": 1, "label": "Document Type", "options": "Usage Sheet\nRemaining Stock Sheet\nStock Audit", "reqd": 1},
+  {"fieldname": "source_file", "fieldtype": "Attach", "label": "Private Source Document", "reqd": 1},
+  {"fieldname": "source_hash", "fieldtype": "Data", "hidden": 1, "label": "Source SHA-256", "read_only": 1, "unique": 1},
+  {"default": "BulkBite", "fieldname": "business_name", "fieldtype": "Data", "label": "Business", "reqd": 1},
+  {"fieldname": "production_run", "fieldtype": "Link", "label": "Production Run", "options": "BulkBite Production Run"},
+  {"fieldname": "default_location", "fieldtype": "Link", "label": "Default Stock Location", "options": "BulkBite Location", "reqd": 1},
+  {"fieldname": "extraction_section", "fieldtype": "Section Break", "label": "Extracted Evidence"},
+  {"fieldname": "raw_text", "fieldtype": "Long Text", "label": "OCR Text", "reqd": 1},
+  {"fieldname": "rows", "fieldtype": "Table", "label": "Proposed Measurements", "options": "BulkBite Extracted Measurement", "reqd": 1},
+  {"fieldname": "review_section", "fieldtype": "Section Break", "label": "Human Review"},
+  {"fieldname": "warnings", "fieldtype": "Long Text", "label": "Warnings", "read_only": 1},
+  {"fieldname": "reviewed_by", "fieldtype": "Link", "label": "Reviewed By", "options": "User", "read_only": 1},
+  {"fieldname": "reviewed_at", "fieldtype": "Datetime", "label": "Reviewed At", "read_only": 1},
+  {"fieldname": "applied_reference", "fieldtype": "Dynamic Link", "label": "Applied Record", "options": "applied_reference_doctype", "read_only": 1},
+  {"fieldname": "applied_reference_doctype", "fieldtype": "Link", "hidden": 1, "label": "Applied Record Type", "options": "DocType", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-20 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Document Intake",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"create": 1, "read": 1, "role": "BulkBite Worker", "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

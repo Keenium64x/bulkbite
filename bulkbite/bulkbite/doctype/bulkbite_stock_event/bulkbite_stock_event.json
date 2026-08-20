@@ -1,0 +1,25 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "BB-SE-.########", "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["event_sequence", "posting_datetime", "event_type", "item_code", "location", "quantity_delta", "uom", "unit_cost", "value_delta", "reference_doctype", "reference_name", "reference_line", "actor", "reversal_of", "previous_hash", "event_hash", "payload_json"],
+ "fields": [
+  {"fieldname": "event_sequence", "fieldtype": "Int", "in_list_view": 1, "label": "Sequence", "read_only": 1, "unique": 1},
+  {"fieldname": "posting_datetime", "fieldtype": "Datetime", "in_list_view": 1, "label": "Posted At", "read_only": 1},
+  {"fieldname": "event_type", "fieldtype": "Select", "in_list_view": 1, "label": "Event Type", "options": "Opening\nReceipt\nConsumption\nProduction Output\nReconciliation\nReversal", "read_only": 1},
+  {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Item", "options": "BulkBite Item", "read_only": 1},
+  {"fieldname": "location", "fieldtype": "Link", "in_list_view": 1, "label": "Location", "options": "BulkBite Location", "read_only": 1},
+  {"fieldname": "quantity_delta", "fieldtype": "Float", "in_list_view": 1, "label": "Quantity Change", "read_only": 1},
+  {"fieldname": "uom", "fieldtype": "Data", "label": "Unit", "read_only": 1},
+  {"fieldname": "unit_cost", "fieldtype": "Currency", "label": "Unit Cost", "read_only": 1},
+  {"fieldname": "value_delta", "fieldtype": "Currency", "label": "Value Change", "read_only": 1},
+  {"fieldname": "reference_doctype", "fieldtype": "Link", "label": "Reference Type", "options": "DocType", "read_only": 1},
+  {"fieldname": "reference_name", "fieldtype": "Dynamic Link", "in_list_view": 1, "label": "Reference", "options": "reference_doctype", "read_only": 1},
+  {"fieldname": "reference_line", "fieldtype": "Data", "label": "Reference Line", "read_only": 1},
+  {"fieldname": "actor", "fieldtype": "Link", "label": "Actor", "options": "User", "read_only": 1},
+  {"fieldname": "reversal_of", "fieldtype": "Link", "label": "Reversal Of", "options": "BulkBite Stock Event", "read_only": 1},
+  {"fieldname": "previous_hash", "fieldtype": "Data", "label": "Previous Hash", "read_only": 1},
+  {"fieldname": "event_hash", "fieldtype": "Data", "label": "Event Hash", "read_only": 1, "unique": 1},
+  {"fieldname": "payload_json", "fieldtype": "Code", "label": "Canonical Payload", "options": "JSON", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-20 18:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Stock Event", "owner": "Administrator",
+ "permissions": [{"export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager"}, {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager"}, {"read": 1, "role": "BulkBite Worker"}, {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}], "sort_field": "event_sequence", "sort_order": "DESC", "states": [], "track_changes": 0
+}

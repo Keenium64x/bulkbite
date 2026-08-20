@@ -1,0 +1,36 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-TE-.########",
+ "creation": "2026-08-20 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["event_sequence", "event_timestamp", "event_type", "reference_doctype", "reference_name", "actor", "previous_hash", "event_hash", "payload_json"],
+ "fields": [
+  {"fieldname": "event_sequence", "fieldtype": "Int", "in_list_view": 1, "label": "Sequence", "read_only": 1, "unique": 1},
+  {"fieldname": "event_timestamp", "fieldtype": "Datetime", "in_list_view": 1, "label": "Event Time", "read_only": 1},
+  {"fieldname": "event_type", "fieldtype": "Data", "in_list_view": 1, "label": "Event Type", "read_only": 1},
+  {"fieldname": "reference_doctype", "fieldtype": "Link", "label": "Reference Type", "options": "DocType", "read_only": 1},
+  {"fieldname": "reference_name", "fieldtype": "Dynamic Link", "in_list_view": 1, "label": "Reference", "options": "reference_doctype", "read_only": 1},
+  {"fieldname": "actor", "fieldtype": "Link", "label": "Actor", "options": "User", "read_only": 1},
+  {"fieldname": "previous_hash", "fieldtype": "Data", "label": "Previous Hash", "read_only": 1},
+  {"fieldname": "event_hash", "fieldtype": "Data", "label": "Event Hash", "read_only": 1, "unique": 1},
+  {"fieldname": "payload_json", "fieldtype": "Code", "label": "Canonical Payload", "options": "JSON", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-20 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Truth Event",
+ "owner": "Administrator",
+ "permissions": [
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager"},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager"}
+ ],
+ "sort_field": "event_sequence",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/@keenium86x/desyium/schema/desyium.schema.json",
+  "schemaVersion": 1,
+  "systemVersion": "0.3.1",
+  "framework": "vue",
+  "packageManager": "npm",
+  "aliases": {
+    "source": "@"
+  },
+  "paths": {
+    "source": "src",
+    "system": "src/desyium",
+    "styles": "src/styles/desyium"
+  },
+  "components": [
+    "button",
+    "badge",
+    "card",
+    "accordion",
+    "dialog",
+    "tabs",
+    "progress",
+    "link",
+    "logo",
+    "responsive-media",
+    "stat",
+    "quote"
+  ],
+  "primitives": [
+    "solid-field",
+    "surface-frame",
+    "grain"
+  ],
+  "blocks": [],
+  "theme": "bulkbite-operations",
+  "themeSelection": {
+    "id": "bulkbite-operations",
+    "scope": "project",
+    "status": "approved",
+    "referenceAcknowledged": true
+  },
+  "surfaces": [],
+  "architecture": {
+    "id": "vue-vite",
+    "status": "ready"
+  },
+  "experiences": [
+    {
+      "id": "entrance-hierarchy",
+      "source": "src/experiences/entrance-hierarchy.js",
+      "target": "[data-experience-root]",
+      "status": "ready",
+      "engine": "gsap"
+    }
+  ],
+  "experiencePolicy": {
+    "default": "entrance-hierarchy",
+    "installByDefault": true,
+    "dependency": "gsap"
+  },
+  "profile": "vue",
+  "preset": "website"
+}
