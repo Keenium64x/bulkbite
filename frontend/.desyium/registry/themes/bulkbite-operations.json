@@ -42,7 +42,7 @@
     "lighting": "Use flat neutral surfaces with no decorative lighting, gradients, textures, or atmospheric effects."
   },
   "componentTreatment": {
-    "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry; reserve orange for the primary action while active navigation stays neutral.",
+    "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry. Workflow tabs use neutral separated segments with a dark active indicator. Reserve orange for the primary action.",
     "forms": "Frappe UI behavior with persistent labels, visible units, direct help, and explicit errors.",
     "cards": "Use white work surfaces with soft borders and 14 to 16 pixel rounding. Add a boundary only when it clarifies one task or evidence group.",
     "presets": {
@@ -81,7 +81,7 @@
   },
   "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
   "prohibitions": [
-    "Do not use orange outside focus, the active workflow step, warnings that require it, and the primary action.",
+    "Do not use orange outside the active workflow step, warnings that require it, and the primary action. Routine tabs and keyboard focus use neutral contrast.",
     "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
     "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
     "Do not use gradients, glossy surfaces, strong colour fields, dominant sidebars, or decorative panels.",

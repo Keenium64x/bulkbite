@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-html,body,#app{min-height:100%;margin:0}html,body{background:var(--theme-canvas)}body{color:var(--theme-text);font-family:var(--font-family-b);font-size:var(--font-size--1)}*{box-sizing:border-box}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed}a,button,input,textarea,[tabindex]:focus-visible{outline:var(--outline-width-2) solid var(--theme-primary);outline-offset:var(--outline-offset-1)}
+html,body,#app{min-height:100%;margin:0}html,body{background:var(--theme-canvas)}body{color:var(--theme-text);font-family:var(--font-family-b);font-size:var(--font-size--1)}*{box-sizing:border-box}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed}a,button,input,textarea,[tabindex]:focus-visible{outline:var(--outline-width-2) solid var(--theme-text);outline-offset:var(--outline-offset-1)}
 
 /* =============================================================================
 /* region NEUTRAL OPERATIONS DASHBOARD

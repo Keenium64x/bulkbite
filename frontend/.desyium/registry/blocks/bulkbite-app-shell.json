@@ -7,17 +7,17 @@
   "public": "SystemBulkbiteAppShell",
   "registrySource": "sources/blocks/bulkbite-app-shell",
   "projectSource": "src/blocks/bulkbite-app-shell",
-  "components": ["operational-button", "badge"],
+  "components": ["operational-button", "badge", "link"],
   "primitives": [],
   "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
   "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-  "responsiveBehaviour": "Use a quiet top application bar and horizontal workflow navigation at large layout, then keep the labelled navigation horizontally scrollable on narrow screens.",
+  "responsiveBehaviour": "Use a quiet utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. Collapse setup links into a compact horizontal utility row on narrow screens.",
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
     "padding": "0",
     "gap": "var(--spacing-m)",
-    "containment": "A neutral top bar establishes identity and session state, a separate quiet navigation row exposes every workflow, and the work area remains full width below."
+    "containment": "A narrow neutral sidebar owns identity, setup links, export, and session tools. Separated horizontal tabs above the workspace own the main stock flow without competing with the task content."
   },
   "surfaceContract": {
     "placement": "none",

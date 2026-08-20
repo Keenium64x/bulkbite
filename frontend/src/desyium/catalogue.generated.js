@@ -10729,18 +10729,19 @@ export const systemCatalogue = Object.freeze({
       "projectSource": "src/blocks/bulkbite-app-shell",
       "components": [
         "operational-button",
-        "badge"
+        "badge",
+        "link"
       ],
       "primitives": [],
       "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
       "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-      "responsiveBehaviour": "Use a quiet top application bar and horizontal workflow navigation at large layout, then keep the labelled navigation horizontally scrollable on narrow screens.",
+      "responsiveBehaviour": "Use a quiet utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. Collapse setup links into a compact horizontal utility row on narrow screens.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "0",
         "gap": "var(--spacing-m)",
-        "containment": "A neutral top bar establishes identity and session state, a separate quiet navigation row exposes every workflow, and the work area remains full width below."
+        "containment": "A narrow neutral sidebar owns identity, setup links, export, and session tools. Separated horizontal tabs above the workspace own the main stock flow without competing with the task content."
       },
       "surfaceContract": {
         "placement": "none",
@@ -12758,7 +12759,7 @@ export const systemCatalogue = Object.freeze({
         "lighting": "Use flat neutral surfaces with no decorative lighting, gradients, textures, or atmospheric effects."
       },
       "componentTreatment": {
-        "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry; reserve orange for the primary action while active navigation stays neutral.",
+        "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry. Workflow tabs use neutral separated segments with a dark active indicator. Reserve orange for the primary action.",
         "forms": "Frappe UI behavior with persistent labels, visible units, direct help, and explicit errors.",
         "cards": "Use white work surfaces with soft borders and 14 to 16 pixel rounding. Add a boundary only when it clarifies one task or evidence group.",
         "presets": {
@@ -12853,7 +12854,7 @@ export const systemCatalogue = Object.freeze({
       },
       "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
       "prohibitions": [
-        "Do not use orange outside focus, the active workflow step, warnings that require it, and the primary action.",
+        "Do not use orange outside the active workflow step, warnings that require it, and the primary action. Routine tabs and keyboard focus use neutral contrast.",
         "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
         "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
         "Do not use gradients, glossy surfaces, strong colour fields, dominant sidebars, or decorative panels.",
