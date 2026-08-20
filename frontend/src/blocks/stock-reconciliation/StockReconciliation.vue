@@ -21,7 +21,7 @@ async function approve() { busy.value = true; error.value = ""; try { draft.valu
   <section data-block="stock-reconciliation" class="workflow-block">
     <header class="workflow-header"><div><p class="eyebrow">PHYSICAL COUNT</p><h1>COUNT IT.<br />THEN CORRECT IT.</h1><p>Enter what is physically present. Saving creates a draft only. A manager approves the differences before stock is reconciled.</p></div><div class="step-rail"><span class="is-current">1 Count</span><span>2 Review</span><span>3 Approve</span></div></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section"><SystemFormControl v-model="postingDate" type="date" label="Count date" size="lg" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" rows="3" placeholder="Who counted, where, and any unusual conditions" /></label></section>
+    <section class="form-section"><SystemFormControl v-model="postingDate" type="date" label="Count date" size="lg" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" placeholder="Who counted, where, and any unusual conditions" /></label></section>
     <section class="data-section">
       <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>COUNTED STOCK</h2></div><SystemBadge>{{ changedCounts.length }} DIFFERENCES</SystemBadge></div>
       <div class="measurement-list">

@@ -58,7 +58,7 @@ async function postRun() {
           <span class="unit-label">{{ item.uom }}</span>
         </article>
       </div>
-      <SystemTextarea v-model="notes" placeholder="Production notes or reason for a large difference" rows="3" />
+      <SystemTextarea v-model="notes" placeholder="Production notes or reason for a large difference" :rows="3" />
     </section>
     <footer class="posting-bar">
       <div><SystemBadge>{{ run ? (run.docstatus ? "POSTED" : "DRAFT SAVED") : "NOT SAVED" }}</SystemBadge><p>The draft keeps measurements. Posting changes ingredient and finished-meal stock.</p></div>

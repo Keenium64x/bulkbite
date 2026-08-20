@@ -31,7 +31,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       </div>
       <SystemFileUploader :upload-args="{ private: true }" @success="onUpload"><template #default="upload"><SystemOperationalButton variant="outline" :loading="upload.uploading" @click="upload.openFileSelector">{{ form.source_file ? "Replace worker sheet" : "Upload worker sheet" }}</SystemOperationalButton></template></SystemFileUploader>
       <p class="field-note">{{ form.source_file || "Private source document required." }}</p>
-      <label class="field-shell"><span>OCR or transcribed text</span><SystemTextarea v-model="form.raw_text" rows="9" placeholder="Paste one measurement per line, for example: Chicken breast, 2.4 kg" /></label>
+      <label class="field-shell"><span>OCR or transcribed text</span><SystemTextarea v-model="form.raw_text" :rows="9" placeholder="Paste one measurement per line, for example: Chicken breast, 2.4 kg" /></label>
       <p class="safety-note">This interface does not inspect the uploaded image. It parses only the text you supply and holds the result for review.</p>
       <SystemOperationalButton theme="blue" variant="solid" size="lg" :loading="busy" @click="extract">Create review draft</SystemOperationalButton>
     </section>

@@ -4,7 +4,7 @@ import { defineConfig } from "vite"
 import frappeui from "frappe-ui/vite"
 
 const frappeSiteName = process.env.FRAPPE_SITE_NAME || "bulkbite.localhost"
-const frappeWebServerPort = Number(process.env.FRAPPE_WEB_SERVER_PORT || 8000)
+const frappeWebServerPort = Number(process.env.FRAPPE_WEB_SERVER_PORT || 8006)
 
 export default defineConfig(({ command }) => ({
   base: command === "serve" ? "/" : "/assets/bulkbite/frontend/",
