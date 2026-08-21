@@ -1,10 +1,12 @@
 <script setup>
 import { computed, reactive, ref } from "vue"
-import { SystemBadge, SystemCheckbox, SystemFileUploader, SystemFormControl, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
+import { SystemBadge, SystemCheckbox, SystemFileUploader, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
 import { applyDocumentMeasurements, createDocumentExtractionDraft, reviewDocumentExtraction } from "@/resources/api"
+import { useRouter } from "vue-router"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, inventory: { type: Object, default: null } })
 const emit = defineEmits(["changed"])
+const router = useRouter()
 const form = reactive({ source_file: "", document_type: "Remaining Stock Sheet", production_run: "", default_location: "Ingredients", raw_text: "" })
 const draft = ref(null)
 const busy = ref(false)
@@ -31,7 +33,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
     <section v-if="!draft" class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Add the worker sheet</h2><p>The uploaded file stays as evidence. The system reads only the text supplied here.</p></div></div>
       <div class="field-grid">
         <label class="field-shell"><span>Document type</span><SystemSelect v-model="form.document_type" :options="typeOptions" size="lg" /></label>
-        <label class="field-shell"><span>Default location</span><SystemSelect v-model="form.default_location" :options="locationOptions" size="lg" /></label>
+        <SystemLinkedRecordField v-model="form.default_location" label="Default location" :options="locationOptions" create-label="Add location" manage-label="Manage locations" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Location' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Location' } })" />
         <label v-if="form.document_type !== 'Stock Audit'" class="field-shell field-shell--wide"><span>Production draft</span><SystemSelect v-model="form.production_run" :options="runOptions" placeholder="Choose draft run" size="lg" /></label>
       </div>
       <SystemFileUploader :upload-args="{ private: true }" @success="onUpload"><template #default="upload"><SystemOperationalButton variant="outline" :loading="upload.uploading" @click="upload.openFileSelector">{{ form.source_file ? "Replace worker sheet" : "Upload worker sheet" }}</SystemOperationalButton></template></SystemFileUploader>
@@ -46,7 +48,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       <div class="measurement-list">
         <article v-for="(row, index) in draft.rows" :key="index" class="measurement-row measurement-row--review">
           <div><strong>{{ row.source_line || row.proposed_item_name }}</strong><small>{{ Number(row.confidence || 0).toFixed(0) }}% match · {{ row.warning || "No warning" }}</small></div>
-          <label class="field-shell"><span>Matched item</span><SystemSelect v-model="row.item_code" :options="itemOptions" size="lg" /></label>
+          <SystemLinkedRecordField v-model="row.item_code" label="Matched item" :options="itemOptions" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" />
           <SystemFormControl v-model="row.qty" type="number" label="Quantity" min="0" step="0.001" size="lg" />
           <SystemCheckbox v-model="row.accepted" label="Accept row" />
         </article>

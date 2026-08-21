@@ -78,6 +78,137 @@ def get_inventory_snapshot(location=None):
 
 
 # =============================================================================
+# region AUXILIARY RECORD FORMS
+# =============================================================================
+
+_AUXILIARY_FORM_DOCTYPES = {
+	"BulkBite Item": {"label": "Items", "singular_label": "item", "description": "Ingredients, finished meals, packaging, units, scan codes, and theory rates."},
+	"BulkBite Supplier": {"label": "Suppliers", "singular_label": "supplier", "description": "Supplier identity and accountant export references."},
+	"BulkBite Location": {"label": "Locations", "singular_label": "location", "description": "The physical places where ingredients, meals, quarantine, and waste are measured."},
+	"BulkBite Recipe": {"label": "Recipes", "singular_label": "recipe", "description": "Versioned meal theory and controlled ingredient quantities."},
+	"BulkBite Production Plan": {"label": "Production plans", "singular_label": "plan", "description": "Planned recipes and meal quantities used by the production workflow."},
+}
+_AUXILIARY_FIELD_TYPES = {"Data", "Int", "Float", "Currency", "Date", "Select", "Check", "Small Text", "Text", "Long Text", "Link", "Table"}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_auxiliary_form_catalogue():
+	"""Return the permission-aware supporting-record destinations used by linked fields."""
+	_require_app_user()
+	return [
+		{
+			"doctype": doctype,
+			**copy,
+			"can_create": frappe.has_permission(doctype, "create"),
+			"can_read": frappe.has_permission(doctype, "read"),
+		}
+		for doctype, copy in _AUXILIARY_FORM_DOCTYPES.items()
+		if frappe.has_permission(doctype, "read")
+	]
+
+
+@frappe.whitelist(methods=["GET"])
+def get_auxiliary_record_list(doctype):
+	"""List one approved supporting DocType through ordinary Frappe permissions."""
+	_require_auxiliary_doctype(doctype, "read")
+	meta = frappe.get_meta(doctype)
+	title_field = meta.title_field or (meta.autoname.removeprefix("field:") if str(meta.autoname or "").startswith("field:") else None)
+	fields = ["name"] + ([title_field] if title_field and title_field != "name" else [])
+	rows = frappe.get_list(doctype, fields=fields, order_by=f"{meta.sort_field or 'modified'} {meta.sort_order or 'DESC'}", limit_page_length=200)
+	return [{"name": row.name, "label": row.get(title_field) or row.name} for row in rows]
+
+
+@frappe.whitelist(methods=["GET"])
+def get_auxiliary_record(doctype, name=None):
+	"""Return one safe metadata contract plus values for create or edit."""
+	_require_auxiliary_doctype(doctype, "read" if name else "create")
+	contract = _auxiliary_form_contract(doctype)
+	doc = frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
+	if name:
+		doc.check_permission("read")
+	return {
+		"contract": contract,
+		"values": {field["name"]: doc.get(field["name"]) for section in contract["sections"] for field in section["fields"]},
+		"tables": {table["name"]: [row.as_dict() for row in doc.get(table["name"])] for table in contract["tables"]},
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_auxiliary_record(doctype, values, tables=None, name=None):
+	"""Create or update only fields exposed by the approved auxiliary contract."""
+	_require_auxiliary_doctype(doctype, "write" if name else "create")
+	contract = _auxiliary_form_contract(doctype)
+	allowed_values = {field["name"] for section in contract["sections"] for field in section["fields"] if not field["read_only"]}
+	allowed_tables = {table["name"]: table for table in contract["tables"]}
+	doc = frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
+	doc.check_permission("write" if name else "create")
+	for fieldname, value in _as_dict(values).items():
+		if fieldname in allowed_values:
+			doc.set(fieldname, value)
+	for fieldname, rows in _as_dict(tables).items():
+		if fieldname not in allowed_tables:
+			continue
+		allowed_row_fields = {field["name"] for field in allowed_tables[fieldname]["fields"] if not field["read_only"]}
+		doc.set(fieldname, [{key: value for key, value in row.items() if key in allowed_row_fields} for row in _as_list(rows)])
+	doc.save()
+	return {"doctype": doctype, "name": doc.name}
+
+
+def _require_auxiliary_doctype(doctype, permission):
+	if permission == "read":
+		_require_app_user()
+	else:
+		_require_roles("BulkBite Manager")
+	if doctype not in _AUXILIARY_FORM_DOCTYPES:
+		frappe.throw(_("{0} is not an approved BulkBite setup record.").format(doctype), frappe.PermissionError)
+	if not frappe.has_permission(doctype, permission):
+		frappe.throw(_("You do not have permission to {0} {1}.").format(permission, doctype), frappe.PermissionError)
+
+
+def _auxiliary_form_contract(doctype):
+	meta = frappe.get_meta(doctype)
+	sections = [{"label": _AUXILIARY_FORM_DOCTYPES[doctype]["singular_label"].title(), "fields": []}]
+	tables = []
+	for field in meta.fields:
+		if field.fieldtype not in _AUXILIARY_FIELD_TYPES or field.hidden or field.fieldtype in {"Section Break", "Column Break"}:
+			continue
+		serialized = _serialize_auxiliary_field(field)
+		if field.fieldtype == "Table":
+			child_meta = frappe.get_meta(field.options)
+			tables.append({
+				"name": field.fieldname,
+				"label": field.label,
+				"description": field.description or "",
+				"fields": [_serialize_auxiliary_field(child) for child in child_meta.fields if child.fieldtype in _AUXILIARY_FIELD_TYPES and child.fieldtype != "Table" and not child.hidden],
+			})
+		else:
+			sections[0]["fields"].append(serialized)
+	return {"doctype": doctype, "sections": sections, "tables": tables}
+
+
+def _serialize_auxiliary_field(field):
+	options = [line for line in str(field.options or "").splitlines() if line] if field.fieldtype == "Select" else field.options
+	link_options = []
+	if field.fieldtype == "Link" and field.options in _AUXILIARY_FORM_DOCTYPES and frappe.has_permission(field.options, "read"):
+		link_options = [{"label": row["label"], "value": row["name"]} for row in get_auxiliary_record_list(field.options)]
+	return {
+		"name": field.fieldname,
+		"label": field.label,
+		"type": field.fieldtype,
+		"options": options,
+		"description": field.description or "",
+		"required": bool(field.reqd),
+		"read_only": bool(field.read_only),
+		"non_negative": bool(field.non_negative),
+		"default": field.default,
+		"link_options": link_options,
+	}
+
+
+# endregion AUXILIARY RECORD FORMS
+
+
+# =============================================================================
 # region ITEM IDENTITY
 # =============================================================================
 

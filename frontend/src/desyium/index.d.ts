@@ -48,6 +48,7 @@ export declare const SystemTextarea: Component
 export declare const SystemTimePicker: Component
 export declare const SystemTree: Component
 export declare const SystemAccountantExport: Component
+export declare const SystemAuxiliaryRecords: Component
 export declare const SystemBulkbiteAppShell: Component
 export declare const SystemDocumentReview: Component
 export declare const SystemProductionMeasurement: Component

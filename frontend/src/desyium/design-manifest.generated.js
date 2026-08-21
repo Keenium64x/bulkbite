@@ -45,6 +45,7 @@ export const designManifest = Object.freeze({
   ],
   "blocks": [
     "accountant-export",
+    "auxiliary-records",
     "bulkbite-app-shell",
     "document-review",
     "production-measurement",

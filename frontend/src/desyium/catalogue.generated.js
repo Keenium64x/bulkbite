@@ -10747,6 +10747,55 @@ export const systemCatalogue = Object.freeze({
       "scope": "project"
     },
     {
+      "id": "auxiliary-records",
+      "name": "Auxiliary Records",
+      "job": "Create a reusable BulkBite auxiliary records block for a permission-aware record catalogue, manage list, create, and edit flows.",
+      "category": "Application",
+      "source": "@/blocks/auxiliary-records/AuxiliaryRecords.vue",
+      "public": "SystemAuxiliaryRecords",
+      "registrySource": "sources/blocks/auxiliary-records",
+      "projectSource": "src/blocks/auxiliary-records",
+      "components": [
+        "badge",
+        "card",
+        "checkbox",
+        "form-control",
+        "linked-record-field",
+        "operational-button",
+        "select",
+        "textarea"
+      ],
+      "primitives": [],
+      "incomingHandoff": "A manager follows a setup destination or a linked field needs a missing supporting record.",
+      "outgoingHandoff": "The saved supporting record returns to the catalogue or linked operational workflow as an available option.",
+      "responsiveBehaviour": "Use a three-column catalogue at large widths, two columns at intermediate widths, and one reading column on mobile. Form fields collapse before labels, validation, or actions are hidden.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-l) var(--spacing-m) var(--spacing-xl-2xl)",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='auxiliary-records']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": "primary-action",
+        "secondaryPreset": "secondary-action"
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Catalogue, list, and form state changes are immediate. Provider-native control feedback is sufficient."
+      },
+      "scope": "project"
+    },
+    {
       "id": "bulkbite-app-shell",
       "name": "Bulkbite App Shell",
       "job": "Orient signed-in BulkBite staff, expose the stock workflows, and keep the current task visible.",
@@ -10763,13 +10812,13 @@ export const systemCatalogue = Object.freeze({
       "primitives": [],
       "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
       "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-      "responsiveBehaviour": "Use a quiet utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. Collapse setup links into a compact horizontal utility row on narrow screens.",
+      "responsiveBehaviour": "Use a collapsible utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. On narrow screens expose setup through a compact drawer-like panel without hiding destinations.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "0",
         "gap": "var(--spacing-m)",
-        "containment": "A narrow neutral sidebar owns identity, setup links, export, and session tools. Separated horizontal tabs above the workspace own the main stock flow without competing with the task content."
+        "containment": "A collapsible tinted sidebar owns identity, setup links, export, and session tools. Separated raised tabs above the workspace own the main stock flow without competing with the task content."
       },
       "surfaceContract": {
         "placement": "none",
@@ -12762,18 +12811,18 @@ export const systemCatalogue = Object.freeze({
         "--font-family-c": "ui-monospace, SFMono-Regular, Menlo, monospace",
         "--theme-primary": "#E14709",
         "--theme-primary-foreground": "#FFFFFF",
-        "--theme-canvas": "#F7F7F5",
-        "--theme-surface": "#FFFFFF",
-        "--theme-surface-raised": "#FFFFFF",
-        "--theme-field": "#FFFFFF",
-        "--theme-popup": "#FFFFFF",
+        "--theme-canvas": "#EEEAE2",
+        "--theme-surface": "#F8F5EF",
+        "--theme-surface-raised": "#FFFDF9",
+        "--theme-field": "#F2EEE6",
+        "--theme-popup": "#FFFDF9",
         "--theme-text": "#252522",
         "--theme-text-muted": "#6F706B",
-        "--theme-secondary": "#F1F1EE",
+        "--theme-secondary": "#E7E2D9",
         "--theme-secondary-foreground": "#252522",
         "--theme-accent": "#E14709",
-        "--theme-accent-soft": "#FFF1EA",
-        "--theme-border": "#E2E2DE",
+        "--theme-accent-soft": "#F7E5DC",
+        "--theme-border": "#D5CFC4",
         "--component-radius-button": "10px",
         "--component-radius-field": "10px",
         "--component-radius-card": "14px",
@@ -12782,14 +12831,14 @@ export const systemCatalogue = Object.freeze({
       "composition": {
         "hierarchy": "Use a compact page title, one-sentence purpose, visible workflow stages, one main work area, and a separate review or posting boundary.",
         "negativeSpace": "Use calm dashboard spacing. Group each decision with its evidence and next action while keeping repeated rows efficient.",
-        "geometry": "Use a quiet top bar, horizontal workflow navigation, white surfaces, soft neutral borders, and generous but consistent rounding.",
+        "geometry": "Use a compact collapsible setup rail, separated horizontal workflow navigation, distinct warm neutral surfaces, soft neutral borders, and generous but consistent rounding.",
         "density": "Keep forms and tables efficient without making the task feel cramped. Touch targets remain at least 44 pixels high.",
-        "lighting": "Use flat neutral surfaces with no decorative lighting, gradients, textures, or atmospheric effects."
+        "lighting": "Use restrained surface elevation and tonal separation. No decorative lighting, gradients, textures, or atmospheric effects."
       },
       "componentTreatment": {
         "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry. Workflow tabs use neutral separated segments with a dark active indicator. Reserve orange for the primary action.",
-        "forms": "Frappe UI behavior with persistent labels, visible units, direct help, and explicit errors.",
-        "cards": "Use white work surfaces with soft borders and 14 to 16 pixel rounding. Add a boundary only when it clarifies one task or evidence group.",
+        "forms": "Frappe UI behavior with persistent labels, 44 pixel targets, consistent internal padding, tinted field surfaces, visible units, direct help, explicit errors, and raised neutral popovers.",
+        "cards": "Use tinted work surfaces with soft borders and 14 to 16 pixel rounding. Reserve the brightest surface for the current decision or open popover.",
         "presets": {
           "primary-action": {
             "component": "operational-button",
@@ -12848,7 +12897,7 @@ export const systemCatalogue = Object.freeze({
           "solid-field"
         ],
         "layerBudget": 1,
-        "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from flow, spacing, soft borders, and white surfaces."
+        "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from flow, spacing, semantic surface levels, and soft borders."
       },
       "recipeTreatment": {
         "preferred": [
@@ -12885,7 +12934,8 @@ export const systemCatalogue = Object.freeze({
         "Do not use orange outside the active workflow step, warnings that require it, and the primary action. Routine tabs and keyboard focus use neutral contrast.",
         "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
         "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
-        "Do not use gradients, glossy surfaces, strong colour fields, dominant sidebars, or decorative panels.",
+        "Do not use gradients, glossy surfaces, strong colour fields, non-collapsible dominant sidebars, or decorative panels.",
+        "Do not make the canvas, sidebar, work panels, fields, and popovers the same white surface.",
         "Do not place raw controls in pages when a selected System owner exists.",
         "Do not hide posting, reconciliation, or review state behind menus.",
         "Do not use accounting dimensions in worker entry workflows."

@@ -11,13 +11,13 @@
   "primitives": [],
   "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
   "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-  "responsiveBehaviour": "Use a quiet utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. Collapse setup links into a compact horizontal utility row on narrow screens.",
+  "responsiveBehaviour": "Use a collapsible utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. On narrow screens expose setup through a compact drawer-like panel without hiding destinations.",
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
     "padding": "0",
     "gap": "var(--spacing-m)",
-    "containment": "A narrow neutral sidebar owns identity, setup links, export, and session tools. Separated horizontal tabs above the workspace own the main stock flow without competing with the task content."
+    "containment": "A collapsible tinted sidebar owns identity, setup links, export, and session tools. Separated raised tabs above the workspace own the main stock flow without competing with the task content."
   },
   "surfaceContract": {
     "placement": "none",

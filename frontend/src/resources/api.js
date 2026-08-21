@@ -42,6 +42,10 @@ export const getWorkspaceSnapshot = () => call("bulkbite.api.get_workspace_snaps
 export const getInventorySnapshot = (location) => call("bulkbite.api.get_inventory_snapshot", { location }, "GET")
 export const getProductionPlanSnapshot = (planName, location) => call("bulkbite.api.get_production_plan_snapshot", { plan_name: planName, location }, "GET")
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")
+export const getAuxiliaryCatalogue = () => call("bulkbite.api.get_auxiliary_form_catalogue", {}, "GET")
+export const getAuxiliaryRecordList = (doctype) => call("bulkbite.api.get_auxiliary_record_list", { doctype }, "GET")
+export const getAuxiliaryRecord = (doctype, name) => call("bulkbite.api.get_auxiliary_record", { doctype, name }, "GET")
+export const saveAuxiliaryRecord = (doctype, name, values, tables) => call("bulkbite.api.save_auxiliary_record", { doctype, name, values, tables })
 export const createRunFromPlan = (planName, planRowName, productionDate, sourceLocation, targetLocation) =>
   call("bulkbite.api.create_run_from_plan", {
     plan_name: planName,

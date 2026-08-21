@@ -7,7 +7,13 @@ import "@/styles/app.css"
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: [{ path: "/:pathMatch(.*)*", component: App }],
+  routes: [
+    { path: "/bulkbite/setup", name: "BulkBiteSetup", component: App, meta: { auxiliaryCatalogue: true } },
+    { path: "/bulkbite/setup/:doctype", name: "BulkBiteSetupList", component: App, meta: { auxiliaryList: true } },
+    { path: "/bulkbite/setup/:doctype/new", name: "AuxiliaryRecordCreate", component: App, meta: { auxiliaryRecord: true } },
+    { path: "/bulkbite/setup/:doctype/:name", name: "AuxiliaryRecordEdit", component: App, meta: { auxiliaryRecord: true } },
+    { path: "/:pathMatch(.*)*", component: App },
+  ],
 })
 
 window.csrf_token = window.csrf_token || window.boot?.csrf_token

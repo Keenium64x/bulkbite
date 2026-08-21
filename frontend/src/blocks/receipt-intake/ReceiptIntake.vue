@@ -1,10 +1,12 @@
 <script setup>
 import { computed, reactive, ref } from "vue"
-import { SystemBadge, SystemFileUploader, SystemFormControl, SystemOperationalButton, SystemSelect } from "@/desyium"
+import { SystemBadge, SystemFileUploader, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton } from "@/desyium"
 import { createReceiptIntake, receiveStockFromReceipt } from "@/resources/api"
+import { useRouter } from "vue-router"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, inventory: { type: Object, default: null } })
 const emit = defineEmits(["changed"])
+const router = useRouter()
 const busy = ref(false)
 const error = ref("")
 const saved = ref(null)
@@ -14,6 +16,7 @@ const itemOptions = computed(() => (props.inventory?.items || []).map(item => ({
 const supplierOptions = computed(() => (props.snapshot?.options?.suppliers || []).map(value => ({ label: value, value })))
 const locationOptions = computed(() => (props.snapshot?.options?.locations || []).map(value => ({ label: value, value })))
 const total = computed(() => lines.reduce((sum, line) => sum + Number(line.qty || 0) * Number(line.rate || 0), 0) + Number(form.tax_amount || 0))
+function openLinked(mode, doctype) { router.push(mode === "create" ? { name: "AuxiliaryRecordCreate", params: { doctype } } : { name: "BulkBiteSetupList", params: { doctype } }) }
 
 function addLine() { lines.push({ item_code: "", qty: 0, rate: 0, location: form.default_location }) }
 function onUpload(file) { form.receipt_file = file.file_url }
@@ -48,15 +51,15 @@ async function receiveStock() {
     <section class="form-section">
       <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Check what was bought</h2><p>Enter each ingredient exactly as it arrived.</p></div></div>
       <div class="field-grid">
-        <label class="field-shell"><span>Supplier</span><SystemSelect v-model="form.supplier" :options="supplierOptions" placeholder="Choose supplier" size="lg" /></label>
+        <SystemLinkedRecordField v-model="form.supplier" label="Supplier" :options="supplierOptions" placeholder="Choose supplier" create-label="Add supplier" manage-label="Manage suppliers" @create="openLinked('create', 'BulkBite Supplier')" @manage="openLinked('list', 'BulkBite Supplier')" />
         <SystemFormControl v-model="form.supplier_invoice_number" label="Invoice number" size="lg" />
         <SystemFormControl v-model="form.invoice_date" type="date" label="Invoice date" size="lg" />
-        <label class="field-shell"><span>Stock location</span><SystemSelect v-model="form.default_location" :options="locationOptions" size="lg" /></label>
+        <SystemLinkedRecordField v-model="form.default_location" label="Stock location" :options="locationOptions" create-label="Add location" manage-label="Manage locations" @create="openLinked('create', 'BulkBite Location')" @manage="openLinked('list', 'BulkBite Location')" />
       </div>
       <div class="line-list">
         <article v-for="(line, index) in lines" :key="index" class="entry-row">
           <span class="row-number">{{ String(index + 1).padStart(2, "0") }}</span>
-          <label class="field-shell"><span>Item</span><SystemSelect v-model="line.item_code" :options="itemOptions" placeholder="Choose ingredient" size="lg" /></label>
+          <SystemLinkedRecordField v-model="line.item_code" label="Item" :options="itemOptions" placeholder="Choose ingredient" create-label="Add item" manage-label="Manage items" @create="openLinked('create', 'BulkBite Item')" @manage="openLinked('list', 'BulkBite Item')" />
           <SystemFormControl v-model="line.qty" type="number" label="Quantity" min="0" step="0.001" size="lg" />
           <SystemFormControl v-model="line.rate" type="number" label="Rate (R)" min="0" step="0.01" size="lg" />
           <strong class="line-total">R {{ (Number(line.qty || 0) * Number(line.rate || 0)).toFixed(2) }}</strong>

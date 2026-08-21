@@ -1,10 +1,12 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue"
-import { SystemBadge, SystemFormControl, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
+import { SystemBadge, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
 import { createRunFromPlan, submitProductionRun, updateProductionActuals } from "@/resources/api"
+import { useRouter } from "vue-router"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null } })
 const emit = defineEmits(["changed"])
+const router = useRouter()
 const selectedRowName = ref("")
 const productionDate = ref(new Date().toISOString().slice(0, 10))
 const actualOutput = ref(0)
@@ -47,7 +49,7 @@ async function postRun() {
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Choose the planned meal</h2><p>The recipe supplies the expected quantities for comparison.</p></div></div>
       <div class="field-grid">
-        <label class="field-shell field-shell--wide"><span>Planned meal</span><SystemSelect v-model="selectedRowName" :options="planOptions" placeholder="Choose one plan row" size="lg" /></label>
+        <SystemLinkedRecordField class="field-shell--wide" v-model="selectedRowName" label="Planned meal" :options="planOptions" placeholder="Choose one plan row" create-label="Add production plan" manage-label="Manage plans" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Production Plan' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Production Plan' } })" />
         <SystemFormControl v-model="productionDate" type="date" label="Production date" size="lg" />
         <SystemFormControl v-model="actualOutput" type="number" label="Meals made" min="0" step="1" size="lg" />
       </div>
