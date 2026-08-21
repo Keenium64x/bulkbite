@@ -139,7 +139,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "0",
       "gap": "var(--spacing-m)",
-      "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled setup links, export, and one stable bottom account section. A muted BulkBite-orange top area owns page identity, a fixed-footprint Refresh action, and separated workflow tabs without competing with the work canvas."
+      "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled setup links, export, and one compact bottom account row. A unified muted BulkBite-orange top area owns page identity, a fixed-footprint Refresh action, and separated workflow tabs without competing with the work canvas."
     },
     "surfaceContract": {
       "placement": "none",

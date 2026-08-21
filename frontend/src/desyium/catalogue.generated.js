@@ -10822,7 +10822,7 @@ export const systemCatalogue = Object.freeze({
         "pageAlignment": "grid",
         "padding": "0",
         "gap": "var(--spacing-m)",
-        "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled setup links, export, and one stable bottom account section. A muted BulkBite-orange top area owns page identity, a fixed-footprint Refresh action, and separated workflow tabs without competing with the work canvas."
+        "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled setup links, export, and one compact bottom account row. A unified muted BulkBite-orange top area owns page identity, a fixed-footprint Refresh action, and separated workflow tabs without competing with the work canvas."
       },
       "surfaceContract": {
         "placement": "none",
@@ -12826,14 +12826,14 @@ export const systemCatalogue = Object.freeze({
         "--theme-navigation-sidebar-text": "#FFF9F3",
         "--theme-navigation-sidebar-muted": "#CFC6BE",
         "--theme-navigation-header": "#B95730",
-        "--theme-navigation-tabs": "#A94D2B",
+        "--theme-navigation-tabs": "#B95730",
         "--theme-navigation-header-control": "#8F3F24",
         "--theme-navigation-header-hover": "#7E361F",
         "--theme-navigation-header-border": "#873A21",
         "--theme-navigation-header-text": "#FFF9F3",
         "--theme-navigation-header-muted": "#F2D6C9",
-        "--theme-navigation-tab": "#984324",
-        "--theme-navigation-tab-hover": "#873A20",
+        "--theme-navigation-tab": "#AA5030",
+        "--theme-navigation-tab-hover": "#984427",
         "--theme-navigation-active": "#F8F1E9",
         "--theme-navigation-active-text": "#302D2B",
         "--theme-navigation-active-border": "#E3D5C9",
