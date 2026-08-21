@@ -48,6 +48,9 @@ export const activeTheme = Object.freeze({
     "--theme-canvas": "#EEEAE2",
     "--theme-surface": "#F8F5EF",
     "--theme-surface-raised": "#FFFDF9",
+    "--theme-navigation-sidebar": "#DDD6CA",
+    "--theme-navigation-header": "#E9E3D8",
+    "--theme-navigation-icon": "#F3EEE6",
     "--theme-field": "#F2EEE6",
     "--theme-popup": "#FFFDF9",
     "--theme-text": "#252522",
@@ -65,7 +68,7 @@ export const activeTheme = Object.freeze({
   "composition": {
     "hierarchy": "Use a compact page title, one-sentence purpose, visible workflow stages, one main work area, and a separate review or posting boundary.",
     "negativeSpace": "Use calm dashboard spacing. Group each decision with its evidence and next action while keeping repeated rows efficient.",
-    "geometry": "Use a compact collapsible setup rail, separated horizontal workflow navigation, distinct warm neutral surfaces, soft neutral borders, and generous but consistent rounding.",
+    "geometry": "Use a compact collapsible setup rail, separated horizontal workflow navigation, distinct warm neutral surfaces, soft neutral borders, and generous but consistent rounding. The sidebar and top bar use different low-chroma paper-and-orange mixes so neither reads as white.",
     "density": "Keep forms and tables efficient without making the task feel cramped. Touch targets remain at least 44 pixels high.",
     "lighting": "Use restrained surface elevation and tonal separation. No decorative lighting, gradients, textures, or atmospheric effects."
   },

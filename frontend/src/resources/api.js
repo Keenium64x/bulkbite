@@ -39,6 +39,7 @@ function readFrappeError(payload) {
 }
 
 export const getWorkspaceSnapshot = () => call("bulkbite.api.get_workspace_snapshot", {}, "GET")
+export const logOut = () => call("logout")
 export const getInventorySnapshot = (location) => call("bulkbite.api.get_inventory_snapshot", { location }, "GET")
 export const getProductionPlanSnapshot = (planName, location) => call("bulkbite.api.get_production_plan_snapshot", { plan_name: planName, location }, "GET")
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")

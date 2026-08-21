@@ -126,6 +126,10 @@ export const installedBlocks = Object.freeze([
       "badge",
       "link"
     ],
+    "iconProvider": {
+      "package": "lucide-vue-next",
+      "rule": "Use familiar line icons beside persistent labels. Collapsed navigation retains accessible names and tooltips."
+    },
     "primitives": [],
     "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
     "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
@@ -135,7 +139,7 @@ export const installedBlocks = Object.freeze([
       "pageAlignment": "grid",
       "padding": "0",
       "gap": "var(--spacing-m)",
-      "containment": "A collapsible tinted sidebar owns identity, setup links, export, and session tools. Separated raised tabs above the workspace own the main stock flow without competing with the task content."
+      "containment": "A collapsible soft warm-tinted sidebar owns identity, icon-labelled setup links, export, and signed-in account tools. A separate soft warm-tinted top bar owns page identity and refresh. Separated raised tabs above the workspace own the main stock flow without competing with the task content."
     },
     "surfaceContract": {
       "placement": "none",
