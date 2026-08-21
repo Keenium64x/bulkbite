@@ -2368,6 +2368,34 @@ export const systemCatalogue = Object.freeze({
         }
       ],
       "scope": "builtin"
+    },
+    {
+      "id": "linked-record-field",
+      "name": "Linked Record Field",
+      "job": "Create a reusable linked-record field owner that composes the selected Frappe UI SystemCombobox with in-app Create and Manage route handoffs.",
+      "category": "Forms",
+      "provider": "project",
+      "source": "@/components/linked-record-field/LinkedRecordField.vue",
+      "install": {
+        "type": "none"
+      },
+      "states": [
+        "empty",
+        "searching",
+        "results",
+        "selected",
+        "empty-results",
+        "disabled",
+        "invalid"
+      ],
+      "exports": [
+        {
+          "source": "default",
+          "public": "SystemLinkedRecordField",
+          "class": "system-linked-record-field"
+        }
+      ],
+      "scope": "project"
     }
   ],
   "primitives": [

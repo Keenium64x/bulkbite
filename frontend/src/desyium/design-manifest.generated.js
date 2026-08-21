@@ -19,6 +19,7 @@ export const designManifest = Object.freeze({
     "file-uploader",
     "form-control",
     "link",
+    "linked-record-field",
     "list-view",
     "month-picker",
     "multi-select",

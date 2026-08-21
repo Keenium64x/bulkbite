@@ -1,0 +1,39 @@
+{
+  "id": "auxiliary-records",
+  "name": "Auxiliary Records",
+  "job": "Create a reusable BulkBite auxiliary records block for a permission-aware record catalogue, manage list, create, and edit flows.",
+  "category": "Project",
+  "source": "@/blocks/auxiliary-records/AuxiliaryRecords.vue",
+  "public": "SystemAuxiliaryRecords",
+  "registrySource": "sources/blocks/auxiliary-records",
+  "projectSource": "src/blocks/auxiliary-records",
+  "components": [],
+  "primitives": [],
+  "incomingHandoff": "TODO: define the audience state entering this block.",
+  "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+  "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+  "layoutContract": {
+    "strategy": "flow",
+    "pageAlignment": "grid",
+    "padding": "var(--spacing-xl-2xl) 0",
+    "gap": "var(--spacing-m)",
+    "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+  },
+  "surfaceContract": {
+    "placement": "none",
+    "semanticOwner": "[data-block='auxiliary-records']",
+    "scope": "none",
+    "edgeTreatment": "none",
+    "boundaryReason": null,
+    "contentSeparation": "Content padding does not define primitive bounds.",
+    "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+  },
+  "actionContract": {
+    "primaryPreset": null,
+    "secondaryPreset": null
+  },
+  "motionContract": {
+    "mode": "still",
+    "justification": "Choose and document a semantic experience before adding movement."
+  }
+}
