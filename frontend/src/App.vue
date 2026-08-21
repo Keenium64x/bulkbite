@@ -11,7 +11,7 @@ import {
   SystemStockOverview,
   SystemStockReconciliation,
 } from "@/desyium"
-import { getInventorySnapshot, getProductionPlanSnapshot, getWorkspaceSnapshot, resolveScanCode } from "@/resources/api"
+import { getInventorySnapshot, getProductionPlanSnapshot, getWorkspaceSnapshot, logOut, resolveScanCode } from "@/resources/api"
 
 const sections = [
   { id: "overview", number: "01", label: "Stock" },
@@ -35,6 +35,7 @@ const inventory = ref(null)
 const plan = ref(null)
 const scanResult = ref(null)
 const loading = ref(false)
+const sessionBusy = ref(false)
 const error = ref("")
 const currentUser = computed(() => snapshot.value?.user || window.boot?.user || "")
 
@@ -64,11 +65,22 @@ async function loadAll() {
 }
 
 async function scan(code) { error.value = ""; try { scanResult.value = await resolveScanCode(code) } catch (exception) { error.value = exception.message } }
+async function handleLogout() {
+  sessionBusy.value = true
+  error.value = ""
+  try {
+    await logOut()
+    window.location.assign("/login?redirect-to=%2Fbulkbite")
+  } catch (exception) {
+    error.value = exception.message
+    sessionBusy.value = false
+  }
+}
 onMounted(loadAll)
 </script>
 
 <template>
-  <SystemBulkbiteAppShell :sections="sections" :active-section="activeSection" :user="currentUser" :busy="loading" @navigate="navigate" @refresh="loadAll">
+  <SystemBulkbiteAppShell :sections="sections" :active-section="activeSection" :user="currentUser" :busy="loading" :session-busy="sessionBusy" @navigate="navigate" @refresh="loadAll" @logout="handleLogout">
     <SystemAuxiliaryRecords v-if="auxiliaryMode" :mode="auxiliaryMode" :doctype="String(route.params.doctype || '')" :record-name="String(route.params.name || '')" @navigate="navigateAuxiliary" />
     <SystemStockOverview v-else-if="activeSection === 'overview'" :snapshot="snapshot" :inventory="inventory" :plan="plan" :scan-result="scanResult" :loading="loading" :error="error" @scan="scan" @open-workflow="navigate" />
     <SystemReceiptIntake v-else-if="activeSection === 'receipts'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />

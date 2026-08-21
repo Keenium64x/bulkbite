@@ -10809,16 +10809,20 @@ export const systemCatalogue = Object.freeze({
         "badge",
         "link"
       ],
+      "iconProvider": {
+        "package": "lucide-vue-next",
+        "rule": "Use familiar line icons beside persistent labels. Collapsed destinations retain accessible names and tooltips."
+      },
       "primitives": [],
       "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
       "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-      "responsiveBehaviour": "Use a collapsible utility sidebar for setup and secondary records, plus separated horizontal workflow tabs above the main workspace. On narrow screens expose setup through a compact drawer-like panel without hiding destinations.",
+      "responsiveBehaviour": "Use a collapsible utility sidebar for setup and secondary records, plus one muted top area containing the page header and separated workflow tabs. On narrow screens recompose the sidebar into a compact full-width setup band while keeping account and authentication actions available.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "0",
         "gap": "var(--spacing-m)",
-        "containment": "A collapsible tinted sidebar owns identity, setup links, export, and session tools. Separated raised tabs above the workspace own the main stock flow without competing with the task content."
+        "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled setup links, export, and one stable bottom account section. A muted BulkBite-orange top area owns page identity, a fixed-footprint Refresh action, and separated workflow tabs without competing with the work canvas."
       },
       "surfaceContract": {
         "placement": "none",
@@ -12770,7 +12774,7 @@ export const systemCatalogue = Object.freeze({
       "name": "BulkBite Operations",
       "status": "approved",
       "category": "Prepared-meal operations",
-      "purpose": "Provide a neutral, self-explanatory operations dashboard for BulkBite stock work, using brand colour only for focus, active state, warnings, and primary actions",
+      "purpose": "Provide a self-explanatory BulkBite stock dashboard with a restrained charcoal-and-muted-orange shell around calm neutral operational work surfaces",
       "keywords": [
         "bulkbite",
         "kitchen",
@@ -12814,6 +12818,26 @@ export const systemCatalogue = Object.freeze({
         "--theme-canvas": "#EEEAE2",
         "--theme-surface": "#F8F5EF",
         "--theme-surface-raised": "#FFFDF9",
+        "--theme-navigation-sidebar": "#302D2B",
+        "--theme-navigation-sidebar-panel": "#393533",
+        "--theme-navigation-sidebar-control": "#45403D",
+        "--theme-navigation-sidebar-hover": "#4C4642",
+        "--theme-navigation-sidebar-border": "#5B544F",
+        "--theme-navigation-sidebar-text": "#FFF9F3",
+        "--theme-navigation-sidebar-muted": "#CFC6BE",
+        "--theme-navigation-header": "#B95730",
+        "--theme-navigation-tabs": "#A94D2B",
+        "--theme-navigation-header-control": "#8F3F24",
+        "--theme-navigation-header-hover": "#7E361F",
+        "--theme-navigation-header-border": "#873A21",
+        "--theme-navigation-header-text": "#FFF9F3",
+        "--theme-navigation-header-muted": "#F2D6C9",
+        "--theme-navigation-tab": "#984324",
+        "--theme-navigation-tab-hover": "#873A20",
+        "--theme-navigation-active": "#F8F1E9",
+        "--theme-navigation-active-text": "#302D2B",
+        "--theme-navigation-active-border": "#E3D5C9",
+        "--theme-navigation-active-accent": "#302D2B",
         "--theme-field": "#F2EEE6",
         "--theme-popup": "#FFFDF9",
         "--theme-text": "#252522",
@@ -12831,12 +12855,12 @@ export const systemCatalogue = Object.freeze({
       "composition": {
         "hierarchy": "Use a compact page title, one-sentence purpose, visible workflow stages, one main work area, and a separate review or posting boundary.",
         "negativeSpace": "Use calm dashboard spacing. Group each decision with its evidence and next action while keeping repeated rows efficient.",
-        "geometry": "Use a compact collapsible setup rail, separated horizontal workflow navigation, distinct warm neutral surfaces, soft neutral borders, and generous but consistent rounding.",
+        "geometry": "Use a compact collapsible soft-charcoal setup rail, one calm muted-orange top area, separated horizontal workflow navigation, neutral work surfaces, soft borders, and generous but consistent rounding.",
         "density": "Keep forms and tables efficient without making the task feel cramped. Touch targets remain at least 44 pixels high.",
         "lighting": "Use restrained surface elevation and tonal separation. No decorative lighting, gradients, textures, or atmospheric effects."
       },
       "componentTreatment": {
-        "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry. Workflow tabs use neutral separated segments with a dark active indicator. Reserve orange for the primary action.",
+        "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry. Workflow tabs use separated low-contrast segments with a light active surface and dark indicator. Refresh has a fixed footprint and a strictly bounded loading indicator.",
         "forms": "Frappe UI behavior with persistent labels, 44 pixel targets, consistent internal padding, tinted field surfaces, visible units, direct help, explicit errors, and raised neutral popovers.",
         "cards": "Use tinted work surfaces with soft borders and 14 to 16 pixel rounding. Reserve the brightest surface for the current decision or open popover.",
         "presets": {
@@ -12931,10 +12955,11 @@ export const systemCatalogue = Object.freeze({
       },
       "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
       "prohibitions": [
-        "Do not use orange outside the active workflow step, warnings that require it, and the primary action. Routine tabs and keyboard focus use neutral contrast.",
+        "Use muted orange only for the top shell area, active workflow emphasis, warnings that require it, and the primary action. Routine keyboard focus uses neutral high contrast.",
         "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
         "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
-        "Do not use gradients, glossy surfaces, strong colour fields, non-collapsible dominant sidebars, or decorative panels.",
+        "Do not use gradients, glossy surfaces, bright campaign-orange fields, non-collapsible dominant sidebars, or decorative panels.",
+        "Do not use white, warm paper, paper shadow, or another near-white value for the sidebar or top shell area.",
         "Do not make the canvas, sidebar, work panels, fields, and popovers the same white surface.",
         "Do not place raw controls in pages when a selected System owner exists.",
         "Do not hide posting, reconciliation, or review state behind menus.",
