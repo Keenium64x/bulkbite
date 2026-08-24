@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ChevronRight,
   CookingPot,
-  FileSpreadsheet,
   LogIn,
   LogOut,
   MapPin,
@@ -87,11 +86,6 @@ function toggleSidebar() {
           <ReceiptText aria-hidden="true" />
           <span class="app-shell__utility-label">Price history</span>
         </SystemLink>
-        <SystemOperationalButton class="app-shell__sidebar-action app-shell__export-button" :class="{ 'is-active': activeSection === 'export' }" :label="sidebarCollapsed ? 'Reports' : undefined" :tooltip="sidebarCollapsed ? 'Reports' : undefined" variant="ghost" @click="$emit('navigate', 'export')">
-          <FileSpreadsheet aria-hidden="true" />
-          <span class="app-shell__utility-label">Reports</span>
-        </SystemOperationalButton>
-
         <section class="app-shell__account" aria-label="Account">
           <div class="app-shell__account-user" :title="sidebarCollapsed ? (user || 'Guest') : undefined">
             <span class="app-shell__account-avatar" aria-hidden="true"><UserRound /></span>
@@ -128,7 +122,7 @@ function toggleSidebar() {
 
         <nav class="app-shell__nav" aria-label="Main stock flow">
           <div class="app-shell__nav-inner">
-            <SystemOperationalButton v-for="section in sections.filter(section => section.id !== 'export')" :key="section.id" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
+            <SystemOperationalButton v-for="section in sections" :key="section.id" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
               <span>{{ section.label }}</span>
             </SystemOperationalButton>
           </div>
