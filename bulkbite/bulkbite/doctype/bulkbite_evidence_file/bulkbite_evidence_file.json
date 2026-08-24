@@ -1,0 +1,22 @@
+{
+ "actions": [],
+ "creation": "2026-08-24 23:20:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["evidence_file", "file_name"],
+ "fields": [
+  {"fieldname": "evidence_file", "fieldtype": "Attach", "in_list_view": 1, "label": "Private Evidence File", "reqd": 1},
+  {"fieldname": "file_name", "fieldtype": "Data", "in_list_view": 1, "label": "File Name"}
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-24 23:20:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Evidence File",
+ "owner": "Administrator",
+ "permissions": [],
+ "states": []
+}

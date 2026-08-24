@@ -63,8 +63,10 @@ export const updateProductionActuals = (name, actualOutputQty, ingredients, note
 export const submitProductionRun = (name) => call("bulkbite.api.submit_production_run", { name })
 export const discardProductionRun = (name) => call("bulkbite.api.discard_production_run", { name })
 export const createReceiptIntake = (payload) => call("bulkbite.api.create_receipt_intake", { payload })
-export const startReceiptExtraction = (fileUrl) => call("bulkbite.api.start_receipt_extraction", { file_url: fileUrl })
+export const startReceiptExtraction = (fileUrls) => call("bulkbite.api.start_receipt_extraction", { file_urls: fileUrls })
 export const getReceiptExtractionStatus = (jobId) => call("bulkbite.api.get_receipt_extraction_status", { job_id: jobId }, "GET")
+export const startCostInvoiceExtraction = (fileUrls) => call("bulkbite.api.start_cost_invoice_extraction", { file_urls: fileUrls })
+export const getCostInvoiceExtractionStatus = (jobId) => call("bulkbite.api.get_cost_invoice_extraction_status", { job_id: jobId }, "GET")
 export const receiveStockFromReceipt = (receiptName) => call("bulkbite.api.receive_stock_from_receipt", { receipt_name: receiptName })
 export const createStockCountDraft = (payload) => call("bulkbite.api.create_stock_count_draft", { payload })
 export const approveStockAudit = (name) => call("bulkbite.api.approve_stock_audit", { name })
@@ -74,11 +76,15 @@ export const applyDocumentMeasurements = (name) => call("bulkbite.api.apply_docu
 export const getAccountantExport = (fromDate, toDate) => call("bulkbite.api.get_accountant_export", { from_date: fromDate, to_date: toDate }, "GET")
 export const getSpendReport = (fromDate, toDate) => call("bulkbite.api.get_spend_report", { from_date: fromDate, to_date: toDate }, "GET")
 export const getPurchasePriceHistory = (filters) => call("bulkbite.api.get_purchase_price_history", filters, "GET")
-export const previewPriceWorkbook = (fileUrl) => call("bulkbite.api.preview_catalogue_price_workbook", { file_url: fileUrl })
+export const getPriceImportFields = () => call("bulkbite.api.get_price_import_fields", {}, "GET")
+export const inspectPriceFile = (fileUrl) => call("bulkbite.api.inspect_catalogue_price_file", { file_url: fileUrl })
+export const previewPriceWorkbook = (fileUrl, mapping) => call("bulkbite.api.preview_catalogue_price_workbook", { file_url: fileUrl, mapping })
 export const applyPriceWorkbook = (batchName) => call("bulkbite.api.apply_catalogue_price_workbook", { batch_name: batchName })
+export const createCostInvoice = (payload) => call("bulkbite.api.create_cost_invoice", { payload })
+export const postCostInvoice = (name) => call("bulkbite.api.post_cost_invoice", { name })
 
-export function priceWorkbookUrl() {
-  return "/api/method/bulkbite.api.download_price_workbook"
+export function priceWorkbookUrl(fields) {
+  return `/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`
 }
 
 export function accountantExportUrl(fromDate, toDate, dataset) {

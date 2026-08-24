@@ -29,7 +29,13 @@ from bulkbite.planning import (
 	load_buying_theory,
 )
 from bulkbite.costing import enrich_spend_report
-from bulkbite.price_workbook import apply_price_workbook, build_price_workbook, preview_price_workbook
+from bulkbite.price_workbook import (
+	apply_price_import,
+	build_price_workbook,
+	get_price_field_contract,
+	inspect_price_import,
+	preview_price_import,
+)
 
 
 # =============================================================================
@@ -59,9 +65,15 @@ def get_workspace_snapshot():
 		),
 		"recent_receipts": frappe.get_all(
 			"BulkBite Receipt Intake",
-			fields=["name", "supplier", "invoice_date", "total_amount", "status", "stock_events_posted", "accountant_exported"],
+			fields=["name", "supplier", "supplier_invoice_number", "invoice_date", "subtotal_amount", "tax_amount", "total_amount", "status", "stock_events_posted", "accountant_exported"],
 			order_by="invoice_date desc, modified desc",
-			limit=8,
+			limit=200,
+		),
+		"recent_cost_invoices": frappe.get_all(
+			"BulkBite Cost Invoice",
+			fields=["name", "payee", "invoice_number", "invoice_date", "subtotal_amount", "tax_amount", "total_amount", "status", "costs_posted"],
+			order_by="invoice_date desc, modified desc",
+			limit=200,
 		),
 		"options": {
 			"locations": frappe.get_all("BulkBite Location", filters={"enabled": 1}, pluck="name", order_by="name"),
@@ -70,12 +82,43 @@ def get_workspace_snapshot():
 			"production_plans": frappe.get_all("BulkBite Production Plan", filters={"status": ("in", ["Relative Draft", "Dated Draft", "Active"])}, fields=["name as value", "plan_title as label"], order_by="modified desc"),
 			"customer_plan_types": frappe.get_all("BulkBite Customer Plan Type", filters={"enabled": 1}, fields=["name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks"], order_by="serving_size_g"),
 			"item_categories": frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, fields=["name", "default_supplier"], order_by="name"),
+			"operating_cost_rules": frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name as value", "cost_name as label", "cost_category", "basis", "rate"], order_by="cost_category, cost_name"),
 		},
 	}
 	for run in result["recent_runs"]:
 		for field in ("planned_output_qty", "actual_output_qty"):
 			run[field] = round_operational_quantity(run.get(field))
+	_enrich_document_effects(result["recent_receipts"], "BulkBite Receipt Line", "items")
+	_enrich_document_effects(result["recent_cost_invoices"], "BulkBite Cost Invoice Line", "costs")
 	return result
+
+
+def _enrich_document_effects(documents, child_doctype, effect_type):
+	"""Add compact line effects to receipt and cost-invoice history rows."""
+	if not documents:
+		return
+	children = frappe.get_all(
+		child_doctype,
+		filters={"parent": ("in", [row.name for row in documents])},
+		fields=["parent", "qty", "uom"] if effect_type == "items" else ["parent", "cost_category", "cost_entry"],
+	)
+	grouped = {}
+	for child in children:
+		grouped.setdefault(child.parent, []).append(child)
+	for document in documents:
+		rows = grouped.get(document.name, [])
+		document["line_count"] = len(rows)
+		if effect_type == "items":
+			quantities = {}
+			for row in rows:
+				quantities[row.uom or "Unit"] = quantities.get(row.uom or "Unit", 0) + flt(row.qty)
+			document["item_count"] = len(rows)
+			document["total_stock_quantity"] = round_operational_quantity(sum(flt(row.qty) for row in rows))
+			document["stock_uoms"] = ", ".join(sorted({row.uom for row in rows if row.uom}))
+			document["stock_quantity_summary"] = ", ".join(f"{round_operational_quantity(value)} {uom}" for uom, value in sorted(quantities.items()))
+		else:
+			document["cost_categories"] = ", ".join(sorted({row.cost_category for row in rows if row.cost_category}))
+			document["posted_entry_count"] = sum(1 for row in rows if row.cost_entry)
 
 
 @frappe.whitelist(methods=["GET"])
@@ -112,6 +155,7 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Price Adjustment": {"label": "Price adjustments", "singular_label": "price adjustment", "description": "Discounts, rebates, VAT, delivery fees, free delivery, and other buying adjustments."},
 	"BulkBite Operating Cost Rule": {"label": "Operating cost rules", "singular_label": "operating cost rule", "description": "Expected labour, packaging, utilities, rent, delivery, and other costs."},
 	"BulkBite Cost Entry": {"label": "Actual costs", "singular_label": "actual cost", "description": "Evidence-backed labour and other actual operating costs for financial reporting."},
+	"BulkBite Cost Invoice": {"label": "Cost invoices", "singular_label": "cost invoice", "description": "Reviewed invoices that create evidence-backed actual operating costs."},
 	"BulkBite Customer Plan Type": {"label": "Customer plans", "singular_label": "customer plan", "description": "Serving sizes and schedule assumptions such as Lite 300 g, Standard 450 g, and Full 600 g."},
 	"BulkBite Location": {"label": "Locations", "singular_label": "location", "description": "The physical places where ingredients, meals, quarantine, and waste are measured."},
 	"BulkBite Recipe": {"label": "Recipes", "singular_label": "recipe", "description": "Versioned meal theory and controlled ingredient quantities."},
@@ -598,33 +642,112 @@ def cancel_production_plan(name):
 
 
 @frappe.whitelist(methods=["POST"])
-def start_receipt_extraction(file_url):
+def start_receipt_extraction(file_url=None, file_urls=None):
 	"""Queue private receipt extraction and return a pollable job. This never writes stock."""
 	_require_roles("BulkBite Worker", "BulkBite Manager")
-	file_doc, _source_path, source_hash = resolve_private_source(file_url)
-	attachment = frappe.db.get_value(
-		"File", file_doc.name, ["attached_to_doctype", "attached_to_name"], as_dict=True
-	)
-	duplicate = attachment.attached_to_name if attachment and attachment.attached_to_doctype == "BulkBite Receipt Intake" else None
-	if duplicate:
-		frappe.throw(_("This receipt is already attached to {0}.").format(duplicate))
-	job_id = f"bulkbite-receipt-extraction-{file_doc.name}-{source_hash[:12]}"
+	urls = _as_list(file_urls) or ([file_url] if file_url else [])
+	_validate_private_evidence(urls)
+	sources = [resolve_private_source(url) for url in urls]
+	for file_doc, _source_path, _source_hash in sources:
+		attachment = frappe.db.get_value("File", file_doc.name, ["attached_to_doctype", "attached_to_name"], as_dict=True)
+		duplicate = attachment.attached_to_name if attachment and attachment.attached_to_doctype == "BulkBite Receipt Intake" else None
+		if duplicate:
+			frappe.throw(_("This receipt file is already attached to {0}.").format(duplicate))
+	combined_hash = frappe.generate_hash("|".join(row[2] for row in sources), 16)
+	job_id = f"bulkbite-receipt-extraction-{sources[0][0].name}-{combined_hash}"
 	job = frappe.enqueue(
 		"bulkbite.api.process_receipt_extraction_job",
 		queue="long",
 		timeout=600,
 		job_id=job_id,
 		deduplicate=True,
-		file_url=file_url,
+		file_urls=urls,
+		user=frappe.session.user,
 	)
 	return {"job_id": job.id if job else f"{frappe.local.site}||{job_id}", "status": "queued"}
 
 
-def process_receipt_extraction_job(file_url):
-	file_doc, source_path, source_hash = resolve_private_source(file_url)
-	result = extract_receipt_review(source_path, progress=_set_receipt_job_stage)
-	result.update({"receipt_file": file_url, "source_hash": source_hash, "file_name": file_doc.file_name})
-	return result
+def process_receipt_extraction_job(file_urls, user=None):
+	results = []
+	for index, file_url in enumerate(file_urls):
+		file_doc, source_path, source_hash = resolve_private_source(file_url)
+		result = extract_receipt_review(source_path, progress=_set_receipt_job_stage)
+		result.update({"receipt_file": file_url, "source_hash": source_hash, "file_name": file_doc.file_name, "page_number": index + 1})
+		results.append(result)
+	return _merge_receipt_extractions(results)
+
+
+def _merge_receipt_extractions(results):
+	"""Merge several pages into one editable receipt proposal while keeping page evidence."""
+	if not results:
+		return {"lines": [], "warnings": ["No receipt pages were processed."]}
+	first = results[0]
+	lines, warnings, ocr_parts = [], [], []
+	for result in results:
+		for row in result.get("lines") or []:
+			row["page_number"] = result["page_number"]
+			lines.append(row)
+		warnings.extend(result.get("warnings") or [])
+		ocr_parts.append(f"FILE {result['page_number']}: {result['file_name']}\n{result.get('ocr_text') or ''}")
+	return {
+		**first,
+		"receipt_files": [{"file_url": result["receipt_file"], "file_name": result["file_name"]} for result in results],
+		"file_count": len(results),
+		"lines": lines,
+		"warnings": list(dict.fromkeys(warnings)),
+		"ocr_text": "\n\n".join(ocr_parts),
+		"confidence": round(sum(flt(result.get("confidence")) for result in results) / len(results), 3),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def start_cost_invoice_extraction(file_urls=None):
+	"""Queue multi-file cost-invoice extraction. This never creates costs or stock."""
+	_require_roles("BulkBite Manager")
+	urls = _as_list(file_urls)
+	_validate_private_evidence(urls)
+	sources = [resolve_private_source(url) for url in urls]
+	combined_hash = frappe.generate_hash("|".join(row[2] for row in sources), 16)
+	job_id = f"bulkbite-cost-invoice-extraction-{sources[0][0].name}-{combined_hash}"
+	job = frappe.enqueue(
+		"bulkbite.api.process_cost_invoice_extraction_job", queue="long", timeout=600, job_id=job_id,
+		deduplicate=True, file_urls=urls, user=frappe.session.user,
+	)
+	return {"job_id": job.id if job else f"{frappe.local.site}||{job_id}", "status": "queued"}
+
+
+def process_cost_invoice_extraction_job(file_urls, user=None):
+	"""Convert receipt-like invoice pages into editable cost suggestions and expected-rule matches."""
+	review = process_receipt_extraction_job(file_urls, user=user)
+	rules = frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name", "cost_name", "cost_category", "rate"])
+	lines = []
+	for row in review.get("lines") or []:
+		description = row.get("proposed_item_name") or row.get("source_quote") or "Invoice cost"
+		match = _match_cost_rule(description, rules)
+		lines.append({
+			"description": description,
+			"cost_rule": match.name if match else None,
+			"cost_category": match.cost_category if match else "Other Production Overhead",
+			"quantity": row.get("purchase_qty") or 1,
+			"unit_rate": row.get("price_per_pack") or row.get("amount") or 0,
+			"amount": row.get("amount") or 0,
+			"vat_amount": 0,
+			"confidence": row.get("confidence") or 0,
+			"notes": row.get("notes"),
+			"source_quote": row.get("source_quote"),
+		})
+	return {**review, "payee": review.get("proposed_supplier") or review.get("supplier"), "cost_lines": lines}
+
+
+def _match_cost_rule(description, rules):
+	needle = {token for token in str(description or "").lower().split() if len(token) > 2}
+	best, score = None, 0
+	for rule in rules:
+		candidate = {token for token in str(rule.cost_name or "").lower().split() if len(token) > 2}
+		current = len(needle & candidate) / len(candidate) if candidate else 0
+		if current > score:
+			best, score = rule, current
+	return best if score >= 0.5 else None
 
 
 def _set_receipt_job_stage(stage):
@@ -650,6 +773,13 @@ def get_receipt_extraction_status(job_id):
 	return {"job_id": job.id, "status": status.rsplit(".", 1)[-1].lower(), "stage": job.meta.get("stage") or "queued"}
 
 
+@frappe.whitelist(methods=["GET"])
+def get_cost_invoice_extraction_status(job_id):
+	"""Return a manager's cost-invoice extraction status using the receipt job envelope."""
+	_require_roles("BulkBite Manager")
+	return get_receipt_extraction_status(job_id)
+
+
 @frappe.whitelist(methods=["POST"])
 def create_receipt_intake(payload=None):
 	"""Store private purchase evidence and manually reviewed lines."""
@@ -659,16 +789,10 @@ def create_receipt_intake(payload=None):
 		frappe.throw(_("Supplier, invoice date, and stock location are required."))
 	if not _as_list(data.get("items")):
 		frappe.throw(_("Add at least one receipt line."))
-	file_doc = frappe.db.get_value("File", {"file_url": data.get("receipt_file")}, ["name", "is_private"], as_dict=True)
-	if not file_doc or not file_doc.is_private:
-		frappe.throw(_("Upload the receipt as a private file before saving it."))
+	evidence_urls = [data.get("receipt_file"), *[row.get("evidence_file") for row in _as_list(data.get("evidence_files"))]]
+	_validate_private_evidence(evidence_urls)
 	receipt = frappe.get_doc({"doctype": "BulkBite Receipt Intake", **data}).insert()
-	frappe.db.set_value(
-		"File",
-		file_doc.name,
-		{"attached_to_doctype": receipt.doctype, "attached_to_name": receipt.name},
-		update_modified=False,
-	)
+	_attach_private_evidence(evidence_urls, receipt.doctype, receipt.name)
 	return {
 		"name": receipt.name,
 		"status": receipt.status,
@@ -701,6 +825,46 @@ def receive_stock_from_receipt(receipt_name):
 		row.db_set("stock_event", event.name, update_modified=False)
 	receipt.db_set({"stock_events_posted": 1, "status": "Stock Received"})
 	return _serialize_received_receipt(receipt.reload())
+
+
+@frappe.whitelist(methods=["POST"])
+def create_cost_invoice(payload=None):
+	"""Store reviewed non-stock invoice evidence without creating actual costs yet."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	evidence_urls = [row.get("evidence_file") for row in _as_list(data.get("evidence_files"))]
+	_validate_private_evidence(evidence_urls)
+	if not data.get("payee") or not data.get("invoice_date"):
+		frappe.throw(_("Payee and invoice date are required."))
+	if not _as_list(data.get("costs")):
+		frappe.throw(_("Add at least one reviewed cost line."))
+	doc = frappe.get_doc({"doctype": "BulkBite Cost Invoice", **data}).insert()
+	_attach_private_evidence(evidence_urls, doc.doctype, doc.name)
+	return _serialize_cost_invoice(doc)
+
+
+@frappe.whitelist(methods=["POST"])
+def post_cost_invoice(name):
+	"""Create actual cost entries from one reviewed invoice exactly once."""
+	_require_roles("BulkBite Manager")
+	frappe.db.sql("select name from `tabBulkBite Cost Invoice` where name = %s for update", (name,))
+	invoice = frappe.get_doc("BulkBite Cost Invoice", name)
+	if invoice.costs_posted:
+		return _serialize_cost_invoice(invoice)
+	if not invoice.costs:
+		frappe.throw(_("Review at least one cost line before posting the invoice."))
+	primary_evidence = invoice.evidence_files[0].evidence_file
+	for row in invoice.costs:
+		entry = frappe.get_doc({
+			"doctype": "BulkBite Cost Entry", "cost_date": invoice.invoice_date, "cost_rule": row.cost_rule,
+			"cost_category": row.cost_category, "payee": invoice.payee, "quantity": row.quantity,
+			"unit_rate": row.unit_rate, "amount": row.amount, "vat_amount": row.vat_amount,
+			"production_plan": invoice.production_plan, "evidence_file": primary_evidence,
+			"accounting_category": row.accounting_category, "notes": f"From {invoice.name}: {row.description}. {row.notes or ''}".strip(),
+		}).insert()
+		row.db_set("cost_entry", entry.name, update_modified=False)
+	invoice.db_set({"costs_posted": 1, "status": "Costs Posted"})
+	return _serialize_cost_invoice(invoice.reload())
 
 
 @frappe.whitelist(methods=["GET"])
@@ -1023,26 +1187,40 @@ def download_accountant_export(from_date, to_date, dataset="receipts"):
 
 
 @frappe.whitelist(methods=["GET"])
-def download_price_workbook():
-	"""Download current catalogue identities, prices, adjustments, and cost rules as Excel."""
+def download_price_workbook(fields=None):
+	"""Download selected supplier catalogue columns as one plain worksheet."""
 	_require_roles("BulkBite Manager")
 	frappe.response.filename = f"bulkbite-prices-{nowdate()}.xlsx"
-	frappe.response.filecontent = build_price_workbook()
+	frappe.response.filecontent = build_price_workbook(fields)
 	frappe.response.type = "binary"
 
 
-@frappe.whitelist(methods=["POST"])
-def preview_catalogue_price_workbook(file_url):
-	"""Create a reviewed change batch. This station never changes stock or catalogue records."""
+@frappe.whitelist(methods=["GET"])
+def get_price_import_fields():
+	"""Return selectable export and import fields without reading or changing catalogue data."""
 	_require_roles("BulkBite Manager")
-	return preview_price_workbook(file_url)
+	return get_price_field_contract()
+
+
+@frappe.whitelist(methods=["POST"])
+def inspect_catalogue_price_file(file_url):
+	"""Suggest source-column matches. This station never changes catalogue or stock records."""
+	_require_roles("BulkBite Manager")
+	return inspect_price_import(file_url)
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_catalogue_price_workbook(file_url, mapping=None):
+	"""Create a reviewed change batch from the confirmed field map."""
+	_require_roles("BulkBite Manager")
+	return preview_price_import(file_url, mapping)
 
 
 @frappe.whitelist(methods=["POST"])
 def apply_catalogue_price_workbook(batch_name):
 	"""Apply an error-free reviewed price batch without creating stock or accounting entries."""
 	_require_roles("BulkBite Manager")
-	return apply_price_workbook(batch_name)
+	return apply_price_import(batch_name)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -1307,6 +1485,32 @@ def _serialize_received_receipt(doc):
 		"total_qty": sum(flt(row.qty) for row in doc.items),
 		"grand_total": doc.total_amount,
 	}
+
+
+def _serialize_cost_invoice(doc):
+	return {
+		"doctype": doc.doctype,
+		"name": doc.name,
+		"status": doc.status,
+		"costs_posted": bool(doc.costs_posted),
+		"line_count": len(doc.costs),
+		"total_amount": doc.total_amount,
+	}
+
+
+def _validate_private_evidence(file_urls):
+	urls = list(dict.fromkeys(url for url in file_urls if url))
+	if not urls:
+		frappe.throw(_("Upload at least one private evidence file."))
+	files = frappe.get_all("File", filters={"file_url": ["in", urls]}, fields=["file_url", "is_private"])
+	private_urls = {row.file_url for row in files if row.is_private}
+	if private_urls != set(urls):
+		frappe.throw(_("Every receipt or invoice file must be uploaded privately before saving."))
+
+
+def _attach_private_evidence(file_urls, doctype, name):
+	for url in dict.fromkeys(file_url for file_url in file_urls if file_url):
+		frappe.db.set_value("File", {"file_url": url}, {"attached_to_doctype": doctype, "attached_to_name": name}, update_modified=False)
 
 
 def _current_valuation_rate(item_code, location):

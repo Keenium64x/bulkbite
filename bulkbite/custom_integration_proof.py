@@ -416,6 +416,34 @@ def run_receipt_extraction_proof():
 			physical_file.unlink(missing_ok=True)
 
 
+def run_multi_file_receipt_extraction_proof():
+	"""Prove several private receipt files merge into one editable review without stock writes."""
+	frappe.db.savepoint("bulkbite_multi_receipt_extraction_proof")
+	physical_files = []
+	try:
+		page_text = [
+			"Tastic Long Grain Parboiled White Rice 10kg R 134.95\nRhodes Tomato And Onion Mix 6 x 410g R 114.00",
+			"Knorrox Beef Stock Cubes 24 x 10g R 28.95\nExcella Sunflower Oil 2L R 72.95",
+		]
+		files = []
+		for index, text in enumerate(page_text, 1):
+			file_doc = save_file(f"bulkbite-multi-receipt-proof-{index}.txt", text.encode(), None, None, is_private=1)
+			files.append(file_doc)
+			physical_files.append(Path(frappe.get_site_path("private", "files", file_doc.file_name)))
+		stock_before = frappe.db.count("BulkBite Stock Event")
+		result = process_receipt_extraction_job([row.file_url for row in files])
+		assert result["file_count"] == 2
+		assert len(result["receipt_files"]) == 2
+		assert {row["page_number"] for row in result["lines"]} == {1, 2}
+		assert "FILE 1:" in result["ocr_text"] and "FILE 2:" in result["ocr_text"]
+		assert frappe.db.count("BulkBite Stock Event") == stock_before
+		return {"passed": True, "file_count": result["file_count"], "line_count": len(result["lines"]), "pages": sorted({row["page_number"] for row in result["lines"]}), "stock_events_unchanged": True}
+	finally:
+		frappe.db.rollback(save_point="bulkbite_multi_receipt_extraction_proof")
+		for physical_file in physical_files:
+			physical_file.unlink(missing_ok=True)
+
+
 def run_integrity_proof():
 	"""Prove rejection and hash-chain controls against real custom records, then roll back."""
 	frappe.db.savepoint("bulkbite_integrity_proof")

@@ -23,6 +23,7 @@ class BulkBiteReceiptIntake(Document):
 			if (
 				self.has_value_changed("items")
 				or self.has_value_changed("adjustments")
+				or self.has_value_changed("evidence_files")
 				or any(self.get(field) != persisted.get(field) for field in persisted or {})
 			):
 				frappe.throw(_("A received receipt is immutable. Create a correcting receipt or stock audit."))

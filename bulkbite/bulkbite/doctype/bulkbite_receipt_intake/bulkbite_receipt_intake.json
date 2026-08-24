@@ -5,10 +5,11 @@
  "creation": "2026-08-20 10:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["status", "receipt_file", "business_name", "supplier", "supplier_invoice_number", "invoice_date", "currency", "default_location", "items_section", "items", "adjustments_section", "adjustments", "totals_section", "subtotal_amount", "tax_amount", "total_amount", "accounting_category", "review_notes", "stock_events_posted", "accountant_exported"],
+ "field_order": ["status", "receipt_file", "evidence_files", "business_name", "supplier", "supplier_invoice_number", "invoice_date", "currency", "default_location", "items_section", "items", "adjustments_section", "adjustments", "totals_section", "subtotal_amount", "tax_amount", "total_amount", "accounting_category", "review_notes", "stock_events_posted", "accountant_exported"],
  "fields": [
   {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nReviewed\nStock Received\nAccounting Draft Created\nRejected", "read_only": 1},
   {"fieldname": "receipt_file", "fieldtype": "Attach", "label": "Receipt or Supplier Invoice", "reqd": 1},
+  {"fieldname": "evidence_files", "fieldtype": "Table", "label": "Additional Receipt Files", "options": "BulkBite Evidence File"},
   {"default": "BulkBite", "fieldname": "business_name", "fieldtype": "Data", "label": "Business", "reqd": 1},
   {"fieldname": "supplier", "fieldtype": "Link", "in_list_view": 1, "label": "Supplier", "options": "BulkBite Supplier", "reqd": 1},
   {"fieldname": "supplier_invoice_number", "fieldtype": "Data", "in_list_view": 1, "label": "Supplier Invoice Number"},

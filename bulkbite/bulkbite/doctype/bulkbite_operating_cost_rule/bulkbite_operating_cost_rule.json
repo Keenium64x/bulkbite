@@ -1,13 +1,16 @@
 {
  "actions":[],"allow_rename":0,"autoname":"field:cost_code","creation":"2026-08-24 20:30:00.000000","doctype":"DocType","engine":"InnoDB",
- "field_order":["cost_code","cost_name","cost_category","basis","rate","default_quantity","effective_from","effective_to","vat_treatment","accounting_category","payee","enabled","notes"],
+ "field_order":["cost_code","cost_name","cost_category","basis","rate","employee_count","hours_per_employee","default_quantity","recurrence","effective_from","effective_to","vat_treatment","accounting_category","payee","enabled","notes"],
  "fields":[
   {"fieldname":"cost_code","fieldtype":"Data","in_list_view":1,"label":"Cost Code","reqd":1,"unique":1},
   {"fieldname":"cost_name","fieldtype":"Data","in_list_view":1,"label":"Cost Name","reqd":1},
   {"fieldname":"cost_category","fieldtype":"Select","in_list_view":1,"label":"Cost Category","options":"Labour\nPackaging\nDelivery\nUtilities\nRent\nKitchen Consumables\nTransaction Fees\nOther Production Overhead","reqd":1},
   {"default":"Fixed","fieldname":"basis","fieldtype":"Select","label":"Cost Basis","options":"Fixed\nHourly\nPer Meal\nPer Customer\nPer Kg\nPercentage of Revenue","reqd":1},
   {"default":"0","fieldname":"rate","fieldtype":"Currency","label":"Rate","non_negative":1,"reqd":1},
+  {"default":"1","fieldname":"employee_count","fieldtype":"Int","label":"Employees Required","non_negative":1},
+  {"default":"0","fieldname":"hours_per_employee","fieldtype":"Float","label":"Hours per Employee","non_negative":1},
   {"default":"1","fieldname":"default_quantity","fieldtype":"Float","label":"Expected Hours or Quantity","non_negative":1},
+  {"default":"Per Period","fieldname":"recurrence","fieldtype":"Select","label":"Repeats","options":"Once\nWeekly\nMonthly\nPer Period","reqd":1},
   {"default":"Today","fieldname":"effective_from","fieldtype":"Date","label":"Effective From","reqd":1},
   {"fieldname":"effective_to","fieldtype":"Date","label":"Effective To"},
   {"default":"Inclusive","fieldname":"vat_treatment","fieldtype":"Select","label":"VAT Treatment","options":"Inclusive\nExclusive\nNo VAT"},

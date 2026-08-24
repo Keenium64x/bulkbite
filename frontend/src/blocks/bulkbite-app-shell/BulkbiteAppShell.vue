@@ -82,10 +82,6 @@ function toggleSidebar() {
       </nav>
 
       <footer class="app-shell__sidebar-footer">
-        <SystemLink href="/bulkbite/prices" class="app-shell__sidebar-action app-shell__price-link" :current="activeSection === 'prices'" :title="sidebarCollapsed ? 'Price history' : undefined">
-          <ReceiptText aria-hidden="true" />
-          <span class="app-shell__utility-label">Price history</span>
-        </SystemLink>
         <section class="app-shell__account" aria-label="Account">
           <div class="app-shell__account-user" :title="sidebarCollapsed ? (user || 'Guest') : undefined">
             <span class="app-shell__account-avatar" aria-hidden="true"><UserRound /></span>

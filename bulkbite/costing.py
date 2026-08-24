@@ -18,7 +18,7 @@ def calculate_operating_costs(from_date, to_date):
 	rules = frappe.get_all(
 		"BulkBite Operating Cost Rule",
 		filters={"enabled": 1},
-		fields=["name", "cost_code", "cost_name", "cost_category", "basis", "rate", "default_quantity", "effective_from", "effective_to", "vat_treatment", "accounting_category"],
+		fields=["name", "cost_code", "cost_name", "cost_category", "basis", "rate", "employee_count", "hours_per_employee", "default_quantity", "recurrence", "effective_from", "effective_to", "vat_treatment", "accounting_category"],
 		order_by="cost_category asc, cost_name asc",
 	)
 	expected_rows = []
@@ -27,7 +27,7 @@ def calculate_operating_costs(from_date, to_date):
 			continue
 		if rule.effective_to and getdate(rule.effective_to) < start:
 			continue
-		quantity = _rule_quantity(rule, drivers)
+		quantity = _rule_quantity(rule, drivers, start, end)
 		expected_rows.append({**rule, "quantity": round(quantity, 3), "amount": round(quantity * flt(rule.rate), 2)})
 	actual_rows = frappe.get_all(
 		"BulkBite Cost Entry",
@@ -37,7 +37,7 @@ def calculate_operating_costs(from_date, to_date):
 	)
 	breakdown = {}
 	for row in expected_rows:
-		breakdown.setdefault(row.cost_category, {"category": row.cost_category, "expected": 0.0, "actual": 0.0})["expected"] += flt(row.amount)
+		breakdown.setdefault(row["cost_category"], {"category": row["cost_category"], "expected": 0.0, "actual": 0.0})["expected"] += flt(row["amount"])
 	for row in actual_rows:
 		breakdown.setdefault(row.cost_category, {"category": row.cost_category, "expected": 0.0, "actual": 0.0})["actual"] += flt(row.amount)
 	for row in breakdown.values():
@@ -47,7 +47,7 @@ def calculate_operating_costs(from_date, to_date):
 		"expected_rows": expected_rows,
 		"actual_rows": actual_rows,
 		"breakdown": sorted(breakdown.values(), key=lambda row: row["category"]),
-		"expected_total": round(sum(flt(row.amount) for row in expected_rows), 2),
+		"expected_total": round(sum(flt(row["amount"]) for row in expected_rows), 2),
 		"actual_total": round(sum(flt(row.amount) for row in actual_rows), 2),
 	}
 
@@ -95,9 +95,13 @@ def _period_drivers(start, end):
 	return {key: round(value, 2) for key, value in drivers.items()}
 
 
-def _rule_quantity(rule, drivers):
-	if rule.basis in {"Fixed", "Hourly"}:
-		return flt(rule.default_quantity)
+def _rule_quantity(rule, drivers, start, end):
+	multiplier = _recurrence_multiplier(rule.recurrence, start, end)
+	if rule.basis == "Hourly":
+		hours = flt(rule.hours_per_employee) or flt(rule.default_quantity)
+		return max(int(rule.employee_count or 1), 1) * hours * multiplier
+	if rule.basis == "Fixed":
+		return flt(rule.default_quantity) * multiplier
 	if rule.basis == "Per Meal":
 		return flt(drivers["meals"])
 	if rule.basis == "Per Customer":
@@ -107,6 +111,15 @@ def _rule_quantity(rule, drivers):
 	if rule.basis == "Percentage of Revenue":
 		return flt(drivers["revenue"]) / 100
 	return 0
+
+
+def _recurrence_multiplier(recurrence, start, end):
+	days = date_diff(end, start) + 1
+	if recurrence == "Weekly":
+		return days / 7
+	if recurrence == "Monthly":
+		return days / 30.4375
+	return 1
 
 
 # endregion OPERATING COST CALCULATION

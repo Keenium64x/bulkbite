@@ -1,7 +1,7 @@
 {
   "id": "bulkbite-app-shell",
   "name": "Bulkbite App Shell",
-  "job": "Orient signed-in BulkBite staff through Dashboard, Planning, Buying, Receipts, Production, Reports, and Stock while keeping setup in the collapsible sidebar.",
+  "job": "Orient signed-in BulkBite staff through Dashboard, Planning, Buying, Receipts, Production, Finance, Reports, and Stock while keeping setup in the collapsible sidebar.",
   "category": "Application",
   "source": "@/blocks/bulkbite-app-shell/BulkbiteAppShell.vue",
   "public": "SystemBulkbiteAppShell",

@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-COST-INV-.YYYY.-.#####",
+ "creation": "2026-08-24 23:20:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["status", "payee", "invoice_number", "invoice_date", "currency", "evidence_section", "evidence_files", "costs_section", "costs", "totals_section", "subtotal_amount", "tax_amount", "total_amount", "production_plan", "review_notes", "costs_posted"],
+ "fields": [
+  {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nReviewed\nCosts Posted\nRejected", "read_only": 1},
+  {"fieldname": "payee", "fieldtype": "Data", "in_list_view": 1, "label": "Supplier, Employee, or Payee", "reqd": 1},
+  {"fieldname": "invoice_number", "fieldtype": "Data", "in_list_view": 1, "label": "Invoice or Reference Number"},
+  {"default": "Today", "fieldname": "invoice_date", "fieldtype": "Date", "in_list_view": 1, "label": "Invoice Date", "reqd": 1},
+  {"default": "ZAR", "fieldname": "currency", "fieldtype": "Data", "label": "Currency", "read_only": 1, "reqd": 1},
+  {"fieldname": "evidence_section", "fieldtype": "Section Break", "label": "Private Evidence"},
+  {"fieldname": "evidence_files", "fieldtype": "Table", "label": "Invoice Files", "options": "BulkBite Evidence File", "reqd": 1},
+  {"fieldname": "costs_section", "fieldtype": "Section Break", "label": "Reviewed Costs"},
+  {"fieldname": "costs", "fieldtype": "Table", "label": "Cost Lines", "options": "BulkBite Cost Invoice Line", "reqd": 1},
+  {"fieldname": "totals_section", "fieldtype": "Section Break", "label": "Totals"},
+  {"fieldname": "subtotal_amount", "fieldtype": "Currency", "label": "Subtotal", "read_only": 1},
+  {"default": "0", "fieldname": "tax_amount", "fieldtype": "Currency", "label": "VAT or Tax", "non_negative": 1},
+  {"fieldname": "total_amount", "fieldtype": "Currency", "in_list_view": 1, "label": "Invoice Total", "read_only": 1},
+  {"fieldname": "production_plan", "fieldtype": "Link", "label": "Production Plan", "options": "BulkBite Production Plan"},
+  {"fieldname": "review_notes", "fieldtype": "Small Text", "label": "Review Notes"},
+  {"default": "0", "fieldname": "costs_posted", "fieldtype": "Check", "label": "Actual Costs Posted", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-24 23:20:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Cost Invoice",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "invoice_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

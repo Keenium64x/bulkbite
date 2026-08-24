@@ -1,0 +1,26 @@
+{
+  "id": "multi-file-uploader",
+  "name": "Multi File Uploader",
+  "job": "Upload several private receipt or invoice evidence files in one selection and report each file state.",
+  "category": "Project",
+  "provider": "project",
+  "source": "@/components/multi-file-uploader/MultiFileUploader.vue",
+  "install": {
+    "type": "none"
+  },
+  "states": [
+    "default",
+    "focus",
+    "uploading",
+    "complete",
+    "error",
+    "disabled"
+  ],
+  "exports": [
+    {
+      "source": "default",
+      "public": "SystemMultiFileUploader",
+      "class": "system-multi-file-uploader"
+    }
+  ]
+}

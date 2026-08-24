@@ -29,24 +29,25 @@ import Provider13_0 from "../components/desyium/link/SystemLink.vue"
 import Provider14_0 from "../components/linked-record-field/LinkedRecordField.vue"
 import { ListView as Provider15_0 } from "frappe-ui"
 import { MonthPicker as Provider16_0 } from "frappe-ui"
-import { MultiSelect as Provider17_0 } from "frappe-ui"
-import { Button as Provider18_0 } from "frappe-ui"
-import { Progress as Provider19_0 } from "frappe-ui"
-import { Progress as Provider20_0 } from "../components/ui/progress"
-import { Rating as Provider21_0 } from "frappe-ui"
-import Provider22_0 from "../components/scan-code-field/ScanCodeField.vue"
-import { Select as Provider23_0 } from "frappe-ui"
-import { Slider as Provider24_0 } from "frappe-ui"
-import Provider25_0 from "../components/desyium/stat/SystemStat.vue"
-import { Switch as Provider26_0 } from "frappe-ui"
-import { Tabs as Provider27_0 } from "../components/ui/tabs"
-import { TabsList as Provider27_1 } from "../components/ui/tabs"
-import { TabsTrigger as Provider27_2 } from "../components/ui/tabs"
-import { TabsContent as Provider27_3 } from "../components/ui/tabs"
-import { TextInput as Provider28_0 } from "frappe-ui"
-import { Textarea as Provider29_0 } from "frappe-ui"
-import { TimePicker as Provider30_0 } from "frappe-ui"
-import { Tree as Provider31_0 } from "frappe-ui"
+import Provider17_0 from "../components/multi-file-uploader/MultiFileUploader.vue"
+import { MultiSelect as Provider18_0 } from "frappe-ui"
+import { Button as Provider19_0 } from "frappe-ui"
+import { Progress as Provider20_0 } from "frappe-ui"
+import { Progress as Provider21_0 } from "../components/ui/progress"
+import { Rating as Provider22_0 } from "frappe-ui"
+import Provider23_0 from "../components/scan-code-field/ScanCodeField.vue"
+import { Select as Provider24_0 } from "frappe-ui"
+import { Slider as Provider25_0 } from "frappe-ui"
+import Provider26_0 from "../components/desyium/stat/SystemStat.vue"
+import { Switch as Provider27_0 } from "frappe-ui"
+import { Tabs as Provider28_0 } from "../components/ui/tabs"
+import { TabsList as Provider28_1 } from "../components/ui/tabs"
+import { TabsTrigger as Provider28_2 } from "../components/ui/tabs"
+import { TabsContent as Provider28_3 } from "../components/ui/tabs"
+import { TextInput as Provider29_0 } from "frappe-ui"
+import { Textarea as Provider30_0 } from "frappe-ui"
+import { TimePicker as Provider31_0 } from "frappe-ui"
+import { Tree as Provider32_0 } from "frappe-ui"
 
 export const SystemBadge = createSystemComponent({
   name: "badge",
@@ -338,9 +339,19 @@ export const SystemMonthPicker = createSystemComponent({
   dataAttributes: true,
 })
 
+export const SystemMultiFileUploader = createSystemComponent({
+  name: "multi-file-uploader",
+  component: Provider17_0,
+  baseClass: "system-multi-file-uploader",
+  providerClass: "",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
 export const SystemMultiSelect = createSystemComponent({
   name: "multi-select",
-  component: Provider17_0,
+  component: Provider18_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -350,7 +361,7 @@ export const SystemMultiSelect = createSystemComponent({
 
 export const SystemOperationalButton = createSystemComponent({
   name: "operational-button",
-  component: Provider18_0,
+  component: Provider19_0,
   baseClass: "system-button",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -360,7 +371,7 @@ export const SystemOperationalButton = createSystemComponent({
 
 export const SystemOperationalProgress = createSystemComponent({
   name: "operational-progress",
-  component: Provider19_0,
+  component: Provider20_0,
   baseClass: "system-feedback",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -370,7 +381,7 @@ export const SystemOperationalProgress = createSystemComponent({
 
 export const SystemProgress = createSystemComponent({
   name: "progress",
-  component: Provider20_0,
+  component: Provider21_0,
   baseClass: "system-feedback",
   providerClass: "",
   treatments: ["default"],
@@ -380,7 +391,7 @@ export const SystemProgress = createSystemComponent({
 
 export const SystemRating = createSystemComponent({
   name: "rating",
-  component: Provider21_0,
+  component: Provider22_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -390,7 +401,7 @@ export const SystemRating = createSystemComponent({
 
 export const SystemScanCodeField = createSystemComponent({
   name: "scan-code-field",
-  component: Provider22_0,
+  component: Provider23_0,
   baseClass: "system-scan-code-field",
   providerClass: "",
   treatments: ["default"],
@@ -400,7 +411,7 @@ export const SystemScanCodeField = createSystemComponent({
 
 export const SystemSelect = createSystemComponent({
   name: "select",
-  component: Provider23_0,
+  component: Provider24_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -410,7 +421,7 @@ export const SystemSelect = createSystemComponent({
 
 export const SystemSlider = createSystemComponent({
   name: "slider",
-  component: Provider24_0,
+  component: Provider25_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -420,7 +431,7 @@ export const SystemSlider = createSystemComponent({
 
 export const SystemStat = createSystemComponent({
   name: "stat",
-  component: Provider25_0,
+  component: Provider26_0,
   baseClass: "system-stat",
   providerClass: "",
   treatments: ["default"],
@@ -430,7 +441,7 @@ export const SystemStat = createSystemComponent({
 
 export const SystemSwitch = createSystemComponent({
   name: "switch",
-  component: Provider26_0,
+  component: Provider27_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -440,7 +451,7 @@ export const SystemSwitch = createSystemComponent({
 
 export const SystemTabs = createSystemComponent({
   name: "tabs",
-  component: Provider27_0,
+  component: Provider28_0,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -450,7 +461,7 @@ export const SystemTabs = createSystemComponent({
 
 export const SystemTabsList = createSystemComponent({
   name: "tabs",
-  component: Provider27_1,
+  component: Provider28_1,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -460,7 +471,7 @@ export const SystemTabsList = createSystemComponent({
 
 export const SystemTabsTrigger = createSystemComponent({
   name: "tabs",
-  component: Provider27_2,
+  component: Provider28_2,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -470,7 +481,7 @@ export const SystemTabsTrigger = createSystemComponent({
 
 export const SystemTabsContent = createSystemComponent({
   name: "tabs",
-  component: Provider27_3,
+  component: Provider28_3,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -480,7 +491,7 @@ export const SystemTabsContent = createSystemComponent({
 
 export const SystemTextInput = createSystemComponent({
   name: "text-input",
-  component: Provider28_0,
+  component: Provider29_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -490,7 +501,7 @@ export const SystemTextInput = createSystemComponent({
 
 export const SystemTextarea = createSystemComponent({
   name: "textarea",
-  component: Provider29_0,
+  component: Provider30_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -500,7 +511,7 @@ export const SystemTextarea = createSystemComponent({
 
 export const SystemTimePicker = createSystemComponent({
   name: "time-picker",
-  component: Provider30_0,
+  component: Provider31_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -510,7 +521,7 @@ export const SystemTimePicker = createSystemComponent({
 
 export const SystemTree = createSystemComponent({
   name: "tree",
-  component: Provider31_0,
+  component: Provider32_0,
   baseClass: "frappe-tree-surface",
   providerClass: "frappe-adapter",
   treatments: ["default"],

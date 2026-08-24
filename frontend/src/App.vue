@@ -9,6 +9,7 @@ import {
   SystemDocumentReview,
   SystemMonthlyPlanning,
   SystemProductionMeasurement,
+  SystemPriceHistory,
   SystemReceiptIntake,
   SystemStockOverview,
   SystemStockReconciliation,
@@ -21,6 +22,7 @@ const sections = [
   { id: "buying", label: "Buying" },
   { id: "receipts", label: "Receipts" },
   { id: "production", label: "Production" },
+  { id: "finance", label: "Finance" },
   { id: "export", label: "Reports" },
   { id: "stock", label: "Stock" },
 ]
@@ -92,9 +94,11 @@ onMounted(loadAll)
     <SystemMonthlyPlanning v-else-if="activeSection === 'planning'" :snapshot="snapshot" :plan="plan" @changed="loadAll" />
     <SystemBuyingPlan v-else-if="activeSection === 'buying'" :snapshot="snapshot" :plan="plan" @open-workflow="navigate" />
     <SystemDocumentReview v-else-if="activeSection === 'documents'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
+    <SystemPriceHistory v-else-if="activeSection === 'finance'" mode="finance" :snapshot="snapshot" :inventory="inventory" @open-workflow="navigate" @changed="loadAll" />
     <SystemAccountantExport v-else-if="activeSection === 'export'" />
     <template v-else-if="activeSection === 'stock'">
       <SystemStockOverview mode="stock" :snapshot="snapshot" :inventory="inventory" :plan="plan" :scan-result="scanResult" :loading="loading" :error="error" @scan="scan" @map-scan="mapScan" @open-workflow="navigate" />
+      <SystemPriceHistory mode="catalogue" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
       <SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
     </template>
   </SystemBulkbiteAppShell>

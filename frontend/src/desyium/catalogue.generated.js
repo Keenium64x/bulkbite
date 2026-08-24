@@ -2402,6 +2402,33 @@ export const systemCatalogue = Object.freeze({
       "scope": "project"
     },
     {
+      "id": "multi-file-uploader",
+      "name": "Multi File Uploader",
+      "job": "Upload several private receipt or invoice evidence files in one selection and report each file state.",
+      "category": "Project",
+      "provider": "project",
+      "source": "@/components/multi-file-uploader/MultiFileUploader.vue",
+      "install": {
+        "type": "none"
+      },
+      "states": [
+        "default",
+        "focus",
+        "uploading",
+        "complete",
+        "error",
+        "disabled"
+      ],
+      "exports": [
+        {
+          "source": "default",
+          "public": "SystemMultiFileUploader",
+          "class": "system-multi-file-uploader"
+        }
+      ],
+      "scope": "project"
+    },
+    {
       "id": "scan-code-field",
       "name": "Scan Code Field",
       "job": "Capture QR and barcode text from a browser camera, hardware scanner, or manual entry, then submit one code for resolution.",
@@ -10744,7 +10771,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "accountant-export",
       "name": "Reports and Accountant Export",
-      "job": "Compare frozen theoretical buying spend with all reviewed receipt spend by period, plan, supplier, and food category, then export operational CSV records without changing stock.",
+      "job": "Compare revenue, frozen theoretical and actual food spend, savings, buying adjustments, and expected and actual operating costs by period, then export operational records without changing stock.",
       "category": "Application",
       "source": "@/blocks/accountant-export/AccountantExport.vue",
       "public": "SystemAccountantExport",
@@ -10758,7 +10785,7 @@ export const systemCatalogue = Object.freeze({
       ],
       "primitives": [],
       "incomingHandoff": "A manager needs a retrospective period comparison, while the accountant needs operational records outside BulkBite.",
-      "outgoingHandoff": "The manager sees theory versus actual spend and the accountant can download CSV records; the stock ledger remains unchanged.",
+      "outgoingHandoff": "The manager sees gross profit, operating result, cost and savings sources, and the accountant can download operational records; the stock ledger remains unchanged.",
       "responsiveBehaviour": "Keep the period, dataset, record counts, note, and download action labelled and stacked on mobile.",
       "layoutContract": {
         "strategy": "grid",
@@ -10839,7 +10866,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "bulkbite-app-shell",
       "name": "Bulkbite App Shell",
-      "job": "Orient signed-in BulkBite staff through Dashboard, Planning, Buying, Receipts, Production, Reports, and Stock while keeping setup in the collapsible sidebar.",
+      "job": "Orient signed-in BulkBite staff through Dashboard, Planning, Buying, Receipts, Production, Finance, Reports, and Stock while keeping setup in the collapsible sidebar.",
       "category": "Application",
       "source": "@/blocks/bulkbite-app-shell/BulkbiteAppShell.vue",
       "public": "SystemBulkbiteAppShell",
@@ -11024,8 +11051,8 @@ export const systemCatalogue = Object.freeze({
     },
     {
       "id": "price-history",
-      "name": "Price History",
-      "job": "Compare supplier-offer theory with reviewed receipt actual prices by item, supplier, date, pack, inner unit, and stock unit without changing stock.",
+      "name": "Prices and Costs",
+      "job": "Own the Stock price catalogue's flat field-selected exchange and Finance's expected costs, discounts, actual cost invoices, miscellaneous costs, and cost history without changing stock.",
       "category": "Application",
       "source": "@/blocks/price-history/PriceHistory.vue",
       "public": "SystemPriceHistory",
@@ -11034,12 +11061,18 @@ export const systemCatalogue = Object.freeze({
       "components": [
         "date-picker",
         "linked-record-field",
+        "file-uploader",
+        "multi-file-uploader",
+        "form-control",
+        "select",
+        "checkbox",
+        "tabs",
         "operational-button",
         "badge"
       ],
       "primitives": [],
       "incomingHandoff": "A manager needs to compare the price BulkBite planned with the price a reviewed receipt proves.",
-      "outgoingHandoff": "The manager can see chronological theory, actual, and variance on a normalized stock-unit basis.",
+      "outgoingHandoff": "The manager can exchange exact-name price workbooks, review safe catalogue changes, configure costs, and see chronological theory, actual, and variance.",
       "responsiveBehaviour": "Keep filters labelled, then let the comparison table scroll horizontally on narrow screens without hiding dates, suppliers, pack facts, or normalized prices.",
       "layoutContract": {
         "strategy": "grid",
@@ -11118,14 +11151,14 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "receipt-intake",
       "name": "Receipt Intake",
-      "job": "Capture private receipt evidence, extract editable Pydantic-validated purchase suggestions, require line review, and explicitly add received stock.",
+      "job": "Capture several private receipt evidence files, extract one editable Pydantic-validated purchase review, show recent receipt effects, and explicitly add reviewed stock once.",
       "category": "Application",
       "source": "@/blocks/receipt-intake/ReceiptIntake.vue",
       "public": "SystemReceiptIntake",
       "registrySource": "sources/blocks/receipt-intake",
       "projectSource": "src/blocks/receipt-intake",
       "components": [
-        "file-uploader",
+        "multi-file-uploader",
         "date-picker",
         "form-control",
         "linked-record-field",
@@ -11136,7 +11169,7 @@ export const systemCatalogue = Object.freeze({
       ],
       "primitives": [],
       "incomingHandoff": "A worker has a supplier receipt and needs its reviewed quantities to become stock.",
-      "outgoingHandoff": "A saved receipt draft remains reviewable, and stock changes only after the separate receive action succeeds.",
+      "outgoingHandoff": "A saved receipt remains visible with its quantity and item effects, and stock changes only after the separate receive action succeeds.",
       "responsiveBehaviour": "Keep evidence, supplier facts, purchase pack structure, computed stock quantity, comparable prices, totals, and posting state labelled; stack line fields on mobile instead of shrinking controls.",
       "layoutContract": {
         "strategy": "grid",
@@ -11191,7 +11224,7 @@ export const systemCatalogue = Object.freeze({
         "pageAlignment": "grid",
         "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "Dashboard mode gives one dominant financial evidence card, one compact operating-status card, and one direct-action card. Stock mode contains lookup, readiness, balances, demand, activity, and reconciliation; wide records scroll inside their labelled region."
+        "containment": "Dashboard mode gives one dominant financial evidence card with summary stats beneath its chart, then matching meal-direction, stock-readiness, recent-activity, and status-aware next-work panels. Stock mode contains lookup, readiness, balances, demand, activity, and reconciliation; wide records scroll inside their labelled region."
       },
       "surfaceContract": {
         "placement": "none",
