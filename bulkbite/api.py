@@ -7,7 +7,7 @@ from pathlib import Path
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, flt, getdate, now_datetime, nowdate
+from frappe.utils import add_days, add_months, flt, getdate, now_datetime, nowdate
 from frappe.utils.background_jobs import get_job
 from openpyxl import load_workbook
 
@@ -28,7 +28,7 @@ from bulkbite.planning import (
 	freeze_buying_theory,
 	load_buying_theory,
 )
-from bulkbite.costing import enrich_spend_report
+from bulkbite.costing import calculate_operating_costs, enrich_spend_report
 from bulkbite.price_workbook import (
 	apply_price_import,
 	build_price_workbook,
@@ -138,6 +138,167 @@ def get_inventory_snapshot(location=None):
 		item["valuation_rate"] = get_valuation_rate(item.item_code, location)
 		item["stock_value"] = round(flt(item["actual_qty"]) * flt(item["valuation_rate"]), 2)
 	return {"location": location, "items": items}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_finance_workspace(from_date=None, to_date=None):
+	"""Load the direct Finance workspace without changing cost or stock records."""
+	_require_roles("BulkBite Manager", "BulkBite Accountant")
+	start = getdate(from_date) if from_date else getdate(nowdate()).replace(day=1)
+	end = getdate(to_date) if to_date else add_days(add_months(start, 1), -1)
+	if start > end:
+		frappe.throw(_("From date must be on or before to date."))
+	operating = calculate_operating_costs(start, end)
+	spend = enrich_spend_report(build_spend_report(start, end))
+	expected_amounts = {row["name"]: row["amount"] for row in operating["expected_rows"]}
+	rules = frappe.get_all(
+		"BulkBite Operating Cost Rule",
+		fields=[
+			"name", "cost_code", "cost_name", "cost_category", "basis", "rate",
+			"employee_count", "hours_per_employee", "default_quantity", "recurrence",
+			"effective_from", "effective_to", "vat_treatment", "accounting_category",
+			"payee", "enabled", "notes",
+		],
+		order_by="enabled desc, cost_category asc, cost_name asc",
+	)
+	for rule in rules:
+		rule["period_amount"] = expected_amounts.get(rule.name, 0)
+	adjustments = frappe.get_all(
+		"BulkBite Price Adjustment",
+		fields=[
+			"name", "adjustment_code", "adjustment_name", "scope_type", "supplier_offer",
+			"supplier", "item_code", "item_category", "adjustment_type", "calculation_basis",
+			"value", "threshold_amount", "effective_from", "effective_to", "priority",
+			"stackable", "vat_treatment", "enabled", "notes",
+		],
+		order_by="enabled desc, priority asc, adjustment_name asc",
+	)
+	actual_costs = frappe.get_all(
+		"BulkBite Cost Entry",
+		fields=[
+			"name", "cost_date", "cost_rule", "cost_category", "payee", "quantity",
+			"unit_rate", "amount", "vat_amount", "production_plan", "evidence_file",
+			"accounting_category", "notes",
+		],
+		order_by="cost_date desc, creation desc",
+		limit_page_length=200,
+	)
+	return {
+		"period": {"from_date": start, "to_date": end},
+		"summary": {
+			"expected_total": operating["expected_total"],
+			"actual_total": operating["actual_total"],
+			"variance": round(flt(operating["actual_total"]) - flt(operating["expected_total"]), 2),
+			"active_adjustments": sum(1 for row in adjustments if row.enabled),
+			"expected_savings": spend["summary"].get("expected_savings", 0),
+			"actual_savings": round(sum(
+				flt(row.get("actual_amount")) for row in spend.get("savings") or []
+				if row.get("effect") == "saving"
+			), 2),
+		},
+		"breakdown": operating["breakdown"],
+		"expected_costs": rules,
+		"adjustments": adjustments,
+		"actual_costs": actual_costs,
+		"options": {
+			"suppliers": _finance_link_options("BulkBite Supplier", "supplier_name"),
+			"items": _finance_link_options("BulkBite Item", "item_name"),
+			"item_categories": _finance_link_options("BulkBite Item Category", "category_name"),
+			"supplier_offers": _finance_link_options("BulkBite Supplier Offer", "name"),
+		},
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_expected_cost_rule(payload=None):
+	"""Create or update one reviewed employee or recurring expected-cost rule."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	if not data.get("cost_name") or not data.get("cost_category") or not data.get("basis"):
+		frappe.throw(_("Cost type, category, and basis are required."))
+	if data.get("basis") == "Hourly":
+		if int(data.get("employee_count") or 0) < 1 or flt(data.get("hours_per_employee")) <= 0:
+			frappe.throw(_("Hourly costs need at least one employee and hours per employee."))
+	elif data.get("basis") == "Fixed" and flt(data.get("default_quantity")) <= 0:
+		frappe.throw(_("Fixed costs need an expected quantity."))
+	values = _pick_finance_fields(data, {
+		"cost_name", "cost_category", "basis", "rate", "employee_count",
+		"hours_per_employee", "default_quantity", "recurrence", "effective_from",
+		"effective_to", "vat_treatment", "accounting_category", "payee", "enabled", "notes",
+	})
+	if not data.get("name"):
+		values["cost_code"] = _new_finance_code("COST", "BulkBite Operating Cost Rule", "cost_code")
+	doc = _save_finance_record("BulkBite Operating Cost Rule", data.get("name"), values)
+	return {"name": doc.name, "cost_name": doc.cost_name, "enabled": doc.enabled}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_miscellaneous_cost(payload=None):
+	"""Create one direct actual cost and attach all reviewed private evidence files."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	evidence_urls = [row.get("evidence_file") for row in _as_list(data.get("evidence_files"))]
+	if any(evidence_urls):
+		_validate_private_evidence(evidence_urls)
+	amount = flt(data.get("amount")) or round(flt(data.get("quantity")) * flt(data.get("unit_rate")), 2)
+	if not data.get("cost_date") or not data.get("cost_category") or amount <= 0:
+		frappe.throw(_("Cost date, category, and an actual cost greater than zero are required."))
+	values = _pick_finance_fields(data, {
+		"cost_date", "cost_rule", "cost_category", "payee", "quantity", "unit_rate",
+		"vat_amount", "production_plan", "accounting_category", "notes",
+	})
+	values["amount"] = amount
+	values["evidence_file"] = evidence_urls[0] if evidence_urls else None
+	doc = _save_finance_record("BulkBite Cost Entry", None, values)
+	if any(evidence_urls):
+		_attach_private_evidence(evidence_urls, doc.doctype, doc.name)
+	return {"name": doc.name, "cost_date": doc.cost_date, "amount": doc.amount}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_price_adjustment(payload=None):
+	"""Create or update one reviewed discount, saving, fee, or buying-cost rule."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	if not data.get("adjustment_name") or not data.get("adjustment_type") or not data.get("scope_type"):
+		frappe.throw(_("Adjustment name, type, and scope are required."))
+	values = _pick_finance_fields(data, {
+		"adjustment_name", "scope_type", "supplier_offer", "supplier", "item_code",
+		"item_category", "adjustment_type", "calculation_basis", "value",
+		"threshold_amount", "effective_from", "effective_to", "priority", "stackable",
+		"vat_treatment", "enabled", "notes",
+	})
+	if not data.get("name"):
+		values["adjustment_code"] = _new_finance_code("ADJ", "BulkBite Price Adjustment", "adjustment_code")
+	doc = _save_finance_record("BulkBite Price Adjustment", data.get("name"), values)
+	return {"name": doc.name, "adjustment_name": doc.adjustment_name, "enabled": doc.enabled}
+
+
+def _finance_link_options(doctype, label_field):
+	fields = ["name"] + ([label_field] if label_field != "name" else [])
+	return [
+		{"value": row.name, "label": row.get(label_field) or row.name}
+		for row in frappe.get_all(doctype, fields=fields, order_by=f"{label_field} asc", limit_page_length=1000)
+	]
+
+
+def _pick_finance_fields(data, allowed_fields):
+	return {field: data.get(field) for field in allowed_fields if field in data}
+
+
+def _new_finance_code(prefix, doctype, fieldname):
+	while True:
+		code = f"{prefix}-{frappe.generate_hash(length=8).upper()}"
+		if not frappe.db.exists(doctype, {fieldname: code}):
+			return code
+
+
+def _save_finance_record(doctype, name, values):
+	doc = frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
+	doc.check_permission("write" if name else "create")
+	doc.update(values)
+	doc.save()
+	return doc
 
 
 # endregion FRONTEND SNAPSHOT

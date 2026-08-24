@@ -82,6 +82,10 @@ export const previewPriceWorkbook = (fileUrl, mapping) => call("bulkbite.api.pre
 export const applyPriceWorkbook = (batchName) => call("bulkbite.api.apply_catalogue_price_workbook", { batch_name: batchName })
 export const createCostInvoice = (payload) => call("bulkbite.api.create_cost_invoice", { payload })
 export const postCostInvoice = (name) => call("bulkbite.api.post_cost_invoice", { name })
+export const getFinanceWorkspace = (fromDate, toDate) => call("bulkbite.api.get_finance_workspace", { from_date: fromDate, to_date: toDate }, "GET")
+export const saveExpectedCostRule = (payload) => call("bulkbite.api.save_expected_cost_rule", { payload })
+export const saveMiscellaneousCost = (payload) => call("bulkbite.api.save_miscellaneous_cost", { payload })
+export const savePriceAdjustment = (payload) => call("bulkbite.api.save_price_adjustment", { payload })
 
 export function priceWorkbookUrl(fields) {
   return `/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`
