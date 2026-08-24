@@ -1,7 +1,7 @@
 {
   "id": "production-measurement",
   "name": "Production Measurement",
-  "job": "Automatically resume or open the next unposted planned week, compare expected usage with used-or-left measurements, and post reviewed stock movement.",
+  "job": "Resume or open the next meal in the repeating direction, keep production date, food made, draft and posting controls together, and show production history.",
   "category": "Application",
   "source": "@/blocks/production-measurement/ProductionMeasurement.vue",
   "public": "SystemProductionMeasurement",
@@ -9,15 +9,15 @@
   "projectSource": "src/blocks/production-measurement",
   "components": ["date-picker", "form-control", "linked-record-field", "select", "textarea", "operational-button", "badge"],
   "primitives": [],
-  "incomingHandoff": "Planning has already chosen the meals and quantities, and a worker opens Production after a cook.",
-  "outgoingHandoff": "The reviewed production draft posts ingredient consumption and finished meal output only after explicit confirmation.",
+  "incomingHandoff": "The rolling direction identifies the next meal and a worker opens Production after a cook.",
+  "outgoingHandoff": "The worker either discards the draft to reload current theory or explicitly posts frozen ingredient consumption and finished output, with Worker sheets available as an auxiliary handoff.",
   "responsiveBehaviour": "Keep expected, available, measurement method, actual quantity, and unit together; recompose every ingredient as a labelled mobile record.",
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
     "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "A compact page header and numbered workflow guide precede plan selection and measurement work; draft save, review, and final posting remain separate actions."
+    "containment": "A compact page header and one top production control area precede ingredient measurements; history follows the active run without a numbered guide."
   },
   "surfaceContract": {
     "placement": "none",

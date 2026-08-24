@@ -11,6 +11,8 @@ import {
   Package,
   PanelLeftClose,
   PanelLeftOpen,
+  ReceiptText,
+  Tags,
   Settings,
   Truck,
   UserRound,
@@ -25,10 +27,13 @@ defineProps({
   sections: { type: Array, required: true },
   setupLinks: { type: Array, default: () => [
     { label: "Items", icon: Package, doctype: "BulkBite Item", href: "/bulkbite/setup/BulkBite%20Item" },
+    { label: "Food categories", icon: Tags, doctype: "BulkBite Item Category", href: "/bulkbite/setup/BulkBite%20Item%20Category" },
     { label: "Recipes", icon: CookingPot, doctype: "BulkBite Recipe", href: "/bulkbite/setup/BulkBite%20Recipe" },
     { label: "Suppliers", icon: Truck, doctype: "BulkBite Supplier", href: "/bulkbite/setup/BulkBite%20Supplier" },
+    { label: "Supplier offers", icon: ReceiptText, doctype: "BulkBite Supplier Offer", href: "/bulkbite/setup/BulkBite%20Supplier%20Offer" },
     { label: "Locations", icon: MapPin, doctype: "BulkBite Location", href: "/bulkbite/setup/BulkBite%20Location" },
     { label: "Meal plans", icon: CalendarDays, doctype: "BulkBite Production Plan", href: "/bulkbite/setup/BulkBite%20Production%20Plan" },
+    { label: "Customer plans", icon: UserRound, doctype: "BulkBite Customer Plan Type", href: "/bulkbite/setup/BulkBite%20Customer%20Plan%20Type" },
   ] },
   activeSection: { type: String, required: true },
   user: { type: String, default: "" },
@@ -78,9 +83,13 @@ function toggleSidebar() {
       </nav>
 
       <footer class="app-shell__sidebar-footer">
-        <SystemOperationalButton class="app-shell__sidebar-action app-shell__export-button" :class="{ 'is-active': activeSection === 'export' }" :label="sidebarCollapsed ? 'Accountant export' : undefined" :tooltip="sidebarCollapsed ? 'Accountant export' : undefined" variant="ghost" @click="$emit('navigate', 'export')">
+        <SystemLink href="/bulkbite/prices" class="app-shell__sidebar-action app-shell__price-link" :current="activeSection === 'prices'" :title="sidebarCollapsed ? 'Price history' : undefined">
+          <ReceiptText aria-hidden="true" />
+          <span class="app-shell__utility-label">Price history</span>
+        </SystemLink>
+        <SystemOperationalButton class="app-shell__sidebar-action app-shell__export-button" :class="{ 'is-active': activeSection === 'export' }" :label="sidebarCollapsed ? 'Reports' : undefined" :tooltip="sidebarCollapsed ? 'Reports' : undefined" variant="ghost" @click="$emit('navigate', 'export')">
           <FileSpreadsheet aria-hidden="true" />
-          <span class="app-shell__utility-label">Accountant export</span>
+          <span class="app-shell__utility-label">Reports</span>
         </SystemOperationalButton>
 
         <section class="app-shell__account" aria-label="Account">
@@ -108,8 +117,8 @@ function toggleSidebar() {
       <div class="app-shell__top-area">
         <header class="app-shell__header">
           <div class="app-shell__header-copy">
-            <p class="app-shell__header-label">Kitchen stock</p>
-            <p class="app-shell__header-note">Receipts, meal use, and physical counts</p>
+            <p class="app-shell__header-label">Kitchen operations</p>
+            <p class="app-shell__header-note">Plan, buy, receive, cook, and reconcile</p>
           </div>
           <SystemOperationalButton class="app-shell__refresh" variant="subtle" size="md" :disabled="busy" :aria-busy="busy" :label="busy ? 'Refreshing stock' : 'Refresh stock'" @click="$emit('refresh')">
             <span v-if="busy" class="app-shell__refresh-loader" aria-hidden="true" />
@@ -120,7 +129,6 @@ function toggleSidebar() {
         <nav class="app-shell__nav" aria-label="Main stock flow">
           <div class="app-shell__nav-inner">
             <SystemOperationalButton v-for="section in sections.filter(section => section.id !== 'export')" :key="section.id" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
-              <span class="app-shell__nav-number">{{ section.number }}</span>
               <span>{{ section.label }}</span>
             </SystemOperationalButton>
           </div>

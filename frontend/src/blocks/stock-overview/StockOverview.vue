@@ -4,6 +4,7 @@ import { SystemBadge, SystemCard, SystemLinkedRecordField, SystemOperationalButt
 import { useRouter } from "vue-router"
 
 const props = defineProps({
+  mode: { type: String, default: "dashboard" },
   snapshot: { type: Object, default: null },
   inventory: { type: Object, default: null },
   plan: { type: Object, default: null },
@@ -17,7 +18,7 @@ const router = useRouter()
 const scanCode = ref("")
 const mappingItem = ref("")
 const itemOptions = computed(() => (props.inventory?.items || []).map((item) => ({ label: item.item_name, value: item.item_code })))
-const nextWeek = computed(() => (props.plan?.rows || []).find(row => !props.plan?.runs?.some(run => run.production_plan_row === row.name && run.docstatus)) || props.plan?.rows?.[0])
+const nextWeek = computed(() => props.plan?.next_production?.row || props.plan?.rows?.[0])
 const stockEnough = computed(() => (props.plan?.total_requirements || []).filter(item => item.shortage_qty <= 0).length)
 
 function submitScan(code) { if (String(code || "").trim()) emit("scan", String(code).trim()) }
@@ -30,11 +31,11 @@ function number(value, digits = 2) {
 
 <template>
   <section data-block="stock-overview" class="workflow-block">
-    <header class="workflow-header">
+    <header v-if="mode === 'dashboard'" class="workflow-header">
       <div>
         <p class="eyebrow">Dashboard</p>
         <h1>What needs attention now</h1>
-        <p>See the active customer plan, next production week, stock shortages, buying cost, and actual spend.</p>
+        <p>See today’s operating position, then go straight to the work that needs attention.</p>
       </div>
       <div class="metric-board" aria-label="Workspace totals">
         <div><strong>{{ plan?.customer_demand?.total_customers || 0 }}</strong><span>customers planned</span></div>
@@ -47,23 +48,19 @@ function number(value, digits = 2) {
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <div v-if="loading && !inventory" class="state-message" role="status">Loading current stock...</div>
 
-    <section class="flow-guide" aria-labelledby="flow-guide-heading">
-      <div><p class="eyebrow">Current operating flow</p><h2 id="flow-guide-heading">Plan first, then record what actually happened</h2></div>
-      <ol>
-        <li><span>1</span><div><strong>Set customers and meals</strong><small>Plan four weeks from the customer mix.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">Open planning</SystemOperationalButton></li>
-        <li><span>2</span><div><strong>Buy the shortages</strong><small>Use supplier packs and expected prices.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton></li>
-        <li><span>3</span><div><strong>Record the actuals</strong><small>Add receipts after shopping and usage after cooking.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'production')">Open production</SystemOperationalButton></li>
-      </ol>
-    </section>
-
-    <div class="workflow-grid">
-      <SystemCard class="work-panel"><p class="panel-index">Active month</p><h2>{{ plan?.plan_title || "No active plan" }}</h2><p v-if="plan">{{ plan.period_start }} to {{ plan.period_end }} · {{ plan.customer_demand.total_customers }} customers</p><p v-else>Create the customer mix and choose the four weekly meals.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">{{ plan ? "Review plan" : "Create plan" }}</SystemOperationalButton></SystemCard>
-      <SystemCard class="work-panel"><p class="panel-index">Next production</p><h2>{{ nextWeek?.finished_item_name || "No meal scheduled" }}</h2><p v-if="nextWeek">Week {{ nextWeek.week_number }} · {{ number(nextWeek.weekly_servings, 0) }} meals · {{ number(nextWeek.planned_output_qty, 1) }} kg</p><p v-else>Choose the weekly meals in Planning.</p><SystemOperationalButton variant="outline" :disabled="!nextWeek" @click="emit('open-workflow', 'production')">Start production run</SystemOperationalButton></SystemCard>
+    <div v-if="mode === 'dashboard'" class="workflow-grid">
+      <SystemCard class="work-panel"><p class="panel-index">Customer direction</p><h2>{{ plan?.plan_title || "No active direction" }}</h2><p v-if="plan">{{ plan.customer_demand.total_customers }} customers currently require {{ number(plan.customer_demand.weekly_output_qty, 1) }} kg per week.</p><p v-else>Set the customer mix and repeating meal cycle.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">{{ plan ? "Update direction" : "Set direction" }}</SystemOperationalButton></SystemCard>
+      <SystemCard class="work-panel"><p class="panel-index">Next production</p><h2>{{ nextWeek?.finished_item_name || "No meal scheduled" }}</h2><p v-if="nextWeek">Meal {{ nextWeek.week_number }} · {{ number(nextWeek.weekly_servings, 0) }} portions · {{ number(nextWeek.planned_output_qty, 1) }} kg</p><p v-else>Choose the repeating meals in Planning.</p><SystemOperationalButton variant="outline" :disabled="!nextWeek" @click="emit('open-workflow', 'production')">Open production</SystemOperationalButton></SystemCard>
       <SystemCard class="work-panel"><p class="panel-index">Buying</p><h2>{{ plan?.buying?.shortage_count || 0 }} items need stock</h2><p>{{ stockEnough }} planned ingredients have enough stock. {{ plan?.buying?.missing_offer_count || 0 }} shortages still need a supplier price.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">View shopping list</SystemOperationalButton></SystemCard>
-      <SystemCard class="work-panel"><p class="panel-index">Theory versus actual</p><h2>R {{ number(plan?.actual_purchases?.actual_cost) }} spent</h2><p>Expected R {{ number(plan?.actual_purchases?.expected_cost) }} · variance R {{ number(plan?.actual_purchases?.cost_variance) }}</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Add receipt</SystemOperationalButton></SystemCard>
+      <SystemCard class="work-panel"><p class="panel-index">Purchases</p><h2>Record what was bought</h2><p>Upload the supplier receipt after shopping so actual stock and prices are updated.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Add receipt</SystemOperationalButton></SystemCard>
     </div>
 
-    <div class="workflow-grid dashboard-secondary">
+    <header v-if="mode === 'stock'" class="workflow-header">
+      <div><p class="eyebrow">Stock</p><h1>Current ingredient stock</h1><p>Check balances, scan an item, and reconcile a physical count below.</p></div>
+      <SystemBadge>{{ inventory?.location || "Ingredients" }}</SystemBadge>
+    </header>
+
+    <div v-if="mode === 'stock'" class="workflow-grid dashboard-secondary">
       <SystemCard class="work-panel work-panel--scan">
         <p class="panel-index">Quick check</p>
         <h2>Find an ingredient</h2>
@@ -83,19 +80,10 @@ function number(value, digits = 2) {
         </div>
       </SystemCard>
 
-      <SystemCard class="work-panel work-panel--shortage">
-        <p class="panel-index">Stock readiness</p>
-        <h2>{{ plan?.plan_title || "Four-week plan" }}</h2>
-        <p>{{ stockEnough }} planned ingredients are covered by current stock.</p>
-        <div class="shortage-summary">
-          <strong>{{ plan?.total_requirements?.filter(item => item.shortage_qty > 0).length || 0 }}</strong>
-          <span>ingredients short</span>
-        </div>
-        <SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton>
-      </SystemCard>
+      <SystemCard class="work-panel work-panel--shortage"><p class="panel-index">Stock readiness</p><h2>{{ plan?.buying?.shortage_count || 0 }} ingredients short</h2><p>{{ stockEnough }} planned ingredients are covered by current stock.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton></SystemCard>
     </div>
 
-    <section class="data-section" aria-labelledby="stock-heading">
+    <section v-if="mode === 'stock'" class="data-section" aria-labelledby="stock-heading">
       <div class="section-heading">
         <div><p class="eyebrow">Ingredients</p><h2 id="stock-heading">Current stock</h2></div>
         <SystemBadge>{{ inventory?.location || "Ingredients" }}</SystemBadge>
@@ -117,7 +105,7 @@ function number(value, digits = 2) {
       </div>
     </section>
 
-    <section class="data-section" aria-labelledby="requirements-heading">
+    <section v-if="mode === 'stock'" class="data-section" aria-labelledby="requirements-heading">
       <div class="section-heading">
         <div><p class="eyebrow">Planned demand</p><h2 id="requirements-heading">Plan requirements</h2></div>
         <SystemBadge>{{ plan?.status || "NO PLAN" }}</SystemBadge>
@@ -139,7 +127,7 @@ function number(value, digits = 2) {
       </div>
     </section>
 
-    <section class="data-section" aria-labelledby="recent-heading">
+    <section v-if="mode === 'stock'" class="data-section" aria-labelledby="recent-heading">
       <div class="section-heading"><div><p class="eyebrow">Activity</p><h2 id="recent-heading">Recent records</h2></div></div>
       <div class="record-grid">
         <article v-for="receipt in snapshot?.recent_receipts || []" :key="receipt.name" class="record-strip">

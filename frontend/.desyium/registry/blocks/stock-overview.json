@@ -1,7 +1,7 @@
 {
   "id": "stock-overview",
   "name": "Stock Overview",
-  "job": "Show current ingredient stock, planned demand, shortages, scan identity, and recent ledger evidence.",
+  "job": "Render a minimal operating dashboard in dashboard mode, or full balances, demand, scanning, and stock evidence in stock mode.",
   "category": "Application",
   "source": "@/blocks/stock-overview/StockOverview.vue",
   "public": "SystemStockOverview",
@@ -9,15 +9,15 @@
   "projectSource": "src/blocks/stock-overview",
   "components": ["scan-code-field", "linked-record-field", "operational-button", "badge", "card"],
   "primitives": [],
-  "incomingHandoff": "A worker or manager needs to know what stock exists and whether the planned meals can be made.",
-  "outgoingHandoff": "The user can identify a shortage, verify a scanned item, or move to receipt, production, or count work with the current evidence visible.",
+  "incomingHandoff": "A worker or manager needs a simple operating position or the detailed stock workspace.",
+  "outgoingHandoff": "Dashboard mode routes to the next task; Stock mode exposes balances, shortages, scanning, recent evidence, and the physical count handoff.",
   "responsiveBehaviour": "Use 12-column summary and data territories at large layout, 8 columns at intermediate layout, and labelled stacked records on mobile without hiding units or differences.",
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
     "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "A compact orientation header and restrained summary strip lead into clear lookup, plan, stock, and activity regions; wide records scroll inside their labelled region."
+    "containment": "Dashboard mode contains only key figures and four direct task cards. Stock mode contains lookup, readiness, balances, demand, activity, and reconciliation; wide records scroll inside their labelled region."
   },
   "surfaceContract": {
     "placement": "none",

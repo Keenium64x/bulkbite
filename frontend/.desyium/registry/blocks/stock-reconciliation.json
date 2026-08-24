@@ -17,7 +17,7 @@
     "pageAlignment": "grid",
     "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "A compact page header and numbered workflow guide keep counting, difference review, and manager approval distinct with no hidden action."
+    "containment": "A compact page header keeps counting, difference review, and manager approval distinct with no hidden action or numbered guide."
   },
   "surfaceContract": {
     "placement": "none",

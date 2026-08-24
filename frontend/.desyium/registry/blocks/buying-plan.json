@@ -1,7 +1,7 @@
 {
   "id": "buying-plan",
   "name": "Buying Plan",
-  "job": "Own supplier-routed shortages, pack rounding, discounts, and theoretical buying cost",
+  "job": "Recalculate supplier-routed shortages from the current customer direction and stock, including pack rounding, discounts, overflow, and theoretical cost.",
   "category": "Project",
   "source": "@/blocks/buying-plan/BuyingPlan.vue",
   "public": "SystemBuyingPlan",
@@ -9,7 +9,7 @@
   "projectSource": "src/blocks/buying-plan",
   "components": ["badge", "card", "operational-button"],
   "primitives": [],
-  "incomingHandoff": "A saved monthly plan has ingredient demand and current stock, but the manager needs an orderable supplier basket.",
+  "incomingHandoff": "The current customer direction and stock position have calculated the next shortage basket.",
   "outgoingHandoff": "The manager has supplier-grouped whole-pack quantities, expected cost, pack overflow, missing-price warnings, and a handoff to receipt capture.",
   "responsiveBehaviour": "Keep supplier totals and warning states visible; allow the order table to scroll without clipping quantities or actions.",
   "layoutContract": {

@@ -36,13 +36,8 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
 <template>
   <section data-block="document-review" class="workflow-block">
     <header class="workflow-header"><div><p class="eyebrow">Worker sheets</p><h1>Turn a written sheet into a draft</h1><p>Upload the evidence, let the parser extract measurements, and check every suggested row before applying it.</p></div></header>
-    <ol class="workflow-steps" aria-label="Worker sheet progress">
-      <li :class="{ 'is-current': !draft, 'is-complete': draft }"><span>1</span><div><strong>Upload and extract</strong><small>Keep the private sheet and create suggestions.</small></div></li>
-      <li :class="{ 'is-current': draft && draft.status !== 'Reviewed' && draft.status !== 'Applied', 'is-complete': draft?.status === 'Reviewed' || draft?.status === 'Applied' }"><span>2</span><div><strong>Check suggestions</strong><small>Correct matches and accept valid rows.</small></div></li>
-      <li :class="{ 'is-current': draft?.status === 'Reviewed', 'is-complete': draft?.status === 'Applied' }"><span>3</span><div><strong>Apply rows</strong><small>Send only approved rows to a draft.</small></div></li>
-    </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section v-if="!draft" class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Add the worker sheet</h2><p>The private file stays as evidence. Local extraction runs first, then configured AI can strengthen the structured suggestions.</p></div></div>
+    <section v-if="!draft" class="form-section"><div class="section-heading"><div><p class="eyebrow">Upload</p><h2>Add the worker sheet</h2><p>The private file stays as evidence. Local extraction runs first, then configured AI can strengthen the structured suggestions.</p></div></div>
       <div class="field-grid">
         <label class="field-shell"><span>Document type</span><SystemSelect v-model="form.document_type" :options="typeOptions" size="lg" /></label>
         <SystemLinkedRecordField v-model="form.default_location" label="Default location" :options="locationOptions" create-label="Add location" manage-label="Manage locations" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Location' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Location' } })" />
@@ -52,10 +47,10 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       <p class="field-note">{{ form.source_file || "Private source document required." }}</p>
       <label class="field-shell"><span>Optional transcription or correction</span><SystemTextarea v-model="form.raw_text" :rows="6" placeholder="Leave blank to use extraction, or paste one measurement per line, for example: Chicken breast, 2.4 kg" /></label>
       <p class="safety-note">Extraction creates suggestions only. No stock changes until a person reviews the rows and applies them.</p>
-      <SystemOperationalButton theme="blue" variant="solid" size="lg" :loading="busy" @click="extract">Extract measurements</SystemOperationalButton>
+      <SystemOperationalButton variant="solid" size="lg" :loading="busy" @click="extract">Extract measurements</SystemOperationalButton>
     </section>
     <section v-else class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Check every suggestion</h2><p>Fix the item or quantity, then accept only rows that match the written sheet.</p><small>{{ draft.text_provider }} · {{ draft.parser_mode }}</small></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Review</p><h2>Check every suggestion</h2><p>Fix the item or quantity, then accept only rows that match the written sheet.</p><small>{{ draft.text_provider }} · {{ draft.parser_mode }}</small></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
       <p v-if="draft.warnings" class="safety-note">{{ draft.warnings }}</p>
       <div class="measurement-list">
         <article v-for="(row, index) in draft.rows" :key="index" class="measurement-row measurement-row--review">
@@ -68,7 +63,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       <footer class="posting-bar">
         <p v-if="draft.applied_reference">Applied to {{ draft.applied_reference }}</p>
         <SystemOperationalButton v-if="draft.status !== 'Reviewed' && draft.status !== 'Applied'" variant="outline" size="lg" :loading="busy" @click="review">Confirm reviewed rows</SystemOperationalButton>
-        <SystemOperationalButton v-if="draft.status === 'Reviewed'" theme="blue" variant="solid" size="lg" :loading="busy" @click="applyRows">Apply approved rows</SystemOperationalButton>
+        <SystemOperationalButton v-if="draft.status === 'Reviewed'" variant="solid" size="lg" :loading="busy" @click="applyRows">Apply approved rows</SystemOperationalButton>
       </footer>
     </section>
   </section>

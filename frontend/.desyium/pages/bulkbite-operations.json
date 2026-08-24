@@ -1,9 +1,9 @@
 {
   "schemaVersion": 5,
   "id": "bulkbite-operations",
-  "purpose": "Run the monthly BulkBite cycle from customer demand through buying, receipts, production, stock truth, and actual cost variance",
-  "audience": "Signed-in BulkBite staff deciding what to plan, buy, receive, cook, measure, and reconcile",
-  "primaryAction": "Complete the next required planning, buying, receipt, or production action",
+  "purpose": "Run BulkBite as a rolling customer-led meal cycle through planning, buying, receipts, production, reports, and stock truth",
+  "audience": "Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile",
+  "primaryAction": "Open and complete the next required operational task",
   "theme": "bulkbite-operations",
   "brandGuidance": {
     "name": "BulkBite Operations",
@@ -169,9 +169,9 @@
         "dashboard-overview"
       ],
       "quietBlocks": [
-        "workflow-stepper",
         "operational-list",
-        "workflow-stepper",
+        "record-detail",
+        "operational-list",
         "state-boundary"
       ],
       "rule": "Spend the strongest contrast and richest surface treatment on the focal block; ambient treatments dissolve into their owning field and adjacent surfaces without arbitrary straight seams."
@@ -181,10 +181,10 @@
       "progression": [
         "dashboard-overview",
         "system-form",
-        "workflow-stepper",
-        "system-form",
         "operational-list",
-        "workflow-stepper",
+        "system-form",
+        "record-detail",
+        "operational-list",
         "state-boundary"
       ],
       "rule": "Each block must have one focal job and must hand attention to the next block without competing with the page promise."
@@ -429,344 +429,6 @@
         "fromBlockOrder": 2,
         "fromBlock": "system-form",
         "toBlockOrder": 3,
-        "toBlock": "workflow-stepper",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
-        "relationship": {
-          "id": "system-form-to-workflow-stepper",
-          "sourceTrace": {
-            "fromBlock": "system-form",
-            "fromJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
-            "fromOutgoingState": "Valid data is saved or the user understands what blocks completion.",
-            "toBlock": "workflow-stepper",
-            "toJob": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-            "toIncomingState": "The user is beginning a structured multi-stage task."
-          },
-          "narrativeHandoff": "system-form completes its stated audience change, then workflow-stepper receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion.",
-          "incomingResponsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task.",
-          "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
-            "sourceOffsetY": 0,
-            "depth": 360,
-            "substrate": "stable-opaque-material"
-          },
-          "motionDecision": {
-            "continuity": "preserve-final-field",
-            "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
-          }
-        },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='2']",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='3']",
-          "responsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "system-form",
-          "incoming": "workflow-stepper",
-          "outgoingSelector": "[data-block=\"system-form\"]",
-          "incomingSelector": "[data-block=\"workflow-stepper\"]"
-        },
-        "coordinateSpace": {
-          "kind": "boundary-space",
-          "anchor": "boundary",
-          "axis": "vertical",
-          "origin": {
-            "x": 50,
-            "xUnit": "boundary-percent",
-            "y": 0,
-            "yUnit": "boundary-px"
-          },
-          "radius": {
-            "x": 48,
-            "xUnit": "boundary-percent",
-            "y": 320,
-            "yUnit": "px"
-          }
-        },
-        "edgeBands": {
-          "outgoing": {
-            "value": 192,
-            "unit": "px",
-            "sample": "end"
-          },
-          "incoming": {
-            "value": 192,
-            "unit": "px",
-            "sample": "start"
-          }
-        },
-        "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
-          "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
-        },
-        "responsive": {
-          "intermediate": {
-            "maxWidth": 1024,
-            "edgeBands": {
-              "outgoing": {
-                "value": 160,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 160,
-                "unit": "px"
-              }
-            }
-          },
-          "mobile": {
-            "maxWidth": 640,
-            "edgeBands": {
-              "outgoing": {
-                "value": 120,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 120,
-                "unit": "px"
-              }
-            },
-            "coordinateSpace": {
-              "origin": {
-                "x": 50,
-                "xUnit": "boundary-percent",
-                "y": 0,
-                "yUnit": "boundary-px"
-              }
-            }
-          }
-        },
-        "reducedMotion": {
-          "motion": "static-final-state"
-        },
-        "fallback": {
-          "renderer": "css",
-          "preserve": "geometry-edge-color-pattern-phase"
-        },
-        "proof": {
-          "adjacencyTolerance": 1,
-          "coordinateTolerance": 0.5,
-          "colorTolerance": 1
-        },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
-      },
-      {
-        "id": "connection-3-4",
-        "fromBlockOrder": 3,
-        "fromBlock": "workflow-stepper",
-        "toBlockOrder": 4,
-        "toBlock": "system-form",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
-        "relationship": {
-          "id": "workflow-stepper-to-system-form",
-          "sourceTrace": {
-            "fromBlock": "workflow-stepper",
-            "fromJob": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-            "fromOutgoingState": "The user completes the workflow or safely resumes it later.",
-            "toBlock": "system-form",
-            "toJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
-            "toIncomingState": "The user intends to create or change structured data."
-          },
-          "narrativeHandoff": "workflow-stepper completes its stated audience change, then system-form receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later.",
-          "incomingResponsibility": "Receive the audience state described by: The user intends to create or change structured data.",
-          "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
-            "sourceOffsetY": 0,
-            "depth": 360,
-            "substrate": "stable-opaque-material"
-          },
-          "motionDecision": {
-            "continuity": "preserve-final-field",
-            "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
-          }
-        },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='3']",
-          "responsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='4']",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "workflow-stepper",
-          "incoming": "system-form",
-          "outgoingSelector": "[data-block=\"workflow-stepper\"]",
-          "incomingSelector": "[data-block=\"system-form\"]"
-        },
-        "coordinateSpace": {
-          "kind": "boundary-space",
-          "anchor": "boundary",
-          "axis": "vertical",
-          "origin": {
-            "x": 50,
-            "xUnit": "boundary-percent",
-            "y": 0,
-            "yUnit": "boundary-px"
-          },
-          "radius": {
-            "x": 48,
-            "xUnit": "boundary-percent",
-            "y": 320,
-            "yUnit": "px"
-          }
-        },
-        "edgeBands": {
-          "outgoing": {
-            "value": 192,
-            "unit": "px",
-            "sample": "end"
-          },
-          "incoming": {
-            "value": 192,
-            "unit": "px",
-            "sample": "start"
-          }
-        },
-        "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
-          "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
-        },
-        "responsive": {
-          "intermediate": {
-            "maxWidth": 1024,
-            "edgeBands": {
-              "outgoing": {
-                "value": 160,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 160,
-                "unit": "px"
-              }
-            }
-          },
-          "mobile": {
-            "maxWidth": 640,
-            "edgeBands": {
-              "outgoing": {
-                "value": 120,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 120,
-                "unit": "px"
-              }
-            },
-            "coordinateSpace": {
-              "origin": {
-                "x": 50,
-                "xUnit": "boundary-percent",
-                "y": 0,
-                "yUnit": "boundary-px"
-              }
-            }
-          }
-        },
-        "reducedMotion": {
-          "motion": "static-final-state"
-        },
-        "fallback": {
-          "renderer": "css",
-          "preserve": "geometry-edge-color-pattern-phase"
-        },
-        "proof": {
-          "adjacencyTolerance": 1,
-          "coordinateTolerance": 0.5,
-          "colorTolerance": 1
-        },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
-      },
-      {
-        "id": "connection-4-5",
-        "fromBlockOrder": 4,
-        "fromBlock": "system-form",
-        "toBlockOrder": 5,
         "toBlock": "operational-list",
         "mode": "quiet-boundary",
         "owner": "adjacent-block-edges",
@@ -801,11 +463,11 @@
           }
         },
         "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='4']",
+          "semanticOwner": "[data-page-block-order='2']",
           "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
         },
         "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='5']",
+          "semanticOwner": "[data-page-block-order='3']",
           "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
         },
         "sharedField": {
@@ -932,28 +594,366 @@
         "fieldScope": "connected-pair"
       },
       {
-        "id": "connection-5-6",
-        "fromBlockOrder": 5,
+        "id": "connection-3-4",
+        "fromBlockOrder": 3,
         "fromBlock": "operational-list",
-        "toBlockOrder": 6,
-        "toBlock": "workflow-stepper",
+        "toBlockOrder": 4,
+        "toBlock": "system-form",
         "mode": "quiet-boundary",
         "owner": "adjacent-block-edges",
         "dedicatedBlockOrder": null,
         "treatment": "quiet-boundary",
         "relationship": {
-          "id": "operational-list-to-workflow-stepper",
+          "id": "operational-list-to-system-form",
           "sourceTrace": {
             "fromBlock": "operational-list",
             "fromJob": "Find, compare, select, and act on a collection of records.",
             "fromOutgoingState": "The user opens, selects, or completes a record action.",
-            "toBlock": "workflow-stepper",
-            "toJob": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-            "toIncomingState": "The user is beginning a structured multi-stage task."
+            "toBlock": "system-form",
+            "toJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
+            "toIncomingState": "The user intends to create or change structured data."
           },
-          "narrativeHandoff": "operational-list completes its stated audience change, then workflow-stepper receives that result as its starting condition.",
+          "narrativeHandoff": "operational-list completes its stated audience change, then system-form receives that result as its starting condition.",
           "outgoingResponsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
-          "incomingResponsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task.",
+          "incomingResponsibility": "Receive the audience state described by: The user intends to create or change structured data.",
+          "fieldDecision": {
+            "family": "material",
+            "boundary": "quiet",
+            "fieldScope": "edge-bands",
+            "energyDirection": "settle-at-boundary",
+            "sourceOwner": "none",
+            "sourceOffsetY": 0,
+            "depth": 360,
+            "substrate": "stable-opaque-material"
+          },
+          "motionDecision": {
+            "continuity": "preserve-final-field",
+            "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+          }
+        },
+        "outgoingEdge": {
+          "semanticOwner": "[data-page-block-order='3']",
+          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
+        },
+        "incomingEdge": {
+          "semanticOwner": "[data-page-block-order='4']",
+          "responsibility": "Receive the audience state described by: The user intends to create or change structured data."
+        },
+        "sharedField": {
+          "kind": "none",
+          "id": null,
+          "rule": "No connector object or shared primitive field is required."
+        },
+        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
+        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
+        "reducedMotionForm": "The boundary is already static.",
+        "owners": {
+          "outgoing": "operational-list",
+          "incoming": "system-form",
+          "outgoingSelector": "[data-block=\"operational-list\"]",
+          "incomingSelector": "[data-block=\"system-form\"]"
+        },
+        "coordinateSpace": {
+          "kind": "boundary-space",
+          "anchor": "boundary",
+          "axis": "vertical",
+          "origin": {
+            "x": 50,
+            "xUnit": "boundary-percent",
+            "y": 0,
+            "yUnit": "boundary-px"
+          },
+          "radius": {
+            "x": 48,
+            "xUnit": "boundary-percent",
+            "y": 320,
+            "yUnit": "px"
+          }
+        },
+        "edgeBands": {
+          "outgoing": {
+            "value": 192,
+            "unit": "px",
+            "sample": "end"
+          },
+          "incoming": {
+            "value": 192,
+            "unit": "px",
+            "sample": "start"
+          }
+        },
+        "materialHandoff": {
+          "from": null,
+          "to": null,
+          "boundary": "separate",
+          "edgeColor": "var(--desyium-block-connection, transparent)",
+          "tolerance": 1
+        },
+        "sharedLayers": [],
+        "overlap": {
+          "enabled": false,
+          "depth": 0,
+          "unit": "px",
+          "owner": "shared-edges",
+          "contentSafeArea": "required"
+        },
+        "stacking": {
+          "outgoing": 0,
+          "shared": 1,
+          "incoming": 0,
+          "content": 2
+        },
+        "responsive": {
+          "intermediate": {
+            "maxWidth": 1024,
+            "edgeBands": {
+              "outgoing": {
+                "value": 160,
+                "unit": "px"
+              },
+              "incoming": {
+                "value": 160,
+                "unit": "px"
+              }
+            }
+          },
+          "mobile": {
+            "maxWidth": 640,
+            "edgeBands": {
+              "outgoing": {
+                "value": 120,
+                "unit": "px"
+              },
+              "incoming": {
+                "value": 120,
+                "unit": "px"
+              }
+            },
+            "coordinateSpace": {
+              "origin": {
+                "x": 50,
+                "xUnit": "boundary-percent",
+                "y": 0,
+                "yUnit": "boundary-px"
+              }
+            }
+          }
+        },
+        "reducedMotion": {
+          "motion": "static-final-state"
+        },
+        "fallback": {
+          "renderer": "css",
+          "preserve": "geometry-edge-color-pattern-phase"
+        },
+        "proof": {
+          "adjacencyTolerance": 1,
+          "coordinateTolerance": 0.5,
+          "colorTolerance": 1
+        },
+        "schemaVersion": 2,
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
+        },
+        "fieldScope": "connected-pair"
+      },
+      {
+        "id": "connection-4-5",
+        "fromBlockOrder": 4,
+        "fromBlock": "system-form",
+        "toBlockOrder": 5,
+        "toBlock": "record-detail",
+        "mode": "quiet-boundary",
+        "owner": "adjacent-block-edges",
+        "dedicatedBlockOrder": null,
+        "treatment": "quiet-boundary",
+        "relationship": {
+          "id": "system-form-to-record-detail",
+          "sourceTrace": {
+            "fromBlock": "system-form",
+            "fromJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
+            "fromOutgoingState": "Valid data is saved or the user understands what blocks completion.",
+            "toBlock": "record-detail",
+            "toJob": "Present one record's identity, current state, related information, and available actions.",
+            "toIncomingState": "The user selected a record and needs its current truth."
+          },
+          "narrativeHandoff": "system-form completes its stated audience change, then record-detail receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion.",
+          "incomingResponsibility": "Receive the audience state described by: The user selected a record and needs its current truth.",
+          "fieldDecision": {
+            "family": "material",
+            "boundary": "quiet",
+            "fieldScope": "edge-bands",
+            "energyDirection": "settle-at-boundary",
+            "sourceOwner": "none",
+            "sourceOffsetY": 0,
+            "depth": 360,
+            "substrate": "stable-opaque-material"
+          },
+          "motionDecision": {
+            "continuity": "preserve-final-field",
+            "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+          }
+        },
+        "outgoingEdge": {
+          "semanticOwner": "[data-page-block-order='4']",
+          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
+        },
+        "incomingEdge": {
+          "semanticOwner": "[data-page-block-order='5']",
+          "responsibility": "Receive the audience state described by: The user selected a record and needs its current truth."
+        },
+        "sharedField": {
+          "kind": "none",
+          "id": null,
+          "rule": "No connector object or shared primitive field is required."
+        },
+        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
+        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
+        "reducedMotionForm": "The boundary is already static.",
+        "owners": {
+          "outgoing": "system-form",
+          "incoming": "record-detail",
+          "outgoingSelector": "[data-block=\"system-form\"]",
+          "incomingSelector": "[data-block=\"record-detail\"]"
+        },
+        "coordinateSpace": {
+          "kind": "boundary-space",
+          "anchor": "boundary",
+          "axis": "vertical",
+          "origin": {
+            "x": 50,
+            "xUnit": "boundary-percent",
+            "y": 0,
+            "yUnit": "boundary-px"
+          },
+          "radius": {
+            "x": 48,
+            "xUnit": "boundary-percent",
+            "y": 320,
+            "yUnit": "px"
+          }
+        },
+        "edgeBands": {
+          "outgoing": {
+            "value": 192,
+            "unit": "px",
+            "sample": "end"
+          },
+          "incoming": {
+            "value": 192,
+            "unit": "px",
+            "sample": "start"
+          }
+        },
+        "materialHandoff": {
+          "from": null,
+          "to": null,
+          "boundary": "separate",
+          "edgeColor": "var(--desyium-block-connection, transparent)",
+          "tolerance": 1
+        },
+        "sharedLayers": [],
+        "overlap": {
+          "enabled": false,
+          "depth": 0,
+          "unit": "px",
+          "owner": "shared-edges",
+          "contentSafeArea": "required"
+        },
+        "stacking": {
+          "outgoing": 0,
+          "shared": 1,
+          "incoming": 0,
+          "content": 2
+        },
+        "responsive": {
+          "intermediate": {
+            "maxWidth": 1024,
+            "edgeBands": {
+              "outgoing": {
+                "value": 160,
+                "unit": "px"
+              },
+              "incoming": {
+                "value": 160,
+                "unit": "px"
+              }
+            }
+          },
+          "mobile": {
+            "maxWidth": 640,
+            "edgeBands": {
+              "outgoing": {
+                "value": 120,
+                "unit": "px"
+              },
+              "incoming": {
+                "value": 120,
+                "unit": "px"
+              }
+            },
+            "coordinateSpace": {
+              "origin": {
+                "x": 50,
+                "xUnit": "boundary-percent",
+                "y": 0,
+                "yUnit": "boundary-px"
+              }
+            }
+          }
+        },
+        "reducedMotion": {
+          "motion": "static-final-state"
+        },
+        "fallback": {
+          "renderer": "css",
+          "preserve": "geometry-edge-color-pattern-phase"
+        },
+        "proof": {
+          "adjacencyTolerance": 1,
+          "coordinateTolerance": 0.5,
+          "colorTolerance": 1
+        },
+        "schemaVersion": 2,
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
+        },
+        "fieldScope": "connected-pair"
+      },
+      {
+        "id": "connection-5-6",
+        "fromBlockOrder": 5,
+        "fromBlock": "record-detail",
+        "toBlockOrder": 6,
+        "toBlock": "operational-list",
+        "mode": "quiet-boundary",
+        "owner": "adjacent-block-edges",
+        "dedicatedBlockOrder": null,
+        "treatment": "quiet-boundary",
+        "relationship": {
+          "id": "record-detail-to-operational-list",
+          "sourceTrace": {
+            "fromBlock": "record-detail",
+            "fromJob": "Present one record's identity, current state, related information, and available actions.",
+            "fromOutgoingState": "The user understands the record and performs an appropriate action or returns.",
+            "toBlock": "operational-list",
+            "toJob": "Find, compare, select, and act on a collection of records.",
+            "toIncomingState": "The user needs to locate or manage one or more records."
+          },
+          "narrativeHandoff": "record-detail completes its stated audience change, then operational-list receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns.",
+          "incomingResponsibility": "Receive the audience state described by: The user needs to locate or manage one or more records.",
           "fieldDecision": {
             "family": "material",
             "boundary": "quiet",
@@ -971,11 +971,11 @@
         },
         "outgoingEdge": {
           "semanticOwner": "[data-page-block-order='5']",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
+          "responsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns."
         },
         "incomingEdge": {
           "semanticOwner": "[data-page-block-order='6']",
-          "responsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task."
+          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
         },
         "sharedField": {
           "kind": "none",
@@ -986,10 +986,10 @@
         "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
         "reducedMotionForm": "The boundary is already static.",
         "owners": {
-          "outgoing": "operational-list",
-          "incoming": "workflow-stepper",
-          "outgoingSelector": "[data-block=\"operational-list\"]",
-          "incomingSelector": "[data-block=\"workflow-stepper\"]"
+          "outgoing": "record-detail",
+          "incoming": "operational-list",
+          "outgoingSelector": "[data-block=\"record-detail\"]",
+          "incomingSelector": "[data-block=\"operational-list\"]"
         },
         "coordinateSpace": {
           "kind": "boundary-space",
@@ -1103,7 +1103,7 @@
       {
         "id": "connection-6-7",
         "fromBlockOrder": 6,
-        "fromBlock": "workflow-stepper",
+        "fromBlock": "operational-list",
         "toBlockOrder": 7,
         "toBlock": "state-boundary",
         "mode": "quiet-boundary",
@@ -1111,17 +1111,17 @@
         "dedicatedBlockOrder": null,
         "treatment": "quiet-boundary",
         "relationship": {
-          "id": "workflow-stepper-to-state-boundary",
+          "id": "operational-list-to-state-boundary",
           "sourceTrace": {
-            "fromBlock": "workflow-stepper",
-            "fromJob": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-            "fromOutgoingState": "The user completes the workflow or safely resumes it later.",
+            "fromBlock": "operational-list",
+            "fromJob": "Find, compare, select, and act on a collection of records.",
+            "fromOutgoingState": "The user opens, selects, or completes a record action.",
             "toBlock": "state-boundary",
             "toJob": "Explain and recover from empty, loading, error, offline, or permission states.",
             "toIncomingState": "The user cannot yet access normal content or complete the expected task."
           },
-          "narrativeHandoff": "workflow-stepper completes its stated audience change, then state-boundary receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later.",
+          "narrativeHandoff": "operational-list completes its stated audience change, then state-boundary receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
           "incomingResponsibility": "Receive the audience state described by: The user cannot yet access normal content or complete the expected task.",
           "fieldDecision": {
             "family": "material",
@@ -1140,7 +1140,7 @@
         },
         "outgoingEdge": {
           "semanticOwner": "[data-page-block-order='6']",
-          "responsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later."
+          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
         },
         "incomingEdge": {
           "semanticOwner": "[data-page-block-order='7']",
@@ -1155,9 +1155,9 @@
         "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
         "reducedMotionForm": "The boundary is already static.",
         "owners": {
-          "outgoing": "workflow-stepper",
+          "outgoing": "operational-list",
           "incoming": "state-boundary",
-          "outgoingSelector": "[data-block=\"workflow-stepper\"]",
+          "outgoingSelector": "[data-block=\"operational-list\"]",
           "incomingSelector": "[data-block=\"state-boundary\"]"
         },
         "coordinateSpace": {
@@ -1479,7 +1479,7 @@
       },
       "responsiveBehaviour": "Use readable field widths in 12/8-column layouts and a semantic single-column mobile flow.",
       "successMeasure": "Users complete valid records with minimal avoidable error.",
-      "handoffTo": "workflow-stepper",
+      "handoffTo": "operational-list",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
@@ -1541,7 +1541,7 @@
           "connectionId": "connection-2-3",
           "role": "outgoing-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then workflow-stepper receives that result as its starting condition.",
+          "connectionIntent": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
@@ -1551,76 +1551,73 @@
     },
     {
       "order": 3,
-      "type": "workflow-stepper",
-      "job": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-      "incomingState": "The user is beginning a structured multi-stage task.",
-      "outgoingState": "The user completes the workflow or safely resumes it later.",
+      "type": "operational-list",
+      "job": "Find, compare, select, and act on a collection of records.",
+      "incomingState": "The user needs to locate or manage one or more records.",
+      "outgoingState": "The user opens, selects, or completes a record action.",
       "contentContract": [
-        "workflow purpose",
-        "step identity",
-        "progress",
-        "current fields/actions",
-        "validation",
-        "back/next",
-        "save/resume when needed",
-        "completion state"
+        "collection identity",
+        "search",
+        "filters",
+        "sort",
+        "record fields",
+        "selection",
+        "row/bulk actions",
+        "empty/loading/error states"
       ],
-      "primaryAction": "Complete the current step or workflow.",
-      "secondaryAction": "Go back, save, or exit safely.",
+      "primaryAction": "Open or act on a record.",
+      "secondaryAction": "Search, filter, sort, select, or create.",
       "componentJobs": [
-        "progress",
-        "form-control",
+        "data-table",
+        "text-input",
+        "select",
+        "checkbox",
+        "dropdown-menu",
+        "pagination",
         "button",
-        "alert"
+        "skeleton"
       ],
-      "primitiveRoles": [
-        "structure"
-      ],
+      "primitiveRoles": [],
       "connectionProfile": {
-        "blockId": "workflow-stepper",
+        "blockId": "operational-list",
         "descriptionTrace": {
-          "job": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-          "incomingState": "The user is beginning a structured multi-stage task.",
-          "outgoingState": "The user completes the workflow or safely resumes it later.",
-          "primitiveRoles": [
-            "structure"
-          ]
+          "job": "Find, compare, select, and act on a collection of records.",
+          "incomingState": "The user needs to locate or manage one or more records.",
+          "outgoingState": "The user opens, selects, or completes a record action.",
+          "primitiveRoles": []
         },
         "entry": {
           "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task.",
+          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records.",
           "acceptsFields": [
             "material",
             "structure",
-            "line",
-            "pattern",
             "gradient",
             "illumination",
-            "layered"
+            "layered",
+            "line",
+            "pattern"
           ]
         },
         "exit": {
           "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later.",
+          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
           "preferredFields": [
             "material",
-            "structure",
-            "line",
-            "pattern"
+            "structure"
           ],
           "sourcePreference": "none"
         },
         "intensity": "quiet",
         "boundaryBias": "quiet"
       },
-      "responsiveBehaviour": "Keep progress compact and step content in one semantic mobile column.",
-      "successMeasure": "Users know where they are, what is required, and how to finish.",
+      "responsiveBehaviour": "Preserve task-critical fields; use responsive row layouts or controlled horizontal scroll rather than unreadable compression.",
+      "successMeasure": "Users find and act on the intended records efficiently.",
       "handoffTo": "system-form",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages",
-          "primitives-surfaces"
+          "blocks-pages"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -1668,21 +1665,21 @@
           "connectionId": "connection-2-3",
           "role": "incoming-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then workflow-stepper receives that result as its starting condition.",
+          "connectionIntent": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task."
+          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
         },
         "end": {
           "connectionId": "connection-3-4",
           "role": "outgoing-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "workflow-stepper completes its stated audience change, then system-form receives that result as its starting condition.",
+          "connectionIntent": "operational-list completes its stated audience change, then system-form receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later."
+          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
         }
       }
     },
@@ -1754,7 +1751,7 @@
       },
       "responsiveBehaviour": "Use readable field widths in 12/8-column layouts and a semantic single-column mobile flow.",
       "successMeasure": "Users complete valid records with minimal avoidable error.",
-      "handoffTo": "operational-list",
+      "handoffTo": "record-detail",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
@@ -1806,7 +1803,7 @@
           "connectionId": "connection-3-4",
           "role": "incoming-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "workflow-stepper completes its stated audience change, then system-form receives that result as its starting condition.",
+          "connectionIntent": "operational-list completes its stated audience change, then system-form receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
@@ -1816,7 +1813,7 @@
           "connectionId": "connection-4-5",
           "role": "outgoing-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
+          "connectionIntent": "system-form completes its stated audience change, then record-detail receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
@@ -1826,6 +1823,138 @@
     },
     {
       "order": 5,
+      "type": "record-detail",
+      "job": "Present one record's identity, current state, related information, and available actions.",
+      "incomingState": "The user selected a record and needs its current truth.",
+      "outgoingState": "The user understands the record and performs an appropriate action or returns.",
+      "contentContract": [
+        "record identity",
+        "status",
+        "primary fields",
+        "related data",
+        "history when relevant",
+        "actions",
+        "loading/error/permission state"
+      ],
+      "primaryAction": "Perform the record's main context-sensitive action.",
+      "secondaryAction": "Edit, navigate related records, or return.",
+      "componentJobs": [
+        "badge",
+        "tabs",
+        "card",
+        "data-table",
+        "button",
+        "dropdown-menu",
+        "alert"
+      ],
+      "primitiveRoles": [],
+      "connectionProfile": {
+        "blockId": "record-detail",
+        "descriptionTrace": {
+          "job": "Present one record's identity, current state, related information, and available actions.",
+          "incomingState": "The user selected a record and needs its current truth.",
+          "outgoingState": "The user understands the record and performs an appropriate action or returns.",
+          "primitiveRoles": []
+        },
+        "entry": {
+          "intent": "orient",
+          "responsibility": "Receive the audience state described by: The user selected a record and needs its current truth.",
+          "acceptsFields": [
+            "material",
+            "structure",
+            "gradient",
+            "illumination",
+            "layered",
+            "line",
+            "pattern"
+          ]
+        },
+        "exit": {
+          "intent": "resolve",
+          "responsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns.",
+          "preferredFields": [
+            "material",
+            "structure"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "quiet",
+        "boundaryBias": "quiet"
+      },
+      "responsiveBehaviour": "Use 12/8-column detail regions and preserve identity-status-action order on mobile.",
+      "successMeasure": "Users can identify the record state and next valid action.",
+      "handoffTo": "operational-list",
+      "principleTrace": {
+        "authorities": [
+          "tokens-theme",
+          "blocks-pages"
+        ],
+        "responsibility": "goal-before-appearance",
+        "hierarchy": "hierarchy-before-decoration",
+        "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+        "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+        "expression": "familiar-behavior-distinctive-brand-treatment",
+        "motion": "purposeful-motion-with-reduced-motion-equivalent"
+      },
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+        "gap": "var(--spacing-m)",
+        "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+        "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+        "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-page-block-order='5']",
+        "recipeId": null,
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+        "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+      },
+      "actionContract": {
+        "primaryPreset": "primary-action",
+        "secondaryPreset": "secondary-action",
+        "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+        "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+      },
+      "motionContract": {
+        "mode": "experience",
+        "experienceId": "entrance-hierarchy",
+        "justification": null,
+        "targets": [
+          "[data-experience-item]"
+        ],
+        "reducedMotion": "Render every item in its final visible state without translation."
+      },
+      "edgeContract": {
+        "start": {
+          "connectionId": "connection-4-5",
+          "role": "incoming-edge",
+          "treatment": "quiet-boundary",
+          "connectionIntent": "system-form completes its stated audience change, then record-detail receives that result as its starting condition.",
+          "fieldFamily": "material",
+          "energyDirection": "settle-at-boundary",
+          "sourceOwner": "none",
+          "responsibility": "Receive the audience state described by: The user selected a record and needs its current truth."
+        },
+        "end": {
+          "connectionId": "connection-5-6",
+          "role": "outgoing-edge",
+          "treatment": "quiet-boundary",
+          "connectionIntent": "record-detail completes its stated audience change, then operational-list receives that result as its starting condition.",
+          "fieldFamily": "material",
+          "energyDirection": "settle-at-boundary",
+          "sourceOwner": "none",
+          "responsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns."
+        }
+      }
+    },
+    {
+      "order": 6,
       "type": "operational-list",
       "job": "Find, compare, select, and act on a collection of records.",
       "incomingState": "The user needs to locate or manage one or more records.",
@@ -1888,148 +2017,11 @@
       },
       "responsiveBehaviour": "Preserve task-critical fields; use responsive row layouts or controlled horizontal scroll rather than unreadable compression.",
       "successMeasure": "Users find and act on the intended records efficiently.",
-      "handoffTo": "workflow-stepper",
-      "principleTrace": {
-        "authorities": [
-          "tokens-theme",
-          "blocks-pages"
-        ],
-        "responsibility": "goal-before-appearance",
-        "hierarchy": "hierarchy-before-decoration",
-        "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
-        "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
-        "expression": "familiar-behavior-distinctive-brand-treatment",
-        "motion": "purposeful-motion-with-reduced-motion-equivalent"
-      },
-      "layoutContract": {
-        "strategy": "flow",
-        "pageAlignment": "grid",
-        "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
-        "gap": "var(--spacing-m)",
-        "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
-        "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
-        "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
-      },
-      "surfaceContract": {
-        "placement": "none",
-        "semanticOwner": "[data-page-block-order='5']",
-        "recipeId": null,
-        "scope": "none",
-        "edgeTreatment": "none",
-        "boundaryReason": null,
-        "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
-        "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
-      },
-      "actionContract": {
-        "primaryPreset": "primary-action",
-        "secondaryPreset": "secondary-action",
-        "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
-        "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
-      },
-      "motionContract": {
-        "mode": "experience",
-        "experienceId": "entrance-hierarchy",
-        "justification": null,
-        "targets": [
-          "[data-experience-item]"
-        ],
-        "reducedMotion": "Render every item in its final visible state without translation."
-      },
-      "edgeContract": {
-        "start": {
-          "connectionId": "connection-4-5",
-          "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
-        },
-        "end": {
-          "connectionId": "connection-5-6",
-          "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "operational-list completes its stated audience change, then workflow-stepper receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
-        }
-      }
-    },
-    {
-      "order": 6,
-      "type": "workflow-stepper",
-      "job": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-      "incomingState": "The user is beginning a structured multi-stage task.",
-      "outgoingState": "The user completes the workflow or safely resumes it later.",
-      "contentContract": [
-        "workflow purpose",
-        "step identity",
-        "progress",
-        "current fields/actions",
-        "validation",
-        "back/next",
-        "save/resume when needed",
-        "completion state"
-      ],
-      "primaryAction": "Complete the current step or workflow.",
-      "secondaryAction": "Go back, save, or exit safely.",
-      "componentJobs": [
-        "progress",
-        "form-control",
-        "button",
-        "alert"
-      ],
-      "primitiveRoles": [
-        "structure"
-      ],
-      "connectionProfile": {
-        "blockId": "workflow-stepper",
-        "descriptionTrace": {
-          "job": "Guide a user through a necessary multi-stage task while preserving progress and context.",
-          "incomingState": "The user is beginning a structured multi-stage task.",
-          "outgoingState": "The user completes the workflow or safely resumes it later.",
-          "primitiveRoles": [
-            "structure"
-          ]
-        },
-        "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task.",
-          "acceptsFields": [
-            "material",
-            "structure",
-            "line",
-            "pattern",
-            "gradient",
-            "illumination",
-            "layered"
-          ]
-        },
-        "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later.",
-          "preferredFields": [
-            "material",
-            "structure",
-            "line",
-            "pattern"
-          ],
-          "sourcePreference": "none"
-        },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
-      },
-      "responsiveBehaviour": "Keep progress compact and step content in one semantic mobile column.",
-      "successMeasure": "Users know where they are, what is required, and how to finish.",
       "handoffTo": "state-boundary",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages",
-          "primitives-surfaces"
+          "blocks-pages"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -2077,21 +2069,21 @@
           "connectionId": "connection-5-6",
           "role": "incoming-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "operational-list completes its stated audience change, then workflow-stepper receives that result as its starting condition.",
+          "connectionIntent": "record-detail completes its stated audience change, then operational-list receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user is beginning a structured multi-stage task."
+          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
         },
         "end": {
           "connectionId": "connection-6-7",
           "role": "outgoing-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "workflow-stepper completes its stated audience change, then state-boundary receives that result as its starting condition.",
+          "connectionIntent": "operational-list completes its stated audience change, then state-boundary receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user completes the workflow or safely resumes it later."
+          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
         }
       }
     },
@@ -2204,7 +2196,7 @@
           "connectionId": "connection-6-7",
           "role": "incoming-edge",
           "treatment": "quiet-boundary",
-          "connectionIntent": "workflow-stepper completes its stated audience change, then state-boundary receives that result as its starting condition.",
+          "connectionIntent": "operational-list completes its stated audience change, then state-boundary receives that result as its starting condition.",
           "fieldFamily": "material",
           "energyDirection": "settle-at-boundary",
           "sourceOwner": "none",
@@ -2392,16 +2384,6 @@
       "status": "ready"
     },
     {
-      "id": "progress",
-      "job": "Show determinate or indeterminate operation progress.",
-      "owner": "shadcn-vue",
-      "implementation": "progress",
-      "publicExports": [
-        "SystemProgress"
-      ],
-      "status": "ready"
-    },
-    {
       "id": "data-table",
       "job": "Compare and act on structured records across columns.",
       "owner": "frappe-ui",
@@ -2434,6 +2416,39 @@
       "implementation": null,
       "publicExports": [],
       "status": "gap"
+    },
+    {
+      "id": "badge",
+      "job": "Show compact status, category, or metadata.",
+      "owner": "shadcn-vue",
+      "implementation": "badge",
+      "publicExports": [
+        "SystemBadge"
+      ],
+      "status": "ready"
+    },
+    {
+      "id": "tabs",
+      "job": "Switch among peer views without leaving the current context.",
+      "owner": "shadcn-vue",
+      "implementation": "tabs",
+      "publicExports": [
+        "SystemTabs",
+        "SystemTabsList",
+        "SystemTabsTrigger",
+        "SystemTabsContent"
+      ],
+      "status": "ready"
+    },
+    {
+      "id": "progress",
+      "job": "Show determinate or indeterminate operation progress.",
+      "owner": "shadcn-vue",
+      "implementation": "progress",
+      "publicExports": [
+        "SystemProgress"
+      ],
+      "status": "ready"
     }
   ],
   "primitiveRoles": [
@@ -2483,6 +2498,7 @@
   "selectedRecipe": null,
   "selections": {
     "components": [
+      "badge",
       "button",
       "card",
       "chart",
@@ -2497,6 +2513,7 @@
       "select",
       "stat",
       "switch",
+      "tabs",
       "text-input",
       "textarea",
       "time-picker"
