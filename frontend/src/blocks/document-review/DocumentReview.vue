@@ -16,21 +16,33 @@ const locationOptions = computed(() => (props.snapshot?.options?.locations || []
 const runOptions = computed(() => (props.snapshot?.recent_runs || []).filter(run => !run.docstatus).map(run => ({ label: `${run.production_date}: ${run.finished_item}`, value: run.name })))
 const itemOptions = computed(() => (props.inventory?.items || []).map(item => ({ label: item.item_name, value: item.item_code })))
 function onUpload(file) { form.source_file = file.file_url }
-async function extract() { busy.value = true; error.value = ""; try { draft.value = await createDocumentExtractionDraft({ ...form, business_name: "BulkBite" }) } catch (exception) { error.value = exception.message } finally { busy.value = false } }
-async function review() { busy.value = true; error.value = ""; try { draft.value = await reviewDocumentExtraction(draft.value.name, draft.value.rows.filter(row => row.accepted).map(row => ({ ...row, accepted: 1 }))) } catch (exception) { error.value = exception.message } finally { busy.value = false } }
+async function extract() {
+  error.value = ""
+  if (!form.source_file) { error.value = "Upload the private worker sheet."; return }
+  if (!form.default_location) { error.value = "Choose the default stock location."; return }
+  if (form.document_type !== "Stock Audit" && !form.production_run) { error.value = "Choose the production draft this sheet belongs to."; return }
+  busy.value = true
+  try { draft.value = await createDocumentExtractionDraft({ ...form, business_name: "BulkBite" }) } catch (exception) { error.value = exception.message } finally { busy.value = false }
+}
+async function review() {
+  error.value = ""
+  if (!draft.value.rows.some((row) => row.accepted)) { error.value = "Approve at least one measurement row."; return }
+  busy.value = true
+  try { draft.value = await reviewDocumentExtraction(draft.value.name, draft.value.rows.map(row => ({ ...row, qty: Number(row.qty), accepted: row.accepted ? 1 : 0 }))) } catch (exception) { error.value = exception.message } finally { busy.value = false }
+}
 async function applyRows() { busy.value = true; error.value = ""; try { const result = await applyDocumentMeasurements(draft.value.name); draft.value.status = "Applied"; draft.value.applied_reference = result.name; emit("changed") } catch (exception) { error.value = exception.message } finally { busy.value = false } }
 </script>
 
 <template>
   <section data-block="document-review" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Worker sheets</p><h1>Turn a written sheet into a draft</h1><p>Upload the evidence, paste its text, and check every suggested row before applying it.</p></div></header>
+    <header class="workflow-header"><div><p class="eyebrow">Worker sheets</p><h1>Turn a written sheet into a draft</h1><p>Upload the evidence, let the parser extract measurements, and check every suggested row before applying it.</p></div></header>
     <ol class="workflow-steps" aria-label="Worker sheet progress">
-      <li :class="{ 'is-current': !draft, 'is-complete': draft }"><span>1</span><div><strong>Add source</strong><small>Upload the sheet and provide its text.</small></div></li>
+      <li :class="{ 'is-current': !draft, 'is-complete': draft }"><span>1</span><div><strong>Upload and extract</strong><small>Keep the private sheet and create suggestions.</small></div></li>
       <li :class="{ 'is-current': draft && draft.status !== 'Reviewed' && draft.status !== 'Applied', 'is-complete': draft?.status === 'Reviewed' || draft?.status === 'Applied' }"><span>2</span><div><strong>Check suggestions</strong><small>Correct matches and accept valid rows.</small></div></li>
       <li :class="{ 'is-current': draft?.status === 'Reviewed', 'is-complete': draft?.status === 'Applied' }"><span>3</span><div><strong>Apply rows</strong><small>Send only approved rows to a draft.</small></div></li>
     </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section v-if="!draft" class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Add the worker sheet</h2><p>The uploaded file stays as evidence. The system reads only the text supplied here.</p></div></div>
+    <section v-if="!draft" class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Add the worker sheet</h2><p>The private file stays as evidence. Local extraction runs first, then configured AI can strengthen the structured suggestions.</p></div></div>
       <div class="field-grid">
         <label class="field-shell"><span>Document type</span><SystemSelect v-model="form.document_type" :options="typeOptions" size="lg" /></label>
         <SystemLinkedRecordField v-model="form.default_location" label="Default location" :options="locationOptions" create-label="Add location" manage-label="Manage locations" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Location' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Location' } })" />
@@ -38,18 +50,18 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
       </div>
       <SystemFileUploader :upload-args="{ private: true }" @success="onUpload"><template #default="upload"><SystemOperationalButton variant="outline" :loading="upload.uploading" @click="upload.openFileSelector">{{ form.source_file ? "Replace worker sheet" : "Upload worker sheet" }}</SystemOperationalButton></template></SystemFileUploader>
       <p class="field-note">{{ form.source_file || "Private source document required." }}</p>
-      <label class="field-shell"><span>OCR or transcribed text</span><SystemTextarea v-model="form.raw_text" :rows="9" placeholder="Paste one measurement per line, for example: Chicken breast, 2.4 kg" /></label>
-      <p class="safety-note">This interface does not inspect the uploaded image. It parses only the text you supply and holds the result for review.</p>
-      <SystemOperationalButton theme="blue" variant="solid" size="lg" :loading="busy" @click="extract">Create review draft</SystemOperationalButton>
+      <label class="field-shell"><span>Optional transcription or correction</span><SystemTextarea v-model="form.raw_text" :rows="6" placeholder="Leave blank to use extraction, or paste one measurement per line, for example: Chicken breast, 2.4 kg" /></label>
+      <p class="safety-note">Extraction creates suggestions only. No stock changes until a person reviews the rows and applies them.</p>
+      <SystemOperationalButton theme="blue" variant="solid" size="lg" :loading="busy" @click="extract">Extract measurements</SystemOperationalButton>
     </section>
     <section v-else class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Check every suggestion</h2><p>Fix the item or quantity, then accept only rows that match the written sheet.</p></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Check every suggestion</h2><p>Fix the item or quantity, then accept only rows that match the written sheet.</p><small>{{ draft.text_provider }} · {{ draft.parser_mode }}</small></div><SystemBadge>{{ draft.status }}</SystemBadge></div>
       <p v-if="draft.warnings" class="safety-note">{{ draft.warnings }}</p>
       <div class="measurement-list">
         <article v-for="(row, index) in draft.rows" :key="index" class="measurement-row measurement-row--review">
-          <div><strong>{{ row.source_line || row.proposed_item_name }}</strong><small>{{ Number(row.confidence || 0).toFixed(0) }}% match · {{ row.warning || "No warning" }}</small></div>
+          <div><strong>{{ row.source_quote || row.source_line || row.proposed_item_name }}</strong><small>{{ row.source_page ? `Page ${row.source_page} · ` : "" }}{{ Number(row.confidence || 0).toFixed(0) }}% match · {{ row.warning || "No warning" }}</small></div>
           <SystemLinkedRecordField v-model="row.item_code" label="Matched item" :options="itemOptions" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" />
-          <SystemFormControl v-model="row.qty" type="number" label="Quantity" min="0" step="0.001" size="lg" />
+          <SystemFormControl v-model="row.qty" type="number" label="Quantity" min="0" step="0.1" size="lg" />
           <SystemCheckbox v-model="row.accepted" label="Accept row" />
         </article>
       </div>

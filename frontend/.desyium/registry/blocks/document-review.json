@@ -1,7 +1,7 @@
 {
   "id": "document-review",
   "name": "Document Review",
-  "job": "Retain a private worker sheet, turn supplied OCR text into proposed rows, require human review, and apply only approved measurements.",
+  "job": "Retain a private worker sheet, extract text locally, optionally strengthen it through structured Pydantic AI, require human review, and apply only approved measurements.",
   "category": "Application",
   "source": "@/blocks/document-review/DocumentReview.vue",
   "public": "SystemDocumentReview",
@@ -9,7 +9,7 @@
   "projectSource": "src/blocks/document-review",
   "components": ["file-uploader", "form-control", "select", "textarea", "checkbox", "operational-button", "badge"],
   "primitives": [],
-  "incomingHandoff": "A worker has written stock or production measurements that have been converted to text outside this interface.",
+  "incomingHandoff": "A worker has written stock or production measurements in a private uploaded document or transcription.",
   "outgoingHandoff": "A reviewer accepts, edits, or rejects proposed rows before the system updates a production draft or creates an audit draft.",
   "responsiveBehaviour": "Keep source evidence, original line, proposed item, quantity, confidence, warning, and acceptance together in stacked mobile records.",
   "layoutContract": {

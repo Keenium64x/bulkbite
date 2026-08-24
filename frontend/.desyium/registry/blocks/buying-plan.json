@@ -1,0 +1,39 @@
+{
+  "id": "buying-plan",
+  "name": "Buying Plan",
+  "job": "Own supplier-routed shortages, pack rounding, discounts, and theoretical buying cost",
+  "category": "Project",
+  "source": "@/blocks/buying-plan/BuyingPlan.vue",
+  "public": "SystemBuyingPlan",
+  "registrySource": "sources/blocks/buying-plan",
+  "projectSource": "src/blocks/buying-plan",
+  "components": ["badge", "card", "operational-button"],
+  "primitives": [],
+  "incomingHandoff": "A saved monthly plan has ingredient demand and current stock, but the manager needs an orderable supplier basket.",
+  "outgoingHandoff": "The manager has supplier-grouped whole-pack quantities, expected cost, pack overflow, missing-price warnings, and a handoff to receipt capture.",
+  "responsiveBehaviour": "Keep supplier totals and warning states visible; allow the order table to scroll without clipping quantities or actions.",
+  "layoutContract": {
+    "strategy": "flow",
+    "pageAlignment": "grid",
+    "padding": "var(--spacing-xl-2xl) 0",
+    "gap": "var(--spacing-m)",
+    "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+  },
+  "surfaceContract": {
+    "placement": "none",
+    "semanticOwner": "[data-block='buying-plan']",
+    "scope": "none",
+    "edgeTreatment": "none",
+    "boundaryReason": null,
+    "contentSeparation": "Content padding does not define primitive bounds.",
+    "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+  },
+  "actionContract": {
+    "primaryPreset": "primary-action",
+    "secondaryPreset": "secondary-action"
+  },
+  "motionContract": {
+    "mode": "still",
+    "justification": "Choose and document a semantic experience before adding movement."
+  }
+}

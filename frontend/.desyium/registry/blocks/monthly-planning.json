@@ -1,0 +1,39 @@
+{
+  "id": "monthly-planning",
+  "name": "Monthly Planning",
+  "job": "Own monthly customer counts, four weekly recipes, and calculated ingredient demand",
+  "category": "Project",
+  "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
+  "public": "SystemMonthlyPlanning",
+  "registrySource": "sources/blocks/monthly-planning",
+  "projectSource": "src/blocks/monthly-planning",
+  "components": ["badge", "checkbox", "date-picker", "form-control", "linked-record-field", "operational-button"],
+  "primitives": [],
+  "incomingHandoff": "The manager knows the next period needs a customer-led food plan but has not yet committed its weekly meals.",
+  "outgoingHandoff": "A saved four-week plan supplies customer demand, weekly output, ingredient requirements, and supplier routing to buying and production.",
+  "responsiveBehaviour": "Show four weekly meals in four, two, then one column while preserving labels, calculated units, and action order.",
+  "layoutContract": {
+    "strategy": "flow",
+    "pageAlignment": "grid",
+    "padding": "var(--spacing-xl-2xl) 0",
+    "gap": "var(--spacing-m)",
+    "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+  },
+  "surfaceContract": {
+    "placement": "none",
+    "semanticOwner": "[data-block='monthly-planning']",
+    "scope": "none",
+    "edgeTreatment": "none",
+    "boundaryReason": null,
+    "contentSeparation": "Content padding does not define primitive bounds.",
+    "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+  },
+  "actionContract": {
+    "primaryPreset": "primary-action",
+    "secondaryPreset": "secondary-action"
+  },
+  "motionContract": {
+    "mode": "still",
+    "justification": "Choose and document a semantic experience before adding movement."
+  }
+}

@@ -1,15 +1,15 @@
 {
   "id": "production-measurement",
   "name": "Production Measurement",
-  "job": "Turn one planned recipe into a production draft, compare expected usage with used-or-left measurements, and post reviewed stock movement.",
+  "job": "Automatically resume or open the next unposted planned week, compare expected usage with used-or-left measurements, and post reviewed stock movement.",
   "category": "Application",
   "source": "@/blocks/production-measurement/ProductionMeasurement.vue",
   "public": "SystemProductionMeasurement",
   "registrySource": "sources/blocks/production-measurement",
   "projectSource": "src/blocks/production-measurement",
-  "components": ["form-control", "select", "textarea", "operational-button", "badge"],
+  "components": ["date-picker", "form-control", "linked-record-field", "select", "textarea", "operational-button", "badge"],
   "primitives": [],
-  "incomingHandoff": "A worker knows which planned meal was made and has actual output plus used or remaining ingredient measurements.",
+  "incomingHandoff": "Planning has already chosen the meals and quantities, and a worker opens Production after a cook.",
   "outgoingHandoff": "The reviewed production draft posts ingredient consumption and finished meal output only after explicit confirmation.",
   "responsiveBehaviour": "Keep expected, available, measurement method, actual quantity, and unit together; recompose every ingredient as a labelled mobile record.",
   "layoutContract": {

@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from "vue"
-import { SystemBadge, SystemCard, SystemFormControl, SystemOperationalButton } from "@/desyium"
+import { computed, ref } from "vue"
+import { SystemBadge, SystemCard, SystemLinkedRecordField, SystemOperationalButton, SystemScanCodeField } from "@/desyium"
+import { useRouter } from "vue-router"
 
-defineProps({
+const props = defineProps({
   snapshot: { type: Object, default: null },
   inventory: { type: Object, default: null },
   plan: { type: Object, default: null },
@@ -11,12 +12,16 @@ defineProps({
   error: { type: String, default: "" },
 })
 
-const emit = defineEmits(["scan", "open-workflow"])
+const emit = defineEmits(["scan", "map-scan", "open-workflow"])
+const router = useRouter()
 const scanCode = ref("")
+const mappingItem = ref("")
+const itemOptions = computed(() => (props.inventory?.items || []).map((item) => ({ label: item.item_name, value: item.item_code })))
+const nextWeek = computed(() => (props.plan?.rows || []).find(row => !props.plan?.runs?.some(run => run.production_plan_row === row.name && run.docstatus)) || props.plan?.rows?.[0])
+const stockEnough = computed(() => (props.plan?.total_requirements || []).filter(item => item.shortage_qty <= 0).length)
 
-function submitScan() {
-  if (scanCode.value.trim()) emit("scan", scanCode.value.trim())
-}
+function submitScan(code) { if (String(code || "").trim()) emit("scan", String(code).trim()) }
+function assignCode() { if (mappingItem.value && props.scanResult?.scan_code) emit("map-scan", mappingItem.value, props.scanResult.scan_code) }
 
 function number(value, digits = 2) {
   return Number(value || 0).toLocaleString("en-ZA", { maximumFractionDigits: digits })
@@ -27,15 +32,15 @@ function number(value, digits = 2) {
   <section data-block="stock-overview" class="workflow-block">
     <header class="workflow-header">
       <div>
-        <p class="eyebrow">Stock</p>
-        <h1>What is in the kitchen now</h1>
-        <p>See what is available, what the meal plan needs, and where stock needs attention.</p>
+        <p class="eyebrow">Dashboard</p>
+        <h1>What needs attention now</h1>
+        <p>See the active customer plan, next production week, stock shortages, buying cost, and actual spend.</p>
       </div>
       <div class="metric-board" aria-label="Workspace totals">
-        <div><strong>{{ snapshot?.counts?.ingredients || 0 }}</strong><span>ingredients</span></div>
-        <div><strong>{{ snapshot?.counts?.received_receipts || 0 }}</strong><span>receipts posted</span></div>
-        <div><strong>{{ snapshot?.counts?.draft_production_runs || 0 }}</strong><span>runs to finish</span></div>
-        <div><strong>{{ snapshot?.counts?.posted_production_runs || 0 }}</strong><span>runs posted</span></div>
+        <div><strong>{{ plan?.customer_demand?.total_customers || 0 }}</strong><span>customers planned</span></div>
+        <div><strong>{{ number(plan?.customer_demand?.weekly_output_qty, 1) }} kg</strong><span>food per week</span></div>
+        <div><strong>{{ plan?.buying?.shortage_count || 0 }}</strong><span>items to buy</span></div>
+        <div><strong>R {{ number(plan?.buying?.expected_cost) }}</strong><span>expected spend</span></div>
       </div>
     </header>
 
@@ -43,39 +48,50 @@ function number(value, digits = 2) {
     <div v-if="loading && !inventory" class="state-message" role="status">Loading current stock...</div>
 
     <section class="flow-guide" aria-labelledby="flow-guide-heading">
-      <div><p class="eyebrow">How stock moves</p><h2 id="flow-guide-heading">Keep stock correct in three steps</h2></div>
+      <div><p class="eyebrow">Current operating flow</p><h2 id="flow-guide-heading">Plan first, then record what actually happened</h2></div>
       <ol>
-        <li><span>1</span><div><strong>Add purchases</strong><small>Upload a receipt and add reviewed quantities.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Open receipts</SystemOperationalButton></li>
-        <li><span>2</span><div><strong>Record meal use</strong><small>Compare recipe theory with what was used or left.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'production')">Open production</SystemOperationalButton></li>
-        <li><span>3</span><div><strong>Check physical stock</strong><small>Count what is present and reconcile differences.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'counts')">Open stock count</SystemOperationalButton></li>
+        <li><span>1</span><div><strong>Set customers and meals</strong><small>Plan four weeks from the customer mix.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">Open planning</SystemOperationalButton></li>
+        <li><span>2</span><div><strong>Buy the shortages</strong><small>Use supplier packs and expected prices.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton></li>
+        <li><span>3</span><div><strong>Record the actuals</strong><small>Add receipts after shopping and usage after cooking.</small></div><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'production')">Open production</SystemOperationalButton></li>
       </ol>
     </section>
 
     <div class="workflow-grid">
+      <SystemCard class="work-panel"><p class="panel-index">Active month</p><h2>{{ plan?.plan_title || "No active plan" }}</h2><p v-if="plan">{{ plan.period_start }} to {{ plan.period_end }} · {{ plan.customer_demand.total_customers }} customers</p><p v-else>Create the customer mix and choose the four weekly meals.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">{{ plan ? "Review plan" : "Create plan" }}</SystemOperationalButton></SystemCard>
+      <SystemCard class="work-panel"><p class="panel-index">Next production</p><h2>{{ nextWeek?.finished_item_name || "No meal scheduled" }}</h2><p v-if="nextWeek">Week {{ nextWeek.week_number }} · {{ number(nextWeek.weekly_servings, 0) }} meals · {{ number(nextWeek.planned_output_qty, 1) }} kg</p><p v-else>Choose the weekly meals in Planning.</p><SystemOperationalButton variant="outline" :disabled="!nextWeek" @click="emit('open-workflow', 'production')">Start production run</SystemOperationalButton></SystemCard>
+      <SystemCard class="work-panel"><p class="panel-index">Buying</p><h2>{{ plan?.buying?.shortage_count || 0 }} items need stock</h2><p>{{ stockEnough }} planned ingredients have enough stock. {{ plan?.buying?.missing_offer_count || 0 }} shortages still need a supplier price.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">View shopping list</SystemOperationalButton></SystemCard>
+      <SystemCard class="work-panel"><p class="panel-index">Theory versus actual</p><h2>R {{ number(plan?.actual_purchases?.actual_cost) }} spent</h2><p>Expected R {{ number(plan?.actual_purchases?.expected_cost) }} · variance R {{ number(plan?.actual_purchases?.cost_variance) }}</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Add receipt</SystemOperationalButton></SystemCard>
+    </div>
+
+    <div class="workflow-grid dashboard-secondary">
       <SystemCard class="work-panel work-panel--scan">
         <p class="panel-index">Quick check</p>
         <h2>Find an ingredient</h2>
         <p>Scan a QR code or barcode, or type the code printed on the label.</p>
-        <form class="inline-action" @submit.prevent="submitScan">
-          <SystemFormControl v-model="scanCode" label="QR or barcode" placeholder="Scan or type code" size="lg" />
-          <SystemOperationalButton type="submit" theme="blue" variant="solid" size="lg">Find item</SystemOperationalButton>
-        </form>
-        <div v-if="scanResult" class="scan-result" aria-live="polite">
+        <SystemScanCodeField v-model="scanCode" :busy="loading" autofocus @scan="submitScan" />
+        <div v-if="scanResult?.matched" class="scan-result" aria-live="polite">
           <SystemBadge class="status-badge">MATCHED</SystemBadge>
           <strong>{{ scanResult.item_name }}</strong>
           <span>{{ scanResult.item_code }} · {{ scanResult.uom }}</span>
         </div>
+        <div v-else-if="scanResult && !scanResult.matched" class="scan-result scan-result--unknown" aria-live="polite">
+          <SystemBadge>NOT MAPPED</SystemBadge>
+          <strong>{{ scanResult.scan_code }}</strong>
+          <span>{{ scanResult.reason }}</span>
+          <SystemLinkedRecordField v-model="mappingItem" label="Assign to item" :options="itemOptions" placeholder="Choose an ingredient" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" />
+          <SystemOperationalButton variant="outline" :disabled="!mappingItem" @click="assignCode">Save code mapping</SystemOperationalButton>
+        </div>
       </SystemCard>
 
       <SystemCard class="work-panel work-panel--shortage">
-        <p class="panel-index">Meal plan</p>
+        <p class="panel-index">Stock readiness</p>
         <h2>{{ plan?.plan_title || "Four-week plan" }}</h2>
-        <p>{{ plan?.date_note || "The imported plan is relative until production dates are confirmed." }}</p>
+        <p>{{ stockEnough }} planned ingredients are covered by current stock.</p>
         <div class="shortage-summary">
           <strong>{{ plan?.total_requirements?.filter(item => item.shortage_qty > 0).length || 0 }}</strong>
           <span>ingredients short</span>
         </div>
-        <SystemOperationalButton variant="outline" @click="emit('open-workflow', 'production')">Open production</SystemOperationalButton>
+        <SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton>
       </SystemCard>
     </div>
 
@@ -130,7 +146,7 @@ function number(value, digits = 2) {
           <span>RECEIPT</span><strong>{{ receipt.supplier }}</strong><small>{{ receipt.invoice_date }} · {{ receipt.status }}</small><b>R {{ number(receipt.total_amount) }}</b>
         </article>
         <article v-for="run in snapshot?.recent_runs || []" :key="run.name" class="record-strip">
-          <span>PRODUCTION</span><strong>{{ run.finished_item }}</strong><small>{{ run.production_date }} · {{ run.docstatus ? "Posted" : "Draft" }}</small><b>{{ number(run.actual_output_qty) }} meals</b>
+          <span>PRODUCTION</span><strong>{{ run.finished_item }}</strong><small>{{ run.production_date }} · {{ run.docstatus ? "Posted" : "Draft" }}</small><b>{{ number(run.actual_output_qty) }} kg</b>
         </article>
         <p v-if="!snapshot?.recent_receipts?.length && !snapshot?.recent_runs?.length">No recent operational records.</p>
       </div>

@@ -7,7 +7,7 @@
   "public": "SystemStockOverview",
   "registrySource": "sources/blocks/stock-overview",
   "projectSource": "src/blocks/stock-overview",
-  "components": ["form-control", "operational-button", "badge", "card"],
+  "components": ["scan-code-field", "linked-record-field", "operational-button", "badge", "card"],
   "primitives": [],
   "incomingHandoff": "A worker or manager needs to know what stock exists and whether the planned meals can be made.",
   "outgoingHandoff": "The user can identify a shortage, verify a scanned item, or move to receipt, production, or count work with the current evidence visible.",

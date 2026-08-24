@@ -7,7 +7,7 @@
   "public": "SystemStockReconciliation",
   "registrySource": "sources/blocks/stock-reconciliation",
   "projectSource": "src/blocks/stock-reconciliation",
-  "components": ["form-control", "textarea", "operational-button", "badge"],
+  "components": ["date-picker", "form-control", "textarea", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "A worker has physically counted selected ingredients at a location.",
   "outgoingHandoff": "The count remains a draft until a manager reviews and approves the exact stock differences.",

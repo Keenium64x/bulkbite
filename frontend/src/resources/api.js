@@ -42,7 +42,9 @@ export const getWorkspaceSnapshot = () => call("bulkbite.api.get_workspace_snaps
 export const logOut = () => call("logout")
 export const getInventorySnapshot = (location) => call("bulkbite.api.get_inventory_snapshot", { location }, "GET")
 export const getProductionPlanSnapshot = (planName, location) => call("bulkbite.api.get_production_plan_snapshot", { plan_name: planName, location }, "GET")
+export const saveMonthlyProductionPlan = (payload) => call("bulkbite.api.save_monthly_production_plan", { payload })
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")
+export const assignScanCode = (itemCode, code) => call("bulkbite.api.assign_scan_code", { item_code: itemCode, code })
 export const getAuxiliaryCatalogue = () => call("bulkbite.api.get_auxiliary_form_catalogue", {}, "GET")
 export const getAuxiliaryRecordList = (doctype) => call("bulkbite.api.get_auxiliary_record_list", { doctype }, "GET")
 export const getAuxiliaryRecord = (doctype, name) => call("bulkbite.api.get_auxiliary_record", { doctype, name }, "GET")
@@ -59,6 +61,8 @@ export const updateProductionActuals = (name, actualOutputQty, ingredients, note
   call("bulkbite.api.update_production_actuals", { name, actual_output_qty: actualOutputQty, ingredients, notes })
 export const submitProductionRun = (name) => call("bulkbite.api.submit_production_run", { name })
 export const createReceiptIntake = (payload) => call("bulkbite.api.create_receipt_intake", { payload })
+export const startReceiptExtraction = (fileUrl) => call("bulkbite.api.start_receipt_extraction", { file_url: fileUrl })
+export const getReceiptExtractionStatus = (jobId) => call("bulkbite.api.get_receipt_extraction_status", { job_id: jobId }, "GET")
 export const receiveStockFromReceipt = (receiptName) => call("bulkbite.api.receive_stock_from_receipt", { receipt_name: receiptName })
 export const createStockCountDraft = (payload) => call("bulkbite.api.create_stock_count_draft", { payload })
 export const approveStockAudit = (name) => call("bulkbite.api.approve_stock_audit", { name })
@@ -66,6 +70,8 @@ export const createDocumentExtractionDraft = (payload) => call("bulkbite.api.cre
 export const reviewDocumentExtraction = (name, rows) => call("bulkbite.api.review_document_extraction", { name, rows })
 export const applyDocumentMeasurements = (name) => call("bulkbite.api.apply_document_measurements", { name })
 export const getAccountantExport = (fromDate, toDate) => call("bulkbite.api.get_accountant_export", { from_date: fromDate, to_date: toDate }, "GET")
+export const getSpendReport = (fromDate, toDate) => call("bulkbite.api.get_spend_report", { from_date: fromDate, to_date: toDate }, "GET")
+export const getPurchasePriceHistory = (filters) => call("bulkbite.api.get_purchase_price_history", filters, "GET")
 
 export function accountantExportUrl(fromDate, toDate, dataset) {
   return `/api/method/bulkbite.api.download_accountant_export?${new URLSearchParams({

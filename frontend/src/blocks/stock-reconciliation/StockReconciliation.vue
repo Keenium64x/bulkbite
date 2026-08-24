@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue"
-import { SystemBadge, SystemFormControl, SystemOperationalButton, SystemTextarea } from "@/desyium"
+import { SystemBadge, SystemDatePicker, SystemFormControl, SystemOperationalButton, SystemTextarea } from "@/desyium"
 import { approveStockAudit, createStockCountDraft } from "@/resources/api"
 
 const props = defineProps({ inventory: { type: Object, default: null } })
@@ -13,7 +13,7 @@ const busy = ref(false)
 const error = ref("")
 watch(() => props.inventory?.items, items => { counts.splice(0); (items || []).forEach(item => counts.push({ ...item, counted_qty: item.actual_qty })) }, { immediate: true })
 const changedCounts = computed(() => counts.filter(item => Number(item.counted_qty) !== Number(item.actual_qty)))
-async function saveCount() { busy.value = true; error.value = ""; try { draft.value = await createStockCountDraft({ posting_date: postingDate.value, notes: notes.value, items: counts.map(item => ({ item_code: item.item_code, location: props.inventory.location, qty: item.counted_qty })) }) } catch (exception) { error.value = exception.message } finally { busy.value = false } }
+async function saveCount() { error.value = ""; if (!postingDate.value) { error.value = "Choose the count date."; return } if (!counts.length) { error.value = "There is no stock to count."; return } if (counts.some((item) => Number(item.counted_qty) < 0 || !Number.isFinite(Number(item.counted_qty)))) { error.value = "Every counted quantity must be zero or more."; return } busy.value = true; try { draft.value = await createStockCountDraft({ posting_date: postingDate.value, notes: notes.value, items: counts.map(item => ({ item_code: item.item_code, location: props.inventory.location, qty: Number(item.counted_qty) })) }) } catch (exception) { error.value = exception.message } finally { busy.value = false } }
 async function approve() { busy.value = true; error.value = ""; try { draft.value = await approveStockAudit(draft.value.name); emit("changed") } catch (exception) { error.value = exception.message } finally { busy.value = false } }
 </script>
 
@@ -26,14 +26,14 @@ async function approve() { busy.value = true; error.value = ""; try { draft.valu
       <li :class="{ 'is-current': draft && !draft.docstatus, 'is-complete': draft?.docstatus }"><span>3</span><div><strong>Manager approval</strong><small>Post the reviewed corrections.</small></div></li>
     </ol>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Enter the physical count</h2><p>Record when and how this count was completed.</p></div></div><SystemFormControl v-model="postingDate" type="date" label="Count date" size="lg" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" placeholder="Who counted, where, and any unusual conditions" /></label></section>
+    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Enter the physical count</h2><p>Record when and how this count was completed.</p></div></div><SystemDatePicker v-model="postingDate" label="Count date" format="YYYY-MM-DD" :disabled="Boolean(draft)" :clearable="false" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" :disabled="Boolean(draft)" placeholder="Who counted, where, and any unusual conditions" /></label></section>
     <section class="data-section">
       <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>Counted stock</h2></div><SystemBadge>{{ changedCounts.length }} differences</SystemBadge></div>
       <div class="measurement-list">
         <article v-for="item in counts" :key="item.item_code" class="measurement-row measurement-row--count" :class="{ 'is-different': Number(item.counted_qty) !== Number(item.actual_qty) }">
-          <div><strong>{{ item.item_name }}</strong><small>System says {{ Number(item.actual_qty).toFixed(3) }} {{ item.stock_uom }}</small></div>
-          <SystemFormControl v-model="item.counted_qty" type="number" label="Counted" min="0" step="0.001" size="lg" />
-          <div class="difference"><span>Difference</span><strong>{{ (Number(item.counted_qty) - Number(item.actual_qty)).toFixed(3) }} {{ item.stock_uom }}</strong></div>
+          <div><strong>{{ item.item_name }}</strong><small>System says {{ Number(item.actual_qty).toFixed(2) }} {{ item.stock_uom }}</small></div>
+          <SystemFormControl v-model="item.counted_qty" type="number" label="Counted" min="0" step="0.1" size="lg" :disabled="Boolean(draft)" />
+          <div class="difference"><span>Difference</span><strong>{{ (Number(item.counted_qty) - Number(item.actual_qty)).toFixed(2) }} {{ item.stock_uom }}</strong></div>
         </article>
       </div>
     </section>
