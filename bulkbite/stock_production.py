@@ -14,12 +14,17 @@ from bulkbite.variance import calculate_output_variance, calculate_usage_varianc
 # =============================================================================
 
 
+def round_operational_quantity(value, precision=3):
+	"""Return a stable decimal quantity for forms, API payloads, and stock theory."""
+	return round(flt(value), precision)
+
+
 def load_expected_usage(recipe_name, planned_output_qty, source_location):
 	"""Scale one approved custom recipe into a frozen production expectation."""
 	recipe = frappe.get_doc("BulkBite Recipe", recipe_name)
 	if recipe.status != "Approved":
 		frappe.throw(_("Select an approved recipe version."))
-	planned_output = flt(planned_output_qty)
+	planned_output = round_operational_quantity(planned_output_qty)
 	if planned_output <= 0:
 		frappe.throw(_("Planned output must be greater than zero."))
 	scale = planned_output / flt(recipe.nominal_output_qty or 1)
@@ -33,8 +38,8 @@ def load_expected_usage(recipe_name, planned_output_qty, source_location):
 				"item_name": frappe.get_cached_value("BulkBite Item", row.item_code, "item_name"),
 				"source_location": source_location,
 				"uom": row.uom,
-				"expected_qty": flt(row.qty) * scale,
-				"actual_qty": flt(row.qty) * scale,
+				"expected_qty": round_operational_quantity(flt(row.qty) * scale),
+				"actual_qty": round_operational_quantity(flt(row.qty) * scale),
 				"measurement_method": "Used",
 				"available_before_measurement": get_available_stock(row.item_code, source_location),
 				"valuation_rate": get_valuation_rate(row.item_code, source_location),
@@ -93,6 +98,14 @@ def post_production_run(run):
 	"""Post ingredient consumption and finished output through the BulkBite journal."""
 	if run.stock_events_posted:
 		return frappe.get_doc("BulkBite Stock Event", run.output_stock_event)
+	for row in run.ingredients:
+		available = get_available_stock(row.item_code, row.source_location or run.source_location)
+		if flt(row.actual_qty) > available:
+			frappe.throw(
+				_("Usage for {0} ({1}) cannot exceed available stock ({2}).").format(
+					row.item_code, flt(row.actual_qty), available
+				)
+			)
 	for row in run.ingredients:
 		event = append_stock_event(
 			"Consumption",

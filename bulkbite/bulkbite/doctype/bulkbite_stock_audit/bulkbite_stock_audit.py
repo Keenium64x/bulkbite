@@ -9,7 +9,14 @@ from bulkbite.stock_ledger import append_stock_event, get_stock_balance
 class BulkBiteStockAudit(Document):
 	def validate(self):
 		if self.docstatus == 0 and not self.stock_events_posted:
+			seen = set()
 			for row in self.items:
+				identity = (row.item_code, row.location)
+				if identity in seen:
+					frappe.throw(_("Count each item once per location. Duplicate: {0} at {1}.").format(*identity))
+				seen.add(identity)
+				if flt(row.counted_qty) < 0:
+					frappe.throw(_("Counted stock cannot be negative for {0}.").format(row.item_code))
 				row.expected_qty = get_stock_balance(row.item_code, row.location)
 				row.uom = frappe.get_cached_value("BulkBite Item", row.item_code, "stock_uom")
 				row.valuation_rate = frappe.get_cached_value("BulkBite Item", row.item_code, "theory_valuation_rate") or 0

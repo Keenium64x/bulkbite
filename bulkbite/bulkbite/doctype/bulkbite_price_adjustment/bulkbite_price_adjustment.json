@@ -1,0 +1,27 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:adjustment_code", "creation": "2026-08-24 20:30:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["adjustment_code", "adjustment_name", "scope_type", "supplier_offer", "supplier", "item_code", "item_category", "adjustment_type", "calculation_basis", "value", "threshold_amount", "effective_from", "effective_to", "priority", "stackable", "vat_treatment", "enabled", "notes"],
+ "fields": [
+  {"fieldname":"adjustment_code","fieldtype":"Data","in_list_view":1,"label":"Adjustment Code","reqd":1,"unique":1},
+  {"fieldname":"adjustment_name","fieldtype":"Data","in_list_view":1,"label":"Adjustment Name","reqd":1},
+  {"default":"Global","fieldname":"scope_type","fieldtype":"Select","label":"Applies To","options":"Global\nSupplier\nItem Category\nItem\nSupplier Offer\nBasket","reqd":1},
+  {"fieldname":"supplier_offer","fieldtype":"Link","label":"Supplier Offer","options":"BulkBite Supplier Offer"},
+  {"fieldname":"supplier","fieldtype":"Link","label":"Supplier","options":"BulkBite Supplier"},
+  {"fieldname":"item_code","fieldtype":"Link","label":"Item","options":"BulkBite Item"},
+  {"fieldname":"item_category","fieldtype":"Link","label":"Item Category","options":"BulkBite Item Category"},
+  {"fieldname":"adjustment_type","fieldtype":"Select","in_list_view":1,"label":"Adjustment Type","options":"Percentage Discount\nFixed Discount\nRebate\nDelivery Fee\nFree Delivery\nService Fee\nVAT Adjustment\nOther Saving\nOther Cost","reqd":1},
+  {"default":"Pack Price","fieldname":"calculation_basis","fieldtype":"Select","label":"Calculation Basis","options":"Pack Price\nBasket Subtotal\nFixed","reqd":1},
+  {"default":"0","fieldname":"value","fieldtype":"Currency","label":"Rate or Amount","non_negative":1},
+  {"default":"0","fieldname":"threshold_amount","fieldtype":"Currency","label":"Minimum Basket Amount","non_negative":1},
+  {"default":"Today","fieldname":"effective_from","fieldtype":"Date","in_list_view":1,"label":"Effective From","reqd":1},
+  {"fieldname":"effective_to","fieldtype":"Date","label":"Effective To"},
+  {"default":"100","fieldname":"priority","fieldtype":"Int","label":"Priority"},
+  {"default":"1","fieldname":"stackable","fieldtype":"Check","label":"Can Stack"},
+  {"default":"As Configured","fieldname":"vat_treatment","fieldtype":"Select","label":"VAT Treatment","options":"As Configured\nInclusive\nExclusive\nNo VAT"},
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","in_list_view":1,"label":"Enabled"},
+  {"fieldname":"notes","fieldtype":"Small Text","label":"Notes or Source"}
+ ],
+ "index_web_pages_for_search":0,"links":[],"modified":"2026-08-24 20:30:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Price Adjustment","owner":"Administrator",
+ "permissions":[{"create":1,"delete":1,"export":1,"print":1,"read":1,"report":1,"role":"System Manager","share":1,"write":1},{"create":1,"delete":1,"export":1,"print":1,"read":1,"report":1,"role":"BulkBite Manager","share":1,"write":1},{"export":1,"read":1,"report":1,"role":"BulkBite Accountant"}],
+ "sort_field":"priority","sort_order":"ASC","states":[],"track_changes":1
+}

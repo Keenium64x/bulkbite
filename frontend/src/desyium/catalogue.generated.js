@@ -1930,34 +1930,38 @@ export const systemCatalogue = Object.freeze({
     },
     {
       "id": "date-picker",
-      "name": "Date picker",
-      "job": "Date selection and entry",
+      "name": "Date Picker",
+      "job": "Choose one operational date through a typed ISO date or an accessible calendar popover.",
       "category": "Forms",
-      "provider": "frappe-ui",
-      "source": "frappe-ui",
+      "provider": "project",
+      "source": "@/components/date-picker/DatePicker.vue",
       "install": {
-        "type": "npm",
-        "packages": [
-          "frappe-ui"
-        ]
+        "type": "none"
       },
       "states": [
         "empty",
         "selected",
         "open",
         "focus",
+        "invalid",
         "disabled",
-        "invalid"
+        "readonly"
       ],
       "exports": [
         {
-          "source": "DatePicker",
+          "source": "default",
           "public": "SystemDatePicker",
-          "class": "system-field",
-          "providerClass": "frappe-adapter"
+          "class": "system-date-picker"
         }
       ],
-      "scope": "builtin"
+      "composes": [
+        "reka-ui/date-picker",
+        "lucide-vue-next/calendar"
+      ],
+      "accessibility": "The visible label is associated with the typed date input. The calendar trigger has an accessible name, the popover uses Reka focus management, and date cells retain Reka grid keyboard navigation and selected, current, unavailable, and disabled semantics.",
+      "responsiveBehaviour": "The field keeps a 44 px target. The calendar popover uses a fixed seven-column grid, avoids viewport edges, and remains horizontally contained on narrow screens.",
+      "failureBehaviour": "Invalid typed values remain editable and expose an associated error. A valid YYYY-MM-DD value remains usable even if the popover cannot open.",
+      "scope": "project"
     },
     {
       "id": "date-range-picker",
@@ -2395,6 +2399,42 @@ export const systemCatalogue = Object.freeze({
           "class": "system-linked-record-field"
         }
       ],
+      "scope": "project"
+    },
+    {
+      "id": "scan-code-field",
+      "name": "Scan Code Field",
+      "job": "Capture QR and barcode text from a browser camera, hardware scanner, or manual entry, then submit one code for resolution.",
+      "category": "Forms",
+      "provider": "project",
+      "source": "@/components/scan-code-field/ScanCodeField.vue",
+      "install": {
+        "type": "none"
+      },
+      "states": [
+        "idle",
+        "hardware-entry",
+        "camera-starting",
+        "camera-active",
+        "camera-capturing",
+        "camera-unsupported",
+        "focus",
+        "disabled",
+        "submitting"
+      ],
+      "exports": [
+        {
+          "source": "default",
+          "public": "SystemScanCodeField",
+          "class": "system-scan-code-field"
+        }
+      ],
+      "composes": [
+        "form-control",
+        "operational-button"
+      ],
+      "accessibility": "The input is labelled, keyboard-submittable, and compatible with scanners that emit keyboard input followed by Enter. Camera permission starts only after an explicit action. The user explicitly captures one frame for local decoding, and all tracks stop after capture, cancel, or unmount.",
+      "responsiveBehaviour": "Keep the labelled input first, wrap actions below it before controls shrink, and constrain the live camera region to the content width.",
       "scope": "project"
     }
   ],
@@ -10703,22 +10743,22 @@ export const systemCatalogue = Object.freeze({
     },
     {
       "id": "accountant-export",
-      "name": "Accountant Export",
-      "job": "Preview approved operational records for a period and export receipt, stock-event, or closing-stock CSV data without changing stock.",
+      "name": "Reports and Accountant Export",
+      "job": "Compare frozen theoretical buying spend with all reviewed receipt spend by period, plan, supplier, and food category, then export operational CSV records without changing stock.",
       "category": "Application",
       "source": "@/blocks/accountant-export/AccountantExport.vue",
       "public": "SystemAccountantExport",
       "registrySource": "sources/blocks/accountant-export",
       "projectSource": "src/blocks/accountant-export",
       "components": [
-        "form-control",
+        "date-picker",
         "select",
         "operational-button",
         "badge"
       ],
       "primitives": [],
-      "incomingHandoff": "A manager or accountant needs a period-bounded operational export for accounting work outside BulkBite.",
-      "outgoingHandoff": "The accountant receives a CSV dataset and the application stock ledger remains unchanged.",
+      "incomingHandoff": "A manager needs a retrospective period comparison, while the accountant needs operational records outside BulkBite.",
+      "outgoingHandoff": "The manager sees theory versus actual spend and the accountant can download CSV records; the stock ledger remains unchanged.",
       "responsiveBehaviour": "Keep the period, dataset, record counts, note, and download action labelled and stacked on mobile.",
       "layoutContract": {
         "strategy": "grid",
@@ -10759,6 +10799,7 @@ export const systemCatalogue = Object.freeze({
         "badge",
         "card",
         "checkbox",
+        "date-picker",
         "form-control",
         "linked-record-field",
         "operational-button",
@@ -10798,7 +10839,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "bulkbite-app-shell",
       "name": "Bulkbite App Shell",
-      "job": "Orient signed-in BulkBite staff, expose the stock workflows, and keep the current task visible.",
+      "job": "Orient signed-in BulkBite staff through Dashboard, Planning, Buying, Receipts, Production, Reports, and Stock while keeping setup in the collapsible sidebar.",
       "category": "Application",
       "source": "@/blocks/bulkbite-app-shell/BulkbiteAppShell.vue",
       "public": "SystemBulkbiteAppShell",
@@ -10844,9 +10885,53 @@ export const systemCatalogue = Object.freeze({
       "scope": "project"
     },
     {
+      "id": "buying-plan",
+      "name": "Buying Plan",
+      "job": "Recalculate supplier-routed shortages from the current customer direction and stock, including pack rounding, discounts, overflow, and theoretical cost.",
+      "category": "Project",
+      "source": "@/blocks/buying-plan/BuyingPlan.vue",
+      "public": "SystemBuyingPlan",
+      "registrySource": "sources/blocks/buying-plan",
+      "projectSource": "src/blocks/buying-plan",
+      "components": [
+        "badge",
+        "card",
+        "operational-button"
+      ],
+      "primitives": [],
+      "incomingHandoff": "The current customer direction and stock position have calculated the next shortage basket.",
+      "outgoingHandoff": "The manager has supplier-grouped whole-pack quantities, expected cost, pack overflow, missing-price warnings, and a handoff to receipt capture.",
+      "responsiveBehaviour": "Keep supplier totals and warning states visible; allow the order table to scroll without clipping quantities or actions.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='buying-plan']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": "primary-action",
+        "secondaryPreset": "secondary-action"
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
+      },
+      "scope": "project"
+    },
+    {
       "id": "document-review",
       "name": "Document Review",
-      "job": "Retain a private worker sheet, turn supplied OCR text into proposed rows, require human review, and apply only approved measurements.",
+      "job": "Retain a private worker sheet, extract text locally, optionally strengthen it through structured Pydantic AI, require human review, and apply only approved measurements.",
       "category": "Application",
       "source": "@/blocks/document-review/DocumentReview.vue",
       "public": "SystemDocumentReview",
@@ -10862,7 +10947,7 @@ export const systemCatalogue = Object.freeze({
         "badge"
       ],
       "primitives": [],
-      "incomingHandoff": "A worker has written stock or production measurements that have been converted to text outside this interface.",
+      "incomingHandoff": "A worker has written stock or production measurements in a private uploaded document or transcription.",
       "outgoingHandoff": "A reviewer accepts, edits, or rejects proposed rows before the system updates a production draft or creates an audit draft.",
       "responsiveBehaviour": "Keep source evidence, original line, proposed item, quantity, confidence, warning, and acceptance together in stacked mobile records.",
       "layoutContract": {
@@ -10870,7 +10955,7 @@ export const systemCatalogue = Object.freeze({
         "pageAlignment": "grid",
         "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "A compact page header and numbered workflow guide keep source evidence, human review, and application as distinct stages in normal flow."
+        "containment": "A compact page header keeps source evidence, human review, and application as distinct sections in normal flow without a numbered guide."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10892,31 +10977,124 @@ export const systemCatalogue = Object.freeze({
       "scope": "project"
     },
     {
+      "id": "monthly-planning",
+      "name": "Rolling Meal Direction",
+      "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and category-to-supplier routes.",
+      "category": "Project",
+      "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
+      "public": "SystemMonthlyPlanning",
+      "registrySource": "sources/blocks/monthly-planning",
+      "projectSource": "src/blocks/monthly-planning",
+      "components": [
+        "badge",
+        "checkbox",
+        "form-control",
+        "linked-record-field",
+        "operational-button"
+      ],
+      "primitives": [],
+      "incomingHandoff": "The manager knows the current customers or repeating meals have changed.",
+      "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory.",
+      "responsiveBehaviour": "Show four repeating meals in four, two, then one column while preserving labels, calculated units, supplier routing, and action order.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='monthly-planning']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": "primary-action",
+        "secondaryPreset": "secondary-action"
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
+      },
+      "scope": "project"
+    },
+    {
+      "id": "price-history",
+      "name": "Price History",
+      "job": "Compare supplier-offer theory with reviewed receipt actual prices by item, supplier, date, pack, inner unit, and stock unit without changing stock.",
+      "category": "Application",
+      "source": "@/blocks/price-history/PriceHistory.vue",
+      "public": "SystemPriceHistory",
+      "registrySource": "sources/blocks/price-history",
+      "projectSource": "src/blocks/price-history",
+      "components": [
+        "date-picker",
+        "linked-record-field",
+        "operational-button",
+        "badge"
+      ],
+      "primitives": [],
+      "incomingHandoff": "A manager needs to compare the price BulkBite planned with the price a reviewed receipt proves.",
+      "outgoingHandoff": "The manager can see chronological theory, actual, and variance on a normalized stock-unit basis.",
+      "responsiveBehaviour": "Keep filters labelled, then let the comparison table scroll horizontally on narrow screens without hiding dates, suppliers, pack facts, or normalized prices.",
+      "layoutContract": {
+        "strategy": "grid",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-l) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "A compact read-only header leads into filters, summary counts, and one evidence table ordered from newest purchase to oldest."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='price-history']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": "operational-action",
+        "secondaryPreset": "secondary-action"
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Historical price evidence is read directly and does not need motion."
+      },
+      "scope": "project"
+    },
+    {
       "id": "production-measurement",
       "name": "Production Measurement",
-      "job": "Turn one planned recipe into a production draft, compare expected usage with used-or-left measurements, and post reviewed stock movement.",
+      "job": "Resume or open the next meal in the repeating direction, keep production date, food made, draft and posting controls together, and show production history.",
       "category": "Application",
       "source": "@/blocks/production-measurement/ProductionMeasurement.vue",
       "public": "SystemProductionMeasurement",
       "registrySource": "sources/blocks/production-measurement",
       "projectSource": "src/blocks/production-measurement",
       "components": [
+        "date-picker",
         "form-control",
+        "linked-record-field",
         "select",
         "textarea",
         "operational-button",
         "badge"
       ],
       "primitives": [],
-      "incomingHandoff": "A worker knows which planned meal was made and has actual output plus used or remaining ingredient measurements.",
-      "outgoingHandoff": "The reviewed production draft posts ingredient consumption and finished meal output only after explicit confirmation.",
+      "incomingHandoff": "The rolling direction identifies the next meal and a worker opens Production after a cook.",
+      "outgoingHandoff": "The worker either discards the draft to reload current theory or explicitly posts frozen ingredient consumption and finished output, with Worker sheets available as an auxiliary handoff.",
       "responsiveBehaviour": "Keep expected, available, measurement method, actual quantity, and unit together; recompose every ingredient as a labelled mobile record.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "A compact page header and numbered workflow guide precede plan selection and measurement work; draft save, review, and final posting remain separate actions."
+        "containment": "A compact page header and one top production control area precede ingredient measurements; history follows the active run without a numbered guide."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10940,7 +11118,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "receipt-intake",
       "name": "Receipt Intake",
-      "job": "Capture private receipt evidence and reviewed purchase lines before explicitly adding received stock.",
+      "job": "Capture private receipt evidence, extract editable Pydantic-validated purchase suggestions, require line review, and explicitly add received stock.",
       "category": "Application",
       "source": "@/blocks/receipt-intake/ReceiptIntake.vue",
       "public": "SystemReceiptIntake",
@@ -10948,15 +11126,18 @@ export const systemCatalogue = Object.freeze({
       "projectSource": "src/blocks/receipt-intake",
       "components": [
         "file-uploader",
+        "date-picker",
         "form-control",
+        "linked-record-field",
         "select",
         "operational-button",
-        "badge"
+        "badge",
+        "link"
       ],
       "primitives": [],
       "incomingHandoff": "A worker has a supplier receipt and needs its reviewed quantities to become stock.",
       "outgoingHandoff": "A saved receipt draft remains reviewable, and stock changes only after the separate receive action succeeds.",
-      "responsiveBehaviour": "Keep evidence, supplier facts, line quantities, totals, and posting state labelled; stack line fields on mobile instead of shrinking controls.",
+      "responsiveBehaviour": "Keep evidence, supplier facts, purchase pack structure, computed stock quantity, comparable prices, totals, and posting state labelled; stack line fields on mobile instead of shrinking controls.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
@@ -10986,28 +11167,31 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "stock-overview",
       "name": "Stock Overview",
-      "job": "Show current ingredient stock, planned demand, shortages, scan identity, and recent ledger evidence.",
+      "job": "Render a visual operating dashboard with qualified four-week gross profit, revenue, food cost, margin, current production status, and direct workflow actions in dashboard mode, or full balances, demand, scanning, and stock evidence in stock mode.",
       "category": "Application",
       "source": "@/blocks/stock-overview/StockOverview.vue",
       "public": "SystemStockOverview",
       "registrySource": "sources/blocks/stock-overview",
       "projectSource": "src/blocks/stock-overview",
       "components": [
-        "form-control",
+        "scan-code-field",
+        "linked-record-field",
         "operational-button",
         "badge",
-        "card"
+        "card",
+        "chart",
+        "stat"
       ],
       "primitives": [],
-      "incomingHandoff": "A worker or manager needs to know what stock exists and whether the planned meals can be made.",
-      "outgoingHandoff": "The user can identify a shortage, verify a scanned item, or move to receipt, production, or count work with the current evidence visible.",
+      "incomingHandoff": "A worker or manager needs a simple operating position or the detailed stock workspace.",
+      "outgoingHandoff": "Dashboard mode routes to the next task; Stock mode exposes balances, shortages, scanning, recent evidence, and the physical count handoff.",
       "responsiveBehaviour": "Use 12-column summary and data territories at large layout, 8 columns at intermediate layout, and labelled stacked records on mobile without hiding units or differences.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "A compact orientation header and restrained summary strip lead into clear lookup, plan, stock, and activity regions; wide records scroll inside their labelled region."
+        "containment": "Dashboard mode gives one dominant financial evidence card, one compact operating-status card, and one direct-action card. Stock mode contains lookup, readiness, balances, demand, activity, and reconciliation; wide records scroll inside their labelled region."
       },
       "surfaceContract": {
         "placement": "none",
@@ -11038,6 +11222,7 @@ export const systemCatalogue = Object.freeze({
       "registrySource": "sources/blocks/stock-reconciliation",
       "projectSource": "src/blocks/stock-reconciliation",
       "components": [
+        "date-picker",
         "form-control",
         "textarea",
         "operational-button",
@@ -11052,7 +11237,7 @@ export const systemCatalogue = Object.freeze({
         "pageAlignment": "grid",
         "padding": "var(--spacing-l) 0",
         "gap": "var(--spacing-m)",
-        "containment": "A compact page header and numbered workflow guide keep counting, difference review, and manager approval distinct with no hidden action."
+        "containment": "A compact page header keeps counting, difference review, and manager approval distinct with no hidden action or numbered guide."
       },
       "surfaceContract": {
         "placement": "none",

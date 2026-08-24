@@ -1,0 +1,12 @@
+{
+ "actions":[],"creation":"2026-08-24 20:45:00.000000","doctype":"DocType","editable_grid":1,"engine":"InnoDB",
+ "field_order":["adjustment_type","description","effect","amount","notes"],
+ "fields":[
+  {"fieldname":"adjustment_type","fieldtype":"Select","in_list_view":1,"label":"Actual Adjustment","options":"Offer Discount\nPercentage Discount\nFixed Discount\nRebate\nDelivery Fee\nFree Delivery\nService Fee\nOther Saving\nOther Cost","reqd":1},
+  {"fieldname":"description","fieldtype":"Data","in_list_view":1,"label":"Description","reqd":1},
+  {"fieldname":"effect","fieldtype":"Select","in_list_view":1,"label":"Effect","options":"Saving\nCost","reqd":1},
+  {"fieldname":"amount","fieldtype":"Currency","in_list_view":1,"label":"Amount","non_negative":1,"reqd":1},
+  {"fieldname":"notes","fieldtype":"Small Text","label":"Receipt Evidence Note"}
+ ],
+ "index_web_pages_for_search":0,"istable":1,"links":[],"modified":"2026-08-24 20:45:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Receipt Adjustment","owner":"Administrator","permissions":[],"states":[]
+}

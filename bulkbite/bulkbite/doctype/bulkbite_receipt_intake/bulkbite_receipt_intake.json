@@ -5,7 +5,7 @@
  "creation": "2026-08-20 10:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["status", "receipt_file", "business_name", "supplier", "supplier_invoice_number", "invoice_date", "currency", "default_location", "items_section", "items", "totals_section", "subtotal_amount", "tax_amount", "total_amount", "accounting_category", "review_notes", "stock_events_posted", "accountant_exported"],
+ "field_order": ["status", "receipt_file", "business_name", "supplier", "supplier_invoice_number", "invoice_date", "currency", "default_location", "items_section", "items", "adjustments_section", "adjustments", "totals_section", "subtotal_amount", "tax_amount", "total_amount", "accounting_category", "review_notes", "stock_events_posted", "accountant_exported"],
  "fields": [
   {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nReviewed\nStock Received\nAccounting Draft Created\nRejected", "read_only": 1},
   {"fieldname": "receipt_file", "fieldtype": "Attach", "label": "Receipt or Supplier Invoice", "reqd": 1},
@@ -17,6 +17,8 @@
   {"fieldname": "default_location", "fieldtype": "Link", "label": "Default Stock Location", "options": "BulkBite Location", "reqd": 1},
   {"fieldname": "items_section", "fieldtype": "Section Break", "label": "Reviewed Lines"},
   {"fieldname": "items", "fieldtype": "Table", "label": "Items", "options": "BulkBite Receipt Line", "reqd": 1},
+  {"fieldname": "adjustments_section", "fieldtype": "Section Break", "label": "Actual Savings and Added Buying Costs"},
+  {"fieldname": "adjustments", "fieldtype": "Table", "label": "Receipt Adjustments", "options": "BulkBite Receipt Adjustment"},
   {"fieldname": "totals_section", "fieldtype": "Section Break", "label": "Review"},
   {"fieldname": "subtotal_amount", "fieldtype": "Currency", "label": "Subtotal", "read_only": 1},
   {"default": "0", "fieldname": "tax_amount", "fieldtype": "Currency", "label": "VAT or Tax", "non_negative": 1},

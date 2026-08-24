@@ -74,6 +74,12 @@ export const applyDocumentMeasurements = (name) => call("bulkbite.api.apply_docu
 export const getAccountantExport = (fromDate, toDate) => call("bulkbite.api.get_accountant_export", { from_date: fromDate, to_date: toDate }, "GET")
 export const getSpendReport = (fromDate, toDate) => call("bulkbite.api.get_spend_report", { from_date: fromDate, to_date: toDate }, "GET")
 export const getPurchasePriceHistory = (filters) => call("bulkbite.api.get_purchase_price_history", filters, "GET")
+export const previewPriceWorkbook = (fileUrl) => call("bulkbite.api.preview_catalogue_price_workbook", { file_url: fileUrl })
+export const applyPriceWorkbook = (batchName) => call("bulkbite.api.apply_catalogue_price_workbook", { batch_name: batchName })
+
+export function priceWorkbookUrl() {
+  return "/api/method/bulkbite.api.download_price_workbook"
+}
 
 export function accountantExportUrl(fromDate, toDate, dataset) {
   return `/api/method/bulkbite.api.download_accountant_export?${new URLSearchParams({

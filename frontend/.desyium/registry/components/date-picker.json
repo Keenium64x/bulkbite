@@ -1,0 +1,31 @@
+{
+  "id": "date-picker",
+  "name": "Date Picker",
+  "job": "Choose one operational date through a typed ISO date or an accessible calendar popover.",
+  "category": "Forms",
+  "provider": "project",
+  "source": "@/components/date-picker/DatePicker.vue",
+  "install": {
+    "type": "none"
+  },
+  "states": [
+    "empty",
+    "selected",
+    "open",
+    "focus",
+    "invalid",
+    "disabled",
+    "readonly"
+  ],
+  "exports": [
+    {
+      "source": "default",
+      "public": "SystemDatePicker",
+      "class": "system-date-picker"
+    }
+  ],
+  "composes": ["reka-ui/date-picker", "lucide-vue-next/calendar"],
+  "accessibility": "The visible label is associated with the typed date input. The calendar trigger has an accessible name, the popover uses Reka focus management, and date cells retain Reka grid keyboard navigation and selected, current, unavailable, and disabled semantics.",
+  "responsiveBehaviour": "The field keeps a 44 px target. The calendar popover uses a fixed seven-column grid, avoids viewport edges, and remains horizontally contained on narrow screens.",
+  "failureBehaviour": "Invalid typed values remain editable and expose an associated error. A valid YYYY-MM-DD value remains usable even if the popover cannot open."
+}

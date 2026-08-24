@@ -1,6 +1,13 @@
+import frappeUIPreset from "frappe-ui/tailwind"
+
 export default {
   darkMode: ["selector", "[data-theme='dark']"],
-  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{vue,js,ts,jsx,tsx}",
+    "./node_modules/frappe-ui/src/**/*.{vue,js,ts,jsx,tsx}",
+  ],
+  presets: [frappeUIPreset],
   theme: {
     extend: {
       colors: {

@@ -8,6 +8,9 @@ requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
+	"pillow",
+	"pydantic>=2",
+	"pydantic-ai-slim==2.0.0",
     # "frappe~=16.0.0" # Installed and managed by bench.
 ]
 

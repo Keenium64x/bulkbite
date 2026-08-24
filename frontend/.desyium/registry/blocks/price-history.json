@@ -1,0 +1,39 @@
+{
+  "id": "price-history",
+  "name": "Prices and Costs",
+  "job": "Own supplier price catalogue exchange, reviewed workbook changes, buying adjustments, operating cost rules, and theory-versus-actual price evidence without changing stock.",
+  "category": "Application",
+  "source": "@/blocks/price-history/PriceHistory.vue",
+  "public": "SystemPriceHistory",
+  "registrySource": "sources/blocks/price-history",
+  "projectSource": "src/blocks/price-history",
+  "components": ["date-picker", "linked-record-field", "file-uploader", "operational-button", "badge"],
+  "primitives": [],
+  "incomingHandoff": "A manager needs to compare the price BulkBite planned with the price a reviewed receipt proves.",
+  "outgoingHandoff": "The manager can exchange exact-name price workbooks, review safe catalogue changes, configure costs, and see chronological theory, actual, and variance.",
+  "responsiveBehaviour": "Keep filters labelled, then let the comparison table scroll horizontally on narrow screens without hiding dates, suppliers, pack facts, or normalized prices.",
+  "layoutContract": {
+    "strategy": "grid",
+    "pageAlignment": "grid",
+    "padding": "var(--spacing-l) 0",
+    "gap": "var(--spacing-m)",
+    "containment": "A compact read-only header leads into filters, summary counts, and one evidence table ordered from newest purchase to oldest."
+  },
+  "surfaceContract": {
+    "placement": "none",
+    "semanticOwner": "[data-block='price-history']",
+    "scope": "none",
+    "edgeTreatment": "none",
+    "boundaryReason": null,
+    "contentSeparation": "Content padding does not define primitive bounds.",
+    "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+  },
+  "actionContract": {
+    "primaryPreset": "operational-action",
+    "secondaryPreset": "secondary-action"
+  },
+  "motionContract": {
+    "mode": "still",
+    "justification": "Historical price evidence is read directly and does not need motion."
+  }
+}

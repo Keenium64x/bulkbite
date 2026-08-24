@@ -7,6 +7,7 @@ app_license = "agpl-3.0"
 
 required_apps = []
 home_page = "bulkbite"
+website_route_rules = [{"from_route": "/bulkbite/<path:app_path>", "to_route": "bulkbite"}]
 after_install = "bulkbite.roles.ensure_bulkbite_roles"
 after_migrate = "bulkbite.roles.ensure_bulkbite_roles"
 

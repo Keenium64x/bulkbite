@@ -7,13 +7,29 @@ from pathlib import Path
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate, now_datetime
+from frappe.utils import add_days, flt, getdate, now_datetime, nowdate
+from frappe.utils.background_jobs import get_job
 from openpyxl import load_workbook
 
 from bulkbite.stock_ledger import append_stock_event, get_stock_balance, get_valuation_rate
-from bulkbite.stock_production import derive_usage_from_remaining, get_available_stock, load_expected_usage
+from bulkbite.stock_production import derive_usage_from_remaining, get_available_stock, load_expected_usage, round_operational_quantity
+from bulkbite.document_ai import ai_is_configured, extract_measurements_with_ai
 from bulkbite.document_extraction import extract_measurement_rows, resolve_private_source
+from bulkbite.document_text import extract_private_text
+from bulkbite.receipt_extraction import extract_receipt_review
+from bulkbite.scan_identity import find_scan_owner, item_scan_codes, normalize_scan_code
 from bulkbite.variance import calculate_output_variance, calculate_usage_variance
+from bulkbite.planning import (
+	build_buying_plan,
+	build_dashboard_financial_summary,
+	build_plan_snapshot,
+	build_spend_report,
+	calculate_customer_demand,
+	freeze_buying_theory,
+	load_buying_theory,
+)
+from bulkbite.costing import enrich_spend_report
+from bulkbite.price_workbook import apply_price_workbook, build_price_workbook, preview_price_workbook
 
 
 # =============================================================================
@@ -24,7 +40,7 @@ from bulkbite.variance import calculate_output_variance, calculate_usage_varianc
 @frappe.whitelist(methods=["GET"])
 def get_workspace_snapshot():
 	_require_app_user()
-	return {
+	result = {
 		"user": frappe.session.user,
 		"company": "BulkBite",
 		"setup_required": not bool(frappe.db.exists("BulkBite Location", "Ingredients")),
@@ -37,9 +53,9 @@ def get_workspace_snapshot():
 		},
 		"recent_runs": frappe.get_all(
 			"BulkBite Production Run",
-			fields=["name", "production_date", "finished_item", "planned_output_qty", "actual_output_qty", "material_cost_variance", "docstatus", "output_stock_event"],
+		fields=["name", "production_date", "finished_item", "planned_output_qty", "actual_output_qty", "material_cost_variance", "docstatus", "output_stock_event"],
 			order_by="production_date desc, modified desc",
-			limit=12,
+			limit=200,
 		),
 		"recent_receipts": frappe.get_all(
 			"BulkBite Receipt Intake",
@@ -51,8 +67,15 @@ def get_workspace_snapshot():
 			"locations": frappe.get_all("BulkBite Location", filters={"enabled": 1}, pluck="name", order_by="name"),
 			"recipes": frappe.get_all("BulkBite Recipe", filters={"status": "Approved"}, fields=["name", "recipe_name", "finished_item as item", "nominal_output_qty as quantity", "output_uom as uom"], order_by="recipe_name"),
 			"suppliers": frappe.get_all("BulkBite Supplier", filters={"enabled": 1}, pluck="name", order_by="name"),
+			"production_plans": frappe.get_all("BulkBite Production Plan", filters={"status": ("in", ["Relative Draft", "Dated Draft", "Active"])}, fields=["name as value", "plan_title as label"], order_by="modified desc"),
+			"customer_plan_types": frappe.get_all("BulkBite Customer Plan Type", filters={"enabled": 1}, fields=["name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks"], order_by="serving_size_g"),
+			"item_categories": frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, fields=["name", "default_supplier"], order_by="name"),
 		},
 	}
+	for run in result["recent_runs"]:
+		for field in ("planned_output_qty", "actual_output_qty"):
+			run[field] = round_operational_quantity(run.get(field))
+	return result
 
 
 @frappe.whitelist(methods=["GET"])
@@ -68,9 +91,9 @@ def get_inventory_snapshot(location=None):
 	)
 	for item in items:
 		item["location"] = location
-		item["actual_qty"] = get_available_stock(item.item_code, location)
+		item["actual_qty"] = round_operational_quantity(get_available_stock(item.item_code, location))
 		item["valuation_rate"] = get_valuation_rate(item.item_code, location)
-		item["stock_value"] = item["actual_qty"] * item["valuation_rate"]
+		item["stock_value"] = round(flt(item["actual_qty"]) * flt(item["valuation_rate"]), 2)
 	return {"location": location, "items": items}
 
 
@@ -82,8 +105,14 @@ def get_inventory_snapshot(location=None):
 # =============================================================================
 
 _AUXILIARY_FORM_DOCTYPES = {
-	"BulkBite Item": {"label": "Items", "singular_label": "item", "description": "Ingredients, finished meals, packaging, units, scan codes, and theory rates."},
+	"BulkBite Item": {"label": "Items", "singular_label": "item", "description": "Ingredients, finished meals, categories, units, scan codes, and theory rates."},
+	"BulkBite Item Category": {"label": "Food categories", "singular_label": "category", "description": "Group ingredients such as dry and fresh food and choose the usual supplier."},
 	"BulkBite Supplier": {"label": "Suppliers", "singular_label": "supplier", "description": "Supplier identity and accountant export references."},
+	"BulkBite Supplier Offer": {"label": "Supplier offers", "singular_label": "offer", "description": "Normal and discounted supplier pack prices used by theoretical buying plans."},
+	"BulkBite Price Adjustment": {"label": "Price adjustments", "singular_label": "price adjustment", "description": "Discounts, rebates, VAT, delivery fees, free delivery, and other buying adjustments."},
+	"BulkBite Operating Cost Rule": {"label": "Operating cost rules", "singular_label": "operating cost rule", "description": "Expected labour, packaging, utilities, rent, delivery, and other costs."},
+	"BulkBite Cost Entry": {"label": "Actual costs", "singular_label": "actual cost", "description": "Evidence-backed labour and other actual operating costs for financial reporting."},
+	"BulkBite Customer Plan Type": {"label": "Customer plans", "singular_label": "customer plan", "description": "Serving sizes and schedule assumptions such as Lite 300 g, Standard 450 g, and Full 600 g."},
 	"BulkBite Location": {"label": "Locations", "singular_label": "location", "description": "The physical places where ingredients, meals, quarantine, and waste are measured."},
 	"BulkBite Recipe": {"label": "Recipes", "singular_label": "recipe", "description": "Versioned meal theory and controlled ingredient quantities."},
 	"BulkBite Production Plan": {"label": "Production plans", "singular_label": "plan", "description": "Planned recipes and meal quantities used by the production workflow."},
@@ -216,25 +245,34 @@ def _serialize_auxiliary_field(field):
 @frappe.whitelist(methods=["GET"])
 def resolve_scan_code(code):
 	_require_roles("BulkBite Worker", "BulkBite Manager")
-	value = str(code or "").strip()
-	if not value:
-		frappe.throw(_("Scan or enter a QR code or barcode."))
-	item_code = value if frappe.db.exists("BulkBite Item", value) else None
+	value = normalize_scan_code(code)
+	owner = find_scan_owner(value)
+	item_code = owner.item_code if owner else None
 	if not item_code:
-		for candidate in frappe.get_all(
-			"BulkBite Item", filters={"enabled": 1}, fields=["item_code", "scan_codes", "stock_uom"]
-		):
-			if value in {code.strip() for code in str(candidate.scan_codes or "").splitlines() if code.strip()}:
-				item_code = candidate.item_code
-				break
-	if not item_code:
-		frappe.throw(_("No BulkBite item is mapped to code {0}.").format(value))
+		return {"matched": False, "scan_code": value, "reason": _("No item is mapped to this code yet.")}
 	item = frappe.db.get_value(
 		"BulkBite Item", item_code, ["item_code", "item_name", "stock_uom", "track_stock", "enabled"], as_dict=True
 	)
 	if not item.enabled:
 		frappe.throw(_("Item {0} is disabled.").format(item_code))
-	return {**item, "is_stock_item": item.track_stock, "scan_code": value, "uom": item.stock_uom}
+	return {**item, "matched": True, "is_stock_item": item.track_stock, "scan_code": value, "uom": item.stock_uom}
+
+
+@frappe.whitelist(methods=["POST"])
+def assign_scan_code(item_code, code):
+	"""Assign one supplier or internal scan code to one item, never more than one."""
+	_require_roles("BulkBite Manager")
+	item = frappe.get_doc("BulkBite Item", item_code)
+	item.check_permission("write")
+	value = normalize_scan_code(code)
+	owner = find_scan_owner(value, exclude_item=item.item_code)
+	if owner:
+		frappe.throw(_("Scan code {0} is already assigned to item {1}.").format(value, owner.item_code))
+	codes = item_scan_codes(item)
+	codes.add(value)
+	item.scan_codes = "\n".join(sorted(codes))
+	item.save()
+	return resolve_scan_code(value)
 
 
 # endregion ITEM IDENTITY
@@ -266,24 +304,31 @@ def update_production_actuals(name, actual_output_qty, ingredients, notes=None):
 	run = frappe.get_doc("BulkBite Production Run", name)
 	if run.docstatus != 0:
 		frappe.throw(_("Only a draft production run can be measured."))
-	actual_by_item = {row["item_code"]: row for row in _as_list(ingredients)}
-	run.actual_output_qty = flt(actual_output_qty)
+	supplied = _as_list(ingredients)
+	actual_by_item = {row["item_code"]: row for row in supplied if row.get("item_code")}
+	if len(actual_by_item) != len(supplied) or set(actual_by_item) != {row.item_code for row in run.ingredients}:
+		frappe.throw(_("Provide one actual measurement for every recipe ingredient."))
+	if flt(actual_output_qty) <= 0:
+		frappe.throw(_("Meals made must be greater than zero."))
+	run.actual_output_qty = round_operational_quantity(actual_output_qty)
 	run.notes = notes
 	for row in run.ingredients:
 		actual = actual_by_item.get(row.item_code)
 		if actual:
 			method = actual.get("measurement_method") or "Used"
+			if method not in {"Used", "Remaining"}:
+				frappe.throw(_("Choose used or remaining for {0}.").format(row.item_code))
 			row.measurement_method = method
 			if method == "Remaining":
 				available = get_available_stock(row.item_code, row.source_location or run.source_location)
-				remaining = flt(actual.get("remaining_qty"))
+				remaining = round_operational_quantity(actual.get("remaining_qty"))
 				row.available_before_measurement = available
 				row.remaining_qty = remaining
-				row.actual_qty = derive_usage_from_remaining(available, remaining)
+				row.actual_qty = round_operational_quantity(derive_usage_from_remaining(available, remaining))
 			else:
 				row.remaining_qty = None
 				row.available_before_measurement = get_available_stock(row.item_code, row.source_location or run.source_location)
-				row.actual_qty = flt(actual.get("actual_qty"))
+				row.actual_qty = round_operational_quantity(actual.get("actual_qty"))
 			row.notes = actual.get("notes")
 	run.save()
 	return _serialize_run(run)
@@ -292,7 +337,10 @@ def update_production_actuals(name, actual_output_qty, ingredients, notes=None):
 @frappe.whitelist(methods=["POST"])
 def submit_production_run(name):
 	_require_roles("BulkBite Worker", "BulkBite Manager")
+	frappe.db.sql("select name from `tabBulkBite Production Run` where name = %s for update", (name,))
 	run = frappe.get_doc("BulkBite Production Run", name)
+	if run.docstatus == 1:
+		return _serialize_run(run)
 	run.submit()
 	return _serialize_run(run.reload())
 
@@ -328,52 +376,103 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		return None
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
 	location = location or "Ingredients"
-	rows = []
-	aggregated = {}
-	for plan_row in plan.plan_rows:
-		expectation = load_expected_usage(plan_row.recipe, plan_row.planned_output_qty, location)
-		ingredients = []
-		for ingredient in expectation["ingredients"]:
-			available = get_available_stock(ingredient["item_code"], ingredient["source_location"])
-			required = flt(ingredient["expected_qty"])
-			ingredient.update({"available_qty": available, "shortage_qty": max(required - available, 0)})
-			ingredients.append(ingredient)
-			total = aggregated.setdefault(
-				ingredient["item_code"],
-				{
-					"item_code": ingredient["item_code"],
-					"item_name": ingredient["item_name"],
-					"uom": ingredient["uom"],
-					"required_qty": 0,
-					"available_qty": available,
-				},
-			)
-			total["required_qty"] += required
-		rows.append(
-			{
-				"name": plan_row.name,
-				"week_number": plan_row.week_number,
-				"planned_date": plan_row.planned_date,
-				"finished_item": plan_row.finished_item,
-				"finished_item_name": frappe.get_cached_value("BulkBite Item", plan_row.finished_item, "item_name"),
-				"recipe": plan_row.recipe,
-				"planned_output_qty": plan_row.planned_output_qty,
-				"uom": plan_row.uom,
-				"expected_material_cost": plan_row.expected_material_cost,
-				"ingredients": ingredients,
-			}
-		)
-	for item in aggregated.values():
-		item["shortage_qty"] = max(item["required_qty"] - item["available_qty"], 0)
-	return {
+	rows, requirements = build_plan_snapshot(plan, location)
+	buying = load_buying_theory(plan, location)
+	demand = calculate_customer_demand(plan.customer_mix)
+	runs = frappe.get_all(
+		"BulkBite Production Run",
+		filters={"production_plan": plan.name},
+		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
+		order_by="production_date, creation",
+	)
+	result = {
 		"name": plan.name,
 		"plan_title": plan.plan_title,
 		"status": plan.status,
+		"period_start": plan.period_start,
+		"period_end": plan.period_end,
 		"date_note": plan.date_note,
 		"location": location,
+		"customer_demand": demand,
+		"customer_mix": [{"plan_type": row.plan_type, "customer_count": row.customer_count, "serving_size_g": round_operational_quantity(row.serving_size_g), "weekly_servings": row.weekly_servings, "weekly_output_qty": round_operational_quantity(row.weekly_output_qty)} for row in plan.customer_mix],
+		"purchase_routes": [{"item_category": row.item_category, "supplier": row.supplier, "use_discounted_price": row.use_discounted_price} for row in plan.purchase_routes],
 		"rows": rows,
-		"total_requirements": sorted(aggregated.values(), key=lambda item: item["item_name"]),
+		"total_requirements": requirements,
+		"buying": buying,
+		"financial_summary": build_dashboard_financial_summary(demand, rows, plan.name),
+		"runs": runs,
 	}
+	result["next_production"] = _next_production_station(result["rows"], runs)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def save_monthly_production_plan(payload=None):
+	"""Create or update the one-month customer and recipe plan used by buying and production."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	plan = frappe.get_doc("BulkBite Production Plan", data.name) if data.get("name") else frappe.new_doc("BulkBite Production Plan")
+	if not plan.is_new() and plan.status == "Cancelled":
+		frappe.throw(_("A cancelled meal direction cannot be edited. Create a new direction instead."))
+	plan.plan_title = data.get("plan_title") or _("Current meal direction")
+	plan.status = "Active"
+	plan.business_name = "BulkBite"
+	plan.period_start = getdate(data.get("period_start") or plan.period_start or nowdate())
+	plan.period_end = getdate(data.get("period_end") or plan.period_end or add_days(plan.period_start, 27))
+	plan.notes = data.get("notes")
+	plan.set(
+		"customer_mix",
+		[
+			{"plan_type": row.get("plan_type"), "customer_count": max(int(row.get("customer_count") or 0), 0)}
+			for row in _as_list(data.get("customer_mix"))
+			if row.get("plan_type")
+		],
+	)
+	plan.set(
+		"purchase_routes",
+		[
+			{
+				"item_category": row.get("item_category"),
+				"supplier": row.get("supplier"),
+				"use_discounted_price": bool(row.get("use_discounted_price")),
+			}
+			for row in _as_list(data.get("purchase_routes"))
+			if row.get("item_category") and row.get("supplier")
+		],
+	)
+	enabled_categories = set(frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, pluck="name"))
+	routed_categories = {row.item_category for row in plan.purchase_routes if row.item_category and row.supplier}
+	missing_categories = sorted(enabled_categories - routed_categories)
+	if missing_categories:
+		frappe.throw(
+			_("Choose a supplier for every enabled food category: {0}.").format(", ".join(missing_categories))
+		)
+	rows = [row for row in _as_list(data.get("plan_rows")) if row.get("recipe")]
+	if len(rows) != 4:
+		frappe.throw(_("Choose one recipe for each of the four weeks."))
+	plan.set(
+		"plan_rows",
+		[
+			{
+				"week_number": index,
+				"recipe": row.get("recipe"),
+				"planned_output_qty": flt(row.get("planned_output_qty")),
+				"uom": "Kg",
+				"finished_item": row.get("finished_item") or frappe.get_cached_value("BulkBite Recipe", row.get("recipe"), "finished_item"),
+			}
+			for index, row in enumerate(rows, start=1)
+		],
+	)
+	plan.save()
+	frappe.db.set_value(
+		"BulkBite Production Plan",
+		{"name": ("!=", plan.name), "status": "Active"},
+		"status",
+		"Completed",
+		update_modified=False,
+	)
+	freeze_buying_theory(plan, data.get("location") or "Ingredients")
+	return get_production_plan_snapshot(plan.name, data.get("location") or "Ingredients")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -384,10 +483,34 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 	plan_row = next((row for row in plan.plan_rows if row.name == plan_row_name), None)
 	if not plan_row:
 		frappe.throw(_("The selected recipe row is not part of production plan {0}.").format(plan.name))
+	station = get_production_plan_snapshot(plan.name, source_location).get("next_production") or {}
+	cycle_number = int(station.get("cycle_number") or 1)
+	if station.get("row") and station["row"].get("name") != plan_row.name:
+		frappe.throw(_("This meal slot is not the next production in the current direction."))
+	existing = frappe.db.get_value(
+		"BulkBite Production Run",
+		{
+			"production_plan": plan.name,
+			"plan_week_number": plan_row.week_number,
+			"cycle_number": cycle_number,
+			"docstatus": 0,
+		},
+		"name",
+		order_by="modified desc",
+	)
+	if existing:
+		run = frappe.get_doc("BulkBite Production Run", existing)
+		if run.docstatus:
+			frappe.throw(_("This planned week has already been posted as production run {0}.").format(run.name))
+		return _serialize_run(run)
 	return create_production_run(
 		{
 			"production_date": getdate(production_date),
 			"business_name": plan.business_name,
+			"production_plan": plan.name,
+			"production_plan_row": plan_row.name,
+			"plan_week_number": plan_row.week_number,
+			"cycle_number": cycle_number,
 			"recipe": plan_row.recipe,
 			"planned_output_qty": plan_row.planned_output_qty,
 			"actual_output_qty": plan_row.planned_output_qty,
@@ -396,6 +519,74 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 			"notes": _("Created from production plan {0}, week {1}.").format(plan.name, plan_row.week_number),
 		}
 	)
+
+
+def _next_production_station(rows, runs):
+	"""Resume a draft or advance through the repeating meal direction."""
+	ordered_rows = sorted(rows, key=lambda value: value.get("week_number") or 0)
+	if not ordered_rows:
+		return {"state": "empty", "row": None, "run": None, "cycle_number": 1}
+	row_by_number = {int(row["week_number"]): row for row in ordered_rows}
+	row_by_name = {row["name"]: row for row in ordered_rows}
+	drafts = sorted(
+		(row for row in runs if not row.docstatus),
+		key=lambda value: (int(value.cycle_number or 1), int(value.plan_week_number or 0), value.creation),
+	)
+	if drafts:
+		draft = drafts[0]
+		week_number = int(draft.plan_week_number or 0)
+		row = row_by_number.get(week_number) or row_by_name.get(draft.production_plan_row)
+		if row:
+			return {
+				"state": "draft",
+				"row": row,
+				"run": _serialize_run(frappe.get_doc("BulkBite Production Run", draft.name)),
+				"cycle_number": int(draft.cycle_number or 1),
+			}
+	posted = sorted(
+		(row for row in runs if row.docstatus),
+		key=lambda value: (int(value.cycle_number or 1), int(value.plan_week_number or 0), value.production_date, value.creation),
+	)
+	if not posted:
+		return {"state": "ready", "row": ordered_rows[0], "run": None, "cycle_number": 1}
+	latest = posted[-1]
+	latest_week = int(latest.plan_week_number or 0)
+	if not latest_week and latest.production_plan_row in row_by_name:
+		latest_week = int(row_by_name[latest.production_plan_row]["week_number"])
+	latest_week = latest_week or 1
+	next_week = latest_week + 1 if latest_week < len(ordered_rows) else 1
+	next_cycle = int(latest.cycle_number or 1) + (1 if next_week == 1 else 0)
+	return {"state": "ready", "row": row_by_number[next_week], "run": None, "cycle_number": next_cycle}
+
+
+@frappe.whitelist(methods=["POST"])
+def discard_production_run(name):
+	"""Delete one unposted production draft so current direction can be loaded again."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	run = frappe.get_doc("BulkBite Production Run", name)
+	if run.docstatus or run.stock_events_posted:
+		frappe.throw(_("Posted production cannot be discarded. Use a correcting audit record."))
+	run.delete()
+	return {"name": name, "discarded": True}
+
+
+@frappe.whitelist(methods=["POST"])
+def cancel_production_plan(name):
+	"""Delete an unused direction or cancel it while preserving posted production history."""
+	_require_roles("BulkBite Manager")
+	plan = frappe.get_doc("BulkBite Production Plan", name)
+	posted = frappe.db.exists("BulkBite Production Run", {"production_plan": plan.name, "docstatus": 1})
+	for draft_name in frappe.get_all(
+		"BulkBite Production Run",
+		filters={"production_plan": plan.name, "docstatus": 0},
+		pluck="name",
+	):
+		frappe.delete_doc("BulkBite Production Run", draft_name)
+	if posted:
+		plan.db_set("status", "Cancelled")
+		return {"name": plan.name, "cancelled": True, "deleted": False}
+	plan.delete()
+	return {"name": name, "cancelled": False, "deleted": True}
 
 
 # endregion PRODUCTION PLANNING
@@ -407,10 +598,67 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 
 
 @frappe.whitelist(methods=["POST"])
+def start_receipt_extraction(file_url):
+	"""Queue private receipt extraction and return a pollable job. This never writes stock."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	file_doc, _source_path, source_hash = resolve_private_source(file_url)
+	attachment = frappe.db.get_value(
+		"File", file_doc.name, ["attached_to_doctype", "attached_to_name"], as_dict=True
+	)
+	duplicate = attachment.attached_to_name if attachment and attachment.attached_to_doctype == "BulkBite Receipt Intake" else None
+	if duplicate:
+		frappe.throw(_("This receipt is already attached to {0}.").format(duplicate))
+	job_id = f"bulkbite-receipt-extraction-{file_doc.name}-{source_hash[:12]}"
+	job = frappe.enqueue(
+		"bulkbite.api.process_receipt_extraction_job",
+		queue="long",
+		timeout=600,
+		job_id=job_id,
+		deduplicate=True,
+		file_url=file_url,
+	)
+	return {"job_id": job.id if job else f"{frappe.local.site}||{job_id}", "status": "queued"}
+
+
+def process_receipt_extraction_job(file_url):
+	file_doc, source_path, source_hash = resolve_private_source(file_url)
+	result = extract_receipt_review(source_path, progress=_set_receipt_job_stage)
+	result.update({"receipt_file": file_url, "source_hash": source_hash, "file_name": file_doc.file_name})
+	return result
+
+
+def _set_receipt_job_stage(stage):
+	from rq import get_current_job
+
+	job = get_current_job()
+	if job:
+		job.meta["stage"] = stage
+		job.save_meta()
+
+
+@frappe.whitelist(methods=["GET"])
+def get_receipt_extraction_status(job_id):
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	job = get_job(str(job_id).removeprefix(f"{frappe.local.site}||"))
+	if not job or job.kwargs.get("user") != frappe.session.user:
+		frappe.throw(_("The receipt extraction job could not be found."), frappe.PermissionError)
+	status = str(job.get_status(refresh=True))
+	if status == "JobStatus.FINISHED" or status == "finished":
+		return {"job_id": job.id, "status": "finished", "stage": "finished", "result": job.return_value(refresh=True)}
+	if status == "JobStatus.FAILED" or status == "failed":
+		return {"job_id": job.id, "status": "failed", "error": _("Receipt extraction failed. Check the file and try again.")}
+	return {"job_id": job.id, "status": status.rsplit(".", 1)[-1].lower(), "stage": job.meta.get("stage") or "queued"}
+
+
+@frappe.whitelist(methods=["POST"])
 def create_receipt_intake(payload=None):
 	"""Store private purchase evidence and manually reviewed lines."""
 	_require_roles("BulkBite Worker", "BulkBite Manager")
 	data = _as_dict(payload)
+	if not data.get("supplier") or not data.get("invoice_date") or not data.get("default_location"):
+		frappe.throw(_("Supplier, invoice date, and stock location are required."))
+	if not _as_list(data.get("items")):
+		frappe.throw(_("Add at least one receipt line."))
 	file_doc = frappe.db.get_value("File", {"file_url": data.get("receipt_file")}, ["name", "is_private"], as_dict=True)
 	if not file_doc or not file_doc.is_private:
 		frappe.throw(_("Upload the receipt as a private file before saving it."))
@@ -455,6 +703,170 @@ def receive_stock_from_receipt(receipt_name):
 	return _serialize_received_receipt(receipt.reload())
 
 
+@frappe.whitelist(methods=["GET"])
+def get_purchase_price_history(item_code=None, supplier=None, from_date=None, to_date=None):
+	"""Return chronological supplier-offer theory and reviewed-receipt actual prices."""
+	_require_roles("BulkBite Manager", "BulkBite Accountant")
+	receipt_filters = {"status": ("!=", "Rejected")}
+	if supplier:
+		receipt_filters["supplier"] = supplier
+	if from_date and to_date:
+		start, end = getdate(from_date), getdate(to_date)
+		if start > end:
+			frappe.throw(_("From date must be on or before to date."))
+		receipt_filters["invoice_date"] = ["between", [start, end]]
+	elif from_date:
+		receipt_filters["invoice_date"] = [">=", getdate(from_date)]
+	elif to_date:
+		receipt_filters["invoice_date"] = ["<=", getdate(to_date)]
+	receipts = frappe.get_all(
+		"BulkBite Receipt Intake",
+		filters=receipt_filters,
+		fields=["name", "invoice_date", "supplier", "supplier_invoice_number", "currency", "stock_events_posted"],
+		order_by="invoice_date desc, name desc",
+		limit_page_length=1000,
+	)
+	for receipt in receipts:
+		receipt["adjustments"] = frappe.get_all(
+			"BulkBite Receipt Adjustment",
+			filters={"parenttype": "BulkBite Receipt Intake", "parent": receipt.name},
+			fields=["adjustment_type", "description", "effect", "amount", "notes"],
+			order_by="idx asc",
+		)
+	parent_names = [row.name for row in receipts]
+	lines = []
+	if parent_names:
+		line_filters = {"parenttype": "BulkBite Receipt Intake", "parent": ["in", parent_names]}
+		if item_code:
+			line_filters["item_code"] = item_code
+		lines = frappe.get_all(
+			"BulkBite Receipt Line",
+			filters=line_filters,
+			fields=[
+				"name", "parent", "item_code", "description", "purchase_qty", "units_per_pack", "unit_size",
+				"purchase_uom", "qty", "uom", "amount", "price_per_pack", "price_per_unit", "rate",
+			],
+			order_by="parent desc, idx asc",
+			limit_page_length=5000,
+		)
+	receipt_by_name = {row.name: row for row in receipts}
+	item_records = frappe.get_all("BulkBite Item", fields=["item_code", "item_name", "stock_uom"])
+	item_names = {row.item_code: row.item_name for row in item_records}
+	item_uoms = {row.item_code: row.stock_uom for row in item_records}
+	offer_filters = {}
+	if item_code:
+		offer_filters["item_code"] = item_code
+	if supplier:
+		offer_filters["supplier"] = supplier
+	offers = frappe.get_all(
+		"BulkBite Supplier Offer",
+		filters=offer_filters,
+		fields=[
+			"name", "item_code", "supplier", "effective_from", "effective_to", "units_per_pack", "unit_size",
+			"purchase_uom", "stock_qty_per_pack", "normal_price", "discounted_price", "discount_from", "discount_to",
+			"currency", "price_includes_vat", "vat_rate", "enabled",
+		],
+		order_by="effective_from desc, creation desc",
+		limit_page_length=5000,
+	)
+	rows = []
+	for offer in offers:
+		date = offer.effective_from
+		if from_date and date and getdate(date) < getdate(from_date):
+			continue
+		if to_date and date and getdate(date) > getdate(to_date):
+			continue
+		from bulkbite.pricing import calculate_offer_price_bridge
+		bridge = calculate_offer_price_bridge(offer, 1, date, True)
+		selected_price = flt(bridge["landed_cost"])
+		stock_qty = flt(offer.stock_qty_per_pack)
+		rows.append({
+			"record_type": "Theory",
+			"record_name": offer.name,
+			"date": date,
+			"effective_to": offer.effective_to,
+			"supplier": offer.supplier,
+			"item_code": offer.item_code,
+			"item_name": item_names.get(offer.item_code) or offer.item_code,
+			"packs": 1,
+			"units_per_pack": flt(offer.units_per_pack),
+			"unit_size": flt(offer.unit_size),
+			"purchase_uom": offer.purchase_uom,
+			"stock_qty": stock_qty,
+			"stock_uom": item_uoms.get(offer.item_code),
+			"pack_price": selected_price,
+			"inner_unit_price": selected_price / flt(offer.units_per_pack) if offer.units_per_pack else 0,
+			"stock_unit_price": selected_price / stock_qty if stock_qty else 0,
+			"theory_stock_unit_price": selected_price / stock_qty if stock_qty else 0,
+			"variance": 0,
+			"variance_percent": 0,
+			"discounted_price": flt(offer.discounted_price),
+			"base_pack_price": flt(offer.normal_price),
+			"savings": bridge["savings"],
+			"added_costs": bridge["added_costs"] + bridge["vat_added"],
+			"price_bridge": bridge,
+			"enabled": bool(offer.enabled),
+			"reference": offer.name,
+		})
+	for line in lines:
+		receipt = receipt_by_name[line.parent]
+		theory = _applicable_supplier_offer(offers, line.item_code, receipt.supplier, receipt.invoice_date)
+		theory_rate = _offer_stock_unit_price(theory, receipt.invoice_date) if theory else 0
+		variance = flt(line.rate) - theory_rate if theory else None
+		rows.append({
+			"record_type": "Actual",
+			"record_name": line.name,
+			"date": receipt.invoice_date,
+			"supplier": receipt.supplier,
+			"stock_received": bool(receipt.stock_events_posted),
+			"item_code": line.item_code,
+			"item_name": item_names.get(line.item_code) or line.description or line.item_code,
+			"packs": flt(line.purchase_qty),
+			"units_per_pack": flt(line.units_per_pack),
+			"unit_size": flt(line.unit_size),
+			"purchase_uom": line.purchase_uom,
+			"stock_qty": flt(line.qty),
+			"stock_uom": line.uom,
+			"pack_price": flt(line.price_per_pack),
+			"inner_unit_price": flt(line.price_per_unit),
+			"stock_unit_price": flt(line.rate),
+			"theory_stock_unit_price": theory_rate or None,
+			"variance": variance,
+			"variance_percent": variance / theory_rate * 100 if theory_rate and variance is not None else None,
+			"reference": receipt.name,
+			"reference_detail": receipt.supplier_invoice_number,
+		})
+	rows.sort(key=lambda row: (str(row["date"] or ""), row["record_type"], row["record_name"]), reverse=True)
+	return {
+		"rows": rows,
+		"summary": {
+			"theory_count": sum(1 for row in rows if row["record_type"] == "Theory"),
+			"actual_count": len(lines),
+			"item_count": len({row["item_code"] for row in rows}),
+			"supplier_count": len({row["supplier"] for row in rows}),
+		},
+	}
+
+
+def _applicable_supplier_offer(offers, item_code, supplier, on_date):
+	date = getdate(on_date)
+	candidates = [
+		offer for offer in offers
+		if offer.item_code == item_code and offer.supplier == supplier
+		and (not offer.effective_from or getdate(offer.effective_from) <= date)
+		and (not offer.effective_to or getdate(offer.effective_to) >= date)
+	]
+	return sorted(candidates, key=lambda offer: str(offer.effective_from or ""), reverse=True)[0] if candidates else None
+
+
+def _offer_stock_unit_price(offer, on_date):
+	if not offer or not flt(offer.stock_qty_per_pack):
+		return 0
+	from bulkbite.pricing import calculate_offer_price_bridge
+	price = flt(calculate_offer_price_bridge(offer, 1, on_date, True)["landed_cost"])
+	return price / flt(offer.stock_qty_per_pack)
+
+
 @frappe.whitelist(methods=["POST"])
 def create_stock_count_draft(payload=None):
 	"""Create a custom physical-count draft without changing stock."""
@@ -487,6 +899,16 @@ def create_stock_count_draft(payload=None):
 # =============================================================================
 # region AUDIT APPROVAL AND ACCOUNTANT EXPORT
 # =============================================================================
+
+
+@frappe.whitelist(methods=["GET"])
+def get_spend_report(from_date, to_date):
+	"""Return period theory versus actual purchasing without changing stock or accounting state."""
+	_require_roles("BulkBite Manager", "BulkBite Accountant")
+	start, end = getdate(from_date), getdate(to_date)
+	if start > end:
+		frappe.throw(_("From date must be on or before to date."))
+	return enrich_spend_report(build_spend_report(start, end))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -525,6 +947,13 @@ def get_accountant_export(from_date, to_date):
 		],
 		order_by="invoice_date asc, name asc",
 	)
+	for receipt in receipts:
+		receipt["adjustments"] = frappe.get_all(
+			"BulkBite Receipt Adjustment",
+			filters={"parenttype": "BulkBite Receipt Intake", "parent": receipt.name},
+			fields=["adjustment_type", "description", "effect", "amount", "notes"],
+			order_by="idx asc",
+		)
 	stock_events = frappe.get_all(
 		"BulkBite Stock Event",
 		filters={"posting_datetime": ["between", [f"{start} 00:00:00", f"{end} 23:59:59"]]},
@@ -550,11 +979,18 @@ def get_accountant_export(from_date, to_date):
 		fields=["item_code", "location", "actual_qty", "uom", "valuation_rate", "stock_value", "last_event"],
 		order_by="item_code asc, location asc",
 	)
+	cost_entries = frappe.get_all(
+		"BulkBite Cost Entry",
+		filters={"cost_date": ["between", [start, end]]},
+		fields=["name", "cost_date", "cost_rule", "cost_category", "payee", "quantity", "unit_rate", "amount", "vat_amount", "production_plan", "evidence_file", "accounting_category", "notes"],
+		order_by="cost_date asc, name asc",
+	)
 	return {
 		"period": {"from_date": start, "to_date": end, "currency": "ZAR"},
 		"receipts": receipts,
 		"stock_events": stock_events,
 		"closing_stock": balances,
+		"operating_costs": cost_entries,
 		"note": _("Operational export only. The accountant assigns accounts, tax treatment, and journal entries."),
 	}
 
@@ -564,8 +1000,8 @@ def download_accountant_export(from_date, to_date, dataset="receipts"):
 	"""Download one accountant dataset as CSV without altering export state."""
 	_require_roles("BulkBite Manager", "BulkBite Accountant")
 	data = get_accountant_export(from_date, to_date)
-	if dataset not in {"receipts", "stock_events", "closing_stock"}:
-		frappe.throw(_("Choose receipts, stock_events, or closing_stock."))
+	if dataset not in {"receipts", "stock_events", "closing_stock", "operating_costs"}:
+		frappe.throw(_("Choose receipts, stock_events, closing_stock, or operating_costs."))
 	rows = data[dataset]
 	stream = io.StringIO()
 	fieldnames = list(rows[0].keys()) if rows else ["no_records"]
@@ -584,6 +1020,29 @@ def download_accountant_export(from_date, to_date, dataset="receipts"):
 # =============================================================================
 # region SPREADSHEET INTAKE
 # =============================================================================
+
+
+@frappe.whitelist(methods=["GET"])
+def download_price_workbook():
+	"""Download current catalogue identities, prices, adjustments, and cost rules as Excel."""
+	_require_roles("BulkBite Manager")
+	frappe.response.filename = f"bulkbite-prices-{nowdate()}.xlsx"
+	frappe.response.filecontent = build_price_workbook()
+	frappe.response.type = "binary"
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_catalogue_price_workbook(file_url):
+	"""Create a reviewed change batch. This station never changes stock or catalogue records."""
+	_require_roles("BulkBite Manager")
+	return preview_price_workbook(file_url)
+
+
+@frappe.whitelist(methods=["POST"])
+def apply_catalogue_price_workbook(batch_name):
+	"""Apply an error-free reviewed price batch without creating stock or accounting entries."""
+	_require_roles("BulkBite Manager")
+	return apply_price_workbook(batch_name)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -629,20 +1088,34 @@ def _cell(value):
 
 @frappe.whitelist(methods=["POST"])
 def create_document_extraction_draft(payload=None):
-	"""Store source evidence and OCR-derived rows for human review only."""
+	"""Store private text evidence and parser suggestions for human review only."""
 	_require_roles("BulkBite Worker", "BulkBite Manager")
 	data = _as_dict(payload)
-	file_doc, source_hash = resolve_private_source(data.get("source_file"))
+	file_doc, source_path, source_hash = resolve_private_source(data.get("source_file"))
 	existing = frappe.db.get_value("BulkBite Document Intake", {"source_hash": source_hash}, "name")
 	if existing:
 		frappe.throw(_("This document was already uploaded as {0}.").format(existing))
-	raw_text = str(data.get("raw_text") or "").strip()
+	extracted = extract_private_text(source_path)
+	raw_text = str(data.get("raw_text") or extracted["raw_text"] or "").strip()
 	if not raw_text:
-		frappe.throw(_("OCR text is required. The source document is retained, but image analysis is not enabled in this environment."))
-	rows = extract_measurement_rows(raw_text)
+		frappe.throw(_("No text could be extracted. Enter a transcription of the written measurements, then create the review draft."))
+	parser_mode = "Local text parser"
+	proposed_rows = None
+	parser_warning = extracted.get("warning")
+	if ai_is_configured():
+		try:
+			ai_result = extract_measurements_with_ai(raw_text, data.get("document_type"), extracted.get("evidence"))
+			if ai_result:
+				proposed_rows = [row.model_dump() for row in ai_result.lines]
+				parser_mode = "Structured AI with local validation"
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "BulkBite document AI fallback")
+			parser_warning = _("AI enhancement was unavailable. Local parsing was used instead.")
+	rows = extract_measurement_rows(raw_text, proposed_rows)
 	if not rows:
 		frappe.throw(_("No measurement lines were found in the supplied text."))
-	warnings = [row["warning"] for row in rows if row.get("warning")]
+	warnings = [parser_warning] if parser_warning else []
+	warnings.extend(row["warning"] for row in rows if row.get("warning"))
 	doc = frappe.get_doc(
 		{
 			"doctype": "BulkBite Document Intake",
@@ -654,6 +1127,10 @@ def create_document_extraction_draft(payload=None):
 			"production_run": data.get("production_run"),
 			"default_location": data.get("default_location"),
 			"raw_text": raw_text,
+			"text_provider": extracted["provider"] if not data.get("raw_text") else "User transcription",
+			"parser_mode": parser_mode,
+			"extraction_evidence": extracted.get("evidence"),
+			"processed_at": now_datetime(),
 			"rows": rows,
 			"warnings": "\n".join(dict.fromkeys(warnings)),
 		}
@@ -668,10 +1145,13 @@ def review_document_extraction(name, rows):
 	doc = frappe.get_doc("BulkBite Document Intake", name)
 	if doc.status == "Applied":
 		frappe.throw(_("Applied document measurements cannot be reviewed again."))
-	approved_rows = _as_list(rows)
-	if not approved_rows:
-		frappe.throw(_("Keep at least one reviewed measurement row."))
-	doc.set("rows", approved_rows)
+	reviewed_rows = _as_list(rows)
+	if not any(row.get("accepted") for row in reviewed_rows):
+		frappe.throw(_("Approve at least one reviewed measurement row."))
+	for row in reviewed_rows:
+		if row.get("accepted") and (not row.get("item_code") or flt(row.get("qty")) < 0 or not row.get("uom")):
+			frappe.throw(_("Every approved row needs an item, a non-negative quantity, and a unit."))
+	doc.set("rows", reviewed_rows)
 	doc.status = "Reviewed"
 	doc.reviewed_by = frappe.session.user
 	doc.reviewed_at = now_datetime()
@@ -734,6 +1214,8 @@ def _serialize_document_intake(doc):
 		"status": doc.status,
 		"document_type": doc.document_type,
 		"warnings": doc.warnings,
+		"text_provider": doc.text_provider,
+		"parser_mode": doc.parser_mode,
 		"rows": [row.as_dict() for row in doc.rows],
 		"applied_reference_doctype": doc.applied_reference_doctype,
 		"applied_reference": doc.applied_reference,
@@ -778,23 +1260,42 @@ def _as_list(value):
 
 
 def _serialize_run(run):
+	quantity_fields = {
+		"expected_qty",
+		"actual_qty",
+		"remaining_qty",
+		"available_before_measurement",
+		"variance_qty",
+	}
+	ingredients = []
+	for row in run.ingredients:
+		value = row.as_dict()
+		for field in quantity_fields:
+			if value.get(field) is not None:
+				value[field] = round(flt(value[field]), 3)
+		ingredients.append(value)
 	return {
 		"name": run.name,
 		"docstatus": run.docstatus,
 		"production_date": run.production_date,
 		"business_name": run.business_name,
+		"production_plan": run.production_plan,
+		"production_plan_row": run.production_plan_row,
+		"plan_week_number": run.plan_week_number,
+		"cycle_number": run.cycle_number,
 		"recipe": run.recipe,
 		"finished_item": run.finished_item,
-		"planned_output_qty": run.planned_output_qty,
-		"actual_output_qty": run.actual_output_qty,
-		"output_variance_qty": run.output_variance_qty,
+		"planned_output_qty": round(flt(run.planned_output_qty), 3),
+		"actual_output_qty": round(flt(run.actual_output_qty), 3),
+		"output_variance_qty": round(flt(run.output_variance_qty), 3),
 		"output_variance_percent": run.output_variance_percent,
 		"expected_material_cost": run.expected_material_cost,
 		"actual_material_cost": run.actual_material_cost,
 		"material_cost_variance": run.material_cost_variance,
 		"output_stock_event": run.output_stock_event,
 		"truth_event": run.truth_event,
-		"ingredients": [row.as_dict() for row in run.ingredients],
+		"notes": run.notes,
+		"ingredients": ingredients,
 	}
 
 

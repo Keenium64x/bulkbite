@@ -1,0 +1,18 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:plan_name", "creation": "2026-08-24 12:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["plan_name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks", "normal_price", "discounted_price", "enabled", "notes"],
+ "fields": [
+  {"fieldname": "plan_name", "fieldtype": "Data", "in_list_view": 1, "label": "Plan Name", "reqd": 1, "unique": 1},
+  {"fieldname": "serving_size_g", "fieldtype": "Float", "in_list_view": 1, "label": "Serving Size (g)", "non_negative": 1, "reqd": 1},
+  {"default": "2", "fieldname": "meals_per_day", "fieldtype": "Int", "label": "Meals per Day", "non_negative": 1, "reqd": 1},
+  {"default": "7", "fieldname": "days_per_week", "fieldtype": "Int", "label": "Days per Week", "non_negative": 1, "reqd": 1},
+  {"default": "4", "fieldname": "cycle_weeks", "fieldtype": "Int", "label": "Cycle Weeks", "non_negative": 1, "reqd": 1},
+  {"fieldname": "normal_price", "fieldtype": "Currency", "label": "Normal Customer Price", "non_negative": 1},
+  {"fieldname": "discounted_price", "fieldtype": "Currency", "label": "Discounted Customer Price", "non_negative": 1},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-24 12:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Customer Plan Type", "owner": "Administrator",
+ "permissions": [{"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}, {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1}, {"read": 1, "role": "BulkBite Worker"}, {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}],
+ "sort_field": "serving_size_g", "sort_order": "ASC", "states": [], "track_changes": 1
+}

@@ -7,7 +7,7 @@
   "public": "SystemAuxiliaryRecords",
   "registrySource": "sources/blocks/auxiliary-records",
   "projectSource": "src/blocks/auxiliary-records",
-  "components": ["badge", "card", "checkbox", "form-control", "linked-record-field", "operational-button", "select", "textarea"],
+  "components": ["badge", "card", "checkbox", "date-picker", "form-control", "linked-record-field", "operational-button", "select", "textarea"],
   "primitives": [],
   "incomingHandoff": "A manager follows a setup destination or a linked field needs a missing supporting record.",
   "outgoingHandoff": "The saved supporting record returns to the catalogue or linked operational workflow as an available option.",

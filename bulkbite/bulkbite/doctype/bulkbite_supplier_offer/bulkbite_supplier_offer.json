@@ -1,0 +1,32 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "BB-OFFER-.#####", "creation": "2026-08-24 12:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["item_code", "supplier", "supplier_item_code", "offer_key", "effective_from", "effective_to", "units_per_pack", "unit_size", "purchase_uom", "stock_qty_per_pack", "normal_price", "discounted_price", "discount_from", "discount_to", "currency", "price_includes_vat", "vat_rate", "price_source", "source_date", "last_verified_on", "preferred", "enabled", "notes"],
+ "fields": [
+  {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Item", "options": "BulkBite Item", "reqd": 1},
+  {"fieldname": "supplier", "fieldtype": "Link", "in_list_view": 1, "label": "Supplier", "options": "BulkBite Supplier", "reqd": 1},
+  {"fieldname": "supplier_item_code", "fieldtype": "Data", "label": "Supplier Item Code"},
+  {"fieldname": "offer_key", "fieldtype": "Data", "hidden": 1, "label": "Stable Offer Key", "read_only": 1},
+  {"default": "Today", "fieldname": "effective_from", "fieldtype": "Date", "in_list_view": 1, "label": "Price From", "reqd": 1},
+  {"fieldname": "effective_to", "fieldtype": "Date", "label": "Price Until"},
+  {"default": "1", "fieldname": "units_per_pack", "fieldtype": "Float", "label": "Units per Pack", "non_negative": 1, "reqd": 1},
+  {"default": "1", "fieldname": "unit_size", "fieldtype": "Float", "label": "Size per Unit", "non_negative": 1, "reqd": 1},
+  {"default": "Kg", "fieldname": "purchase_uom", "fieldtype": "Select", "label": "Size Unit", "options": "g\nKg\nml\nLitre\nEach", "reqd": 1},
+  {"fieldname": "stock_qty_per_pack", "fieldtype": "Float", "in_list_view": 1, "label": "Stock Quantity per Pack", "read_only": 1},
+  {"fieldname": "normal_price", "fieldtype": "Currency", "in_list_view": 1, "label": "Normal Pack Price", "non_negative": 1, "reqd": 1},
+  {"fieldname": "discounted_price", "fieldtype": "Currency", "label": "Discounted Pack Price", "non_negative": 1},
+  {"fieldname": "discount_from", "fieldtype": "Date", "label": "Discount From"},
+  {"fieldname": "discount_to", "fieldtype": "Date", "label": "Discount To"},
+  {"default": "ZAR", "fieldname": "currency", "fieldtype": "Data", "label": "Currency", "reqd": 1},
+  {"default": "1", "fieldname": "price_includes_vat", "fieldtype": "Check", "label": "Pack Price Includes VAT"},
+  {"default": "15", "fieldname": "vat_rate", "fieldtype": "Percent", "label": "VAT Rate"},
+  {"fieldname": "price_source", "fieldtype": "Data", "label": "Price Source"},
+  {"fieldname": "source_date", "fieldtype": "Date", "label": "Source Date"},
+  {"fieldname": "last_verified_on", "fieldtype": "Date", "label": "Last Verified On"},
+  {"default": "0", "fieldname": "preferred", "fieldtype": "Check", "label": "Preferred Offer"},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-24 12:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Supplier Offer", "owner": "Administrator",
+ "permissions": [{"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}, {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1}, {"read": 1, "role": "BulkBite Worker"}, {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}],
+ "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 1
+}

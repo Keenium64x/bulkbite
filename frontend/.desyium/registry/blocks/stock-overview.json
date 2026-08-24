@@ -1,13 +1,13 @@
 {
   "id": "stock-overview",
   "name": "Stock Overview",
-  "job": "Render a minimal operating dashboard in dashboard mode, or full balances, demand, scanning, and stock evidence in stock mode.",
+  "job": "Render a visual operating dashboard with qualified four-week gross profit, revenue, food cost, margin, current production status, and direct workflow actions in dashboard mode, or full balances, demand, scanning, and stock evidence in stock mode.",
   "category": "Application",
   "source": "@/blocks/stock-overview/StockOverview.vue",
   "public": "SystemStockOverview",
   "registrySource": "sources/blocks/stock-overview",
   "projectSource": "src/blocks/stock-overview",
-  "components": ["scan-code-field", "linked-record-field", "operational-button", "badge", "card"],
+  "components": ["scan-code-field", "linked-record-field", "operational-button", "badge", "card", "chart", "stat"],
   "primitives": [],
   "incomingHandoff": "A worker or manager needs a simple operating position or the detailed stock workspace.",
   "outgoingHandoff": "Dashboard mode routes to the next task; Stock mode exposes balances, shortages, scanning, recent evidence, and the physical count handoff.",
@@ -17,7 +17,7 @@
     "pageAlignment": "grid",
     "padding": "var(--spacing-l) 0",
     "gap": "var(--spacing-m)",
-    "containment": "Dashboard mode contains only key figures and four direct task cards. Stock mode contains lookup, readiness, balances, demand, activity, and reconciliation; wide records scroll inside their labelled region."
+    "containment": "Dashboard mode gives one dominant financial evidence card with summary stats beneath its chart, then matching meal-direction, stock-readiness, recent-activity, and status-aware next-work panels. Stock mode contains lookup, readiness, balances, demand, activity, and reconciliation; wide records scroll inside their labelled region."
   },
   "surfaceContract": {
     "placement": "none",

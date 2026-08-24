@@ -4,9 +4,11 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["source_line", "proposed_item_name", "item_code", "qty", "uom", "confidence", "warning", "accepted"],
+ "field_order": ["source_line", "source_page", "source_quote", "proposed_item_name", "item_code", "qty", "uom", "confidence", "warning", "accepted"],
  "fields": [
   {"fieldname": "source_line", "fieldtype": "Small Text", "label": "Source Text", "read_only": 1},
+  {"fieldname": "source_page", "fieldtype": "Int", "label": "Source Page", "read_only": 1},
+  {"fieldname": "source_quote", "fieldtype": "Small Text", "label": "Source Quote", "read_only": 1},
   {"fieldname": "proposed_item_name", "fieldtype": "Data", "in_list_view": 1, "label": "Written Item", "read_only": 1},
   {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Matched Item", "options": "BulkBite Item"},
   {"fieldname": "qty", "fieldtype": "Float", "in_list_view": 1, "label": "Quantity", "non_negative": 1},

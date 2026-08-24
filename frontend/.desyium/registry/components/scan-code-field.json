@@ -1,0 +1,32 @@
+{
+  "id": "scan-code-field",
+  "name": "Scan Code Field",
+  "job": "Capture QR and barcode text from a browser camera, hardware scanner, or manual entry, then submit one code for resolution.",
+  "category": "Forms",
+  "provider": "project",
+  "source": "@/components/scan-code-field/ScanCodeField.vue",
+  "install": {
+    "type": "none"
+  },
+  "states": [
+    "idle",
+    "hardware-entry",
+    "camera-starting",
+    "camera-active",
+    "camera-capturing",
+    "camera-unsupported",
+    "focus",
+    "disabled",
+    "submitting"
+  ],
+  "exports": [
+    {
+      "source": "default",
+      "public": "SystemScanCodeField",
+      "class": "system-scan-code-field"
+    }
+  ],
+  "composes": ["form-control", "operational-button"],
+  "accessibility": "The input is labelled, keyboard-submittable, and compatible with scanners that emit keyboard input followed by Enter. Camera permission starts only after an explicit action. The user explicitly captures one frame for local decoding, and all tracks stop after capture, cancel, or unmount.",
+  "responsiveBehaviour": "Keep the labelled input first, wrap actions below it before controls shrink, and constrain the live camera region to the content width."
+}
