@@ -829,7 +829,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
 	location = location or "Ingredients"
 	rows, requirements = build_plan_snapshot(plan, location)
-	buying = load_buying_theory(plan, location)
+	buying = build_buying_plan(plan, requirements)
 	demand = calculate_customer_demand(plan.customer_mix)
 	runs = frappe.get_all(
 		"BulkBite Production Run",

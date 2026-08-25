@@ -29,6 +29,7 @@ const itemOptions = computed(() => (props.inventory?.items || []).map((item) => 
 const nextWeek = computed(() => props.plan?.next_production?.row || props.plan?.rows?.[0])
 const stockEnough = computed(() => (props.plan?.total_requirements || []).filter((item) => item.shortage_qty <= 0).length)
 const requirementCount = computed(() => (props.plan?.total_requirements || []).length)
+const currentShortageCount = computed(() => Math.max(requirementCount.value - stockEnough.value, 0))
 const stockCoverage = computed(() => requirementCount.value ? Math.round((stockEnough.value / requirementCount.value) * 100) : 0)
 const stockValue = computed(() => (props.inventory?.items || []).reduce((total, item) => total + Number(item.stock_value || 0), 0))
 const latestReceipt = computed(() => props.snapshot?.recent_receipts?.[0] || null)
@@ -41,10 +42,10 @@ const nextWork = computed(() => [
   {
     key: "buying",
     eyebrow: "Buy",
-    title: props.plan?.buying?.shortage_count ? `${props.plan.buying.shortage_count} ingredients still needed` : "Planned ingredients are covered",
+    title: currentShortageCount.value ? `${currentShortageCount.value} ingredients still needed` : "Planned ingredients are covered",
     detail: props.plan?.buying?.missing_offer_count ? `${props.plan.buying.missing_offer_count} need a supplier price before the basket is complete.` : `Expected basket ${money(props.plan?.buying?.expected_cost)}.`,
     action: "Open buying",
-    variant: props.plan?.buying?.shortage_count ? "solid" : "outline",
+    variant: currentShortageCount.value ? "solid" : "outline",
   },
   {
     key: "receipts",
@@ -147,13 +148,13 @@ function themeColor(name) { return window.getComputedStyle(document.documentElem
 
         <SystemCard class="operating-panel">
           <p class="panel-index">Current direction</p><h2>{{ plan.plan_title }}</h2>
-          <div class="operating-figures"><div><strong>{{ plan.customer_demand.total_customers }}</strong><span>customers</span></div><div><strong>{{ number(plan.customer_demand.weekly_output_qty, 1) }} kg</strong><span>food per week</span></div><div><strong>{{ plan.buying.shortage_count }}</strong><span>items to buy</span></div></div>
+          <div class="operating-figures"><div><strong>{{ plan.customer_demand.total_customers }}</strong><span>customers</span></div><div><strong>{{ number(plan.customer_demand.weekly_output_qty, 1) }} kg</strong><span>food per week</span></div><div><strong>{{ currentShortageCount }}</strong><span>items to buy</span></div></div>
           <div class="next-production"><span>Next production</span><strong>{{ nextWeek?.finished_item_name || "No meal scheduled" }}</strong><small v-if="nextWeek">Meal {{ nextWeek.week_number }} · {{ number(nextWeek.planned_output_qty, 1) }} kg planned</small></div>
           <SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">Update direction</SystemOperationalButton>
         </SystemCard>
 
         <SystemCard class="readiness-panel">
-          <div class="panel-heading"><div><p class="panel-index">Stock readiness</p><h2>{{ stockCoverage }}% of planned ingredients covered</h2></div><SystemBadge>{{ plan.buying.shortage_count }} short</SystemBadge></div>
+          <div class="panel-heading"><div><p class="panel-index">Stock readiness</p><h2>{{ stockCoverage }}% of planned ingredients covered</h2></div><SystemBadge>{{ currentShortageCount }} short</SystemBadge></div>
           <div class="readiness-meter" role="meter" aria-label="Planned ingredient stock coverage" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="stockCoverage"><span :style="{ width: `${stockCoverage}%` }" /></div>
           <div class="operating-figures readiness-figures"><div><strong>{{ stockEnough }} of {{ requirementCount }}</strong><span>ingredients covered</span></div><div><strong>{{ money(stockValue) }}</strong><span>stock on hand value</span></div></div>
           <div class="panel-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="emit('open-workflow', 'stock')">View stock</SystemOperationalButton></div>
@@ -182,7 +183,7 @@ function themeColor(name) { return window.getComputedStyle(document.documentElem
         <div v-if="scanResult?.matched" class="scan-result" aria-live="polite"><SystemBadge class="status-badge">MATCHED</SystemBadge><strong>{{ scanResult.item_name }}</strong><span>{{ scanResult.item_code }} · {{ scanResult.uom }}</span></div>
         <div v-else-if="scanResult && !scanResult.matched" class="scan-result scan-result--unknown" aria-live="polite"><SystemBadge>NOT MAPPED</SystemBadge><strong>{{ scanResult.scan_code }}</strong><span>{{ scanResult.reason }}</span><SystemLinkedRecordField v-model="mappingItem" label="Assign to item" :options="itemOptions" placeholder="Choose an ingredient" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" /><SystemOperationalButton variant="outline" :disabled="!mappingItem" @click="assignCode">Save code mapping</SystemOperationalButton></div>
       </SystemCard>
-      <SystemCard class="work-panel work-panel--shortage"><p class="panel-index">Stock readiness</p><h2>{{ plan?.buying?.shortage_count || 0 }} ingredients short</h2><p>{{ stockEnough }} planned ingredients are covered by current stock.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton></SystemCard>
+      <SystemCard class="work-panel work-panel--shortage"><p class="panel-index">Stock readiness</p><h2>{{ currentShortageCount }} ingredients short</h2><p>{{ stockEnough }} planned ingredients are covered by current stock.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton></SystemCard>
     </div>
 
     <section v-if="mode === 'stock'" class="data-section" aria-labelledby="stock-heading">
