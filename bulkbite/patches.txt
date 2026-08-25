@@ -8,3 +8,4 @@ bulkbite.patches.backfill_receipt_purchase_measurements
 bulkbite.patches.seed_planning_defaults
 bulkbite.patches.backfill_planning_price_theory
 bulkbite.patches.backfill_production_run_cycles
+bulkbite.patches.seed_expense_types_and_finance_ledger

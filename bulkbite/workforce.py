@@ -255,6 +255,9 @@ def calculate_assignment_pay(employee_type, hours_worked=0, completion_status="C
 
 def post_production_employee_costs(run):
 	"""Create one actual labour-cost entry per payable production assignment."""
+	from bulkbite.finance_ledger import create_actual_expense
+
+	expense_type = frappe.db.get_value("BulkBite Expense Type", {"expense_type_name": "Production labour"}, "name")
 	created = []
 	for row in run.employees or []:
 		if row.cost_entry:
@@ -265,10 +268,10 @@ def post_production_employee_costs(run):
 		amount = flt(row.payable_amount)
 		if amount <= 0:
 			continue
-		cost = frappe.get_doc(
+		cost, event = create_actual_expense(
 			{
-				"doctype": "BulkBite Cost Entry",
 				"cost_date": run.production_date,
+				"expense_type": expense_type,
 				"cost_category": "Labour",
 				"payee": row.employee_name or row.employee,
 				"quantity": flt(row.hours_worked) if row.payment_basis == "Hourly" else 1,
@@ -279,9 +282,12 @@ def post_production_employee_costs(run):
 				"employee": row.employee,
 				"production_employee_row": row.name,
 				"notes": _("Created from posted production run {0}.").format(run.name),
-			}
+			},
+			reference_doctype=run.doctype,
+			reference_name=run.name,
+			reference_line=row.name,
+			ignore_permissions=True,
 		)
-		cost.insert(ignore_permissions=True)
 		row.db_set("cost_entry", cost.name, update_modified=False)
 		created.append(cost.name)
 	return created

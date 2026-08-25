@@ -10,12 +10,12 @@ import { accountantExportUrl, getAccountantExport, getSpendReport } from "@/reso
 const today = new Date()
 const localDate = value => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
 const firstDay = localDate(new Date(today.getFullYear(), today.getMonth(), 1))
-const form = reactive({ from_date: firstDay, to_date: localDate(today), dataset: "receipts" })
+const form = reactive({ from_date: firstDay, to_date: localDate(today), dataset: "finance_events" })
 const report = ref(null)
 const exportPreview = ref(null)
 const busy = ref(false)
 const error = ref("")
-const datasets = [{ label: "Receipts", value: "receipts" }, { label: "Operating costs", value: "operating_costs" }, { label: "Stock events", value: "stock_events" }, { label: "Closing stock", value: "closing_stock" }]
+const datasets = [{ label: "Finance ledger", value: "finance_events" }, { label: "Operating costs", value: "operating_costs" }, { label: "Receipts", value: "receipts" }, { label: "Stock events", value: "stock_events" }, { label: "Closing stock", value: "closing_stock" }]
 
 function validPeriod() {
   error.value = ""
@@ -88,7 +88,7 @@ onMounted(loadReport)
       <div class="section-heading"><div><p class="eyebrow">Accountant export</p><h2>Download operational records</h2><p>Accounting dimensions stay outside worker flows. Choose a dataset for the accountant.</p></div></div>
       <div class="field-grid"><label class="field-shell"><span>Dataset</span><SystemSelect v-model="form.dataset" :options="datasets" size="lg" /></label></div>
       <div class="button-row"><SystemOperationalButton variant="solid" size="lg" :disabled="!exportPreview" @click="download">Download CSV</SystemOperationalButton></div>
-      <p v-if="exportPreview" class="safety-note">{{ exportPreview.receipts.length }} receipts, {{ exportPreview.operating_costs.length }} operating costs, {{ exportPreview.stock_events.length }} stock events, and {{ exportPreview.closing_stock.length }} closing balances are available for this period.</p>
+      <p v-if="exportPreview" class="safety-note">{{ exportPreview.finance_events.length }} finance ledger events, {{ exportPreview.receipts.length }} receipts, {{ exportPreview.operating_costs.length }} operating costs, {{ exportPreview.stock_events.length }} stock events, and {{ exportPreview.closing_stock.length }} closing balances are available. Finance chain: {{ exportPreview.finance_chain.valid ? 'verified' : 'needs attention' }}.</p>
     </section>
   </section>
 </template>

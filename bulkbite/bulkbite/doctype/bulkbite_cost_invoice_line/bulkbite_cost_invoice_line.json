@@ -4,9 +4,10 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["description", "cost_rule", "cost_category", "quantity", "unit_rate", "amount", "vat_amount", "accounting_category", "cost_entry", "notes"],
+ "field_order": ["description", "expense_type", "cost_rule", "cost_category", "quantity", "unit_rate", "amount", "vat_amount", "accounting_category", "confidence", "source_quote", "uncertainty", "cost_entry", "finance_event", "notes"],
  "fields": [
   {"fieldname": "description", "fieldtype": "Data", "in_list_view": 1, "label": "Cost Description", "reqd": 1},
+  {"fieldname": "expense_type", "fieldtype": "Link", "in_list_view": 1, "label": "Expense Type", "options": "BulkBite Expense Type", "reqd": 1},
   {"fieldname": "cost_rule", "fieldtype": "Link", "label": "Expected Cost Rule", "options": "BulkBite Operating Cost Rule"},
   {"fieldname": "cost_category", "fieldtype": "Select", "in_list_view": 1, "label": "Cost Category", "options": "Labour\nPackaging\nDelivery\nUtilities\nRent\nKitchen Consumables\nTransaction Fees\nOther Production Overhead", "reqd": 1},
   {"default": "1", "fieldname": "quantity", "fieldtype": "Float", "label": "Hours or Quantity", "non_negative": 1},
@@ -14,7 +15,11 @@
   {"fieldname": "amount", "fieldtype": "Currency", "in_list_view": 1, "label": "Line Cost", "non_negative": 1, "reqd": 1},
   {"default": "0", "fieldname": "vat_amount", "fieldtype": "Currency", "label": "VAT Amount", "non_negative": 1},
   {"fieldname": "accounting_category", "fieldtype": "Data", "label": "Accountant Category"},
+  {"default": "0", "fieldname": "confidence", "fieldtype": "Percent", "label": "Extraction Confidence", "non_negative": 1, "read_only": 1},
+  {"fieldname": "source_quote", "fieldtype": "Small Text", "label": "OCR Evidence", "read_only": 1},
+  {"fieldname": "uncertainty", "fieldtype": "Small Text", "label": "Review Warning", "read_only": 1},
   {"fieldname": "cost_entry", "fieldtype": "Link", "label": "Posted Actual Cost", "options": "BulkBite Cost Entry", "read_only": 1},
+  {"fieldname": "finance_event", "fieldtype": "Link", "label": "Finance Ledger Event", "options": "BulkBite Finance Event", "read_only": 1},
   {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
  ],
  "index_web_pages_for_search": 0,

@@ -7,6 +7,7 @@ import frappe
 from openpyxl import load_workbook
 
 from bulkbite.api import post_cost_invoice, receive_stock_from_receipt
+from bulkbite.finance_ledger import verify_finance_event_chain
 from bulkbite.costing import calculate_operating_costs
 from bulkbite.planning import build_spend_report
 from bulkbite.price_workbook import apply_price_import, build_price_workbook, inspect_price_import, preview_price_import
@@ -84,15 +85,17 @@ def run_cost_invoice_integration_proof():
 	frappe.db.savepoint("bulkbite_cost_invoice_proof")
 	file_paths = []
 	try:
+		expense_type = frappe.db.get_value("BulkBite Expense Type", {"expense_type_name": "Electricity and utilities"}, "name")
+		fee_type = frappe.db.get_value("BulkBite Expense Type", {"expense_type_name": "Bank and transaction fees"}, "name")
 		rule = frappe.get_doc({
-			"doctype": "BulkBite Operating Cost Rule", "cost_code": "PROOF-LABOUR",
-			"cost_name": "Proof kitchen worker", "cost_category": "Labour", "basis": "Hourly",
+			"doctype": "BulkBite Operating Cost Rule", "cost_code": "PROOF-UTILITIES",
+			"cost_name": "Proof kitchen utilities", "cost_category": "Utilities", "basis": "Hourly",
 			"rate": 50, "employee_count": 2, "hours_per_employee": 8, "default_quantity": 1,
 			"recurrence": "Weekly", "effective_from": "2099-01-01", "enabled": 1,
 		}).insert()
 		theory = calculate_operating_costs("2099-01-01", "2099-01-14")
-		labour = next(row for row in theory["expected_rows"] if row["name"] == rule.name)
-		assert labour["quantity"] == 32 and labour["amount"] == 1600
+		expected = next(row for row in theory["expected_rows"] if row["name"] == rule.name)
+		assert expected["quantity"] == 32 and expected["amount"] == 1600
 
 		files = []
 		for index in range(1, 3):
@@ -105,14 +108,16 @@ def run_cost_invoice_integration_proof():
 			"invoice_date": "2099-01-07", "currency": "ZAR",
 			"evidence_files": [{"evidence_file": row.file_url, "file_name": row.file_name} for row in files],
 			"costs": [
-				{"description": "Kitchen labour", "cost_rule": rule.name, "cost_category": "Labour", "quantity": 16, "unit_rate": 50, "amount": 800},
-				{"description": "Payroll administration", "cost_category": "Transaction Fees", "quantity": 1, "unit_rate": 25, "amount": 25},
+				{"description": "Kitchen utilities", "expense_type": expense_type, "cost_rule": rule.name, "cost_category": "Utilities", "quantity": 16, "unit_rate": 50, "amount": 800},
+				{"description": "Payroll administration", "expense_type": fee_type, "cost_category": "Transaction Fees", "quantity": 1, "unit_rate": 25, "amount": 25},
 			],
 		}).insert()
 		assert invoice.total_amount == 825
 		first = post_cost_invoice(invoice.name)
 		assert first["costs_posted"] and first["line_count"] == 2
 		assert frappe.db.count("BulkBite Cost Entry", {"cost_date": "2099-01-07"}) == 2
+		assert frappe.db.count("BulkBite Finance Event", {"reference_name": invoice.name}) == 2
+		assert verify_finance_event_chain()["valid"]
 		second = post_cost_invoice(invoice.name)
 		assert second["costs_posted"] and frappe.db.count("BulkBite Cost Entry", {"cost_date": "2099-01-07"}) == 2
 		assert frappe.db.count("BulkBite Stock Event") == stock_before
@@ -126,7 +131,7 @@ def run_cost_invoice_integration_proof():
 		assert immutable
 		actual = calculate_operating_costs("2099-01-01", "2099-01-14")
 		assert actual["actual_total"] == 825
-		return {"passed": True, "expected_labour": labour["amount"], "actual_cost": actual["actual_total"], "posted_lines": 2, "idempotent": True, "stock_events_unchanged": True, "immutable": immutable}
+		return {"passed": True, "expected_cost": expected["amount"], "actual_cost": actual["actual_total"], "posted_lines": 2, "finance_events": 2, "finance_chain_valid": True, "idempotent": True, "stock_events_unchanged": True, "immutable": immutable}
 	finally:
 		frappe.db.rollback(save_point="bulkbite_cost_invoice_proof")
 		for file_path in file_paths:

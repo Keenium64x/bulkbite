@@ -1,0 +1,33 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "BB-FE-.########", "creation": "2026-08-25 12:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["event_sequence", "event_timestamp", "posting_date", "event_type", "expense_type", "cost_category", "payee", "amount", "vat_amount", "currency", "reference_doctype", "reference_name", "reference_line", "cost_entry", "evidence_file", "accounting_category", "actor", "previous_hash", "event_hash", "payload_json"],
+ "fields": [
+  {"fieldname": "event_sequence", "fieldtype": "Int", "in_list_view": 1, "label": "Sequence", "read_only": 1, "unique": 1},
+  {"fieldname": "event_timestamp", "fieldtype": "Datetime", "in_list_view": 1, "label": "Recorded At", "read_only": 1},
+  {"fieldname": "posting_date", "fieldtype": "Date", "in_list_view": 1, "label": "Expense Date", "read_only": 1},
+  {"fieldname": "event_type", "fieldtype": "Select", "in_list_view": 1, "label": "Event Type", "options": "Actual Expense\nCorrection", "read_only": 1},
+  {"fieldname": "expense_type", "fieldtype": "Link", "in_list_view": 1, "label": "Expense Type", "options": "BulkBite Expense Type", "read_only": 1},
+  {"fieldname": "cost_category", "fieldtype": "Data", "label": "Cost Category", "read_only": 1},
+  {"fieldname": "payee", "fieldtype": "Data", "in_list_view": 1, "label": "Payee", "read_only": 1},
+  {"fieldname": "amount", "fieldtype": "Currency", "in_list_view": 1, "label": "Amount", "read_only": 1},
+  {"fieldname": "vat_amount", "fieldtype": "Currency", "label": "VAT Amount", "read_only": 1},
+  {"default": "ZAR", "fieldname": "currency", "fieldtype": "Data", "label": "Currency", "read_only": 1},
+  {"fieldname": "reference_doctype", "fieldtype": "Link", "label": "Source Type", "options": "DocType", "read_only": 1},
+  {"fieldname": "reference_name", "fieldtype": "Dynamic Link", "in_list_view": 1, "label": "Source", "options": "reference_doctype", "read_only": 1},
+  {"fieldname": "reference_line", "fieldtype": "Data", "label": "Source Line", "read_only": 1},
+  {"fieldname": "cost_entry", "fieldtype": "Link", "label": "Actual Cost", "options": "BulkBite Cost Entry", "read_only": 1, "unique": 1},
+  {"fieldname": "evidence_file", "fieldtype": "Attach", "label": "Private Evidence", "read_only": 1},
+  {"fieldname": "accounting_category", "fieldtype": "Data", "label": "Accountant Category", "read_only": 1},
+  {"fieldname": "actor", "fieldtype": "Link", "label": "Recorded By", "options": "User", "read_only": 1},
+  {"fieldname": "previous_hash", "fieldtype": "Data", "label": "Previous Hash", "read_only": 1},
+  {"fieldname": "event_hash", "fieldtype": "Data", "label": "Event Hash", "read_only": 1, "unique": 1},
+  {"fieldname": "payload_json", "fieldtype": "Code", "label": "Canonical Payload", "options": "JSON", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-25 12:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Finance Event", "owner": "Administrator",
+ "permissions": [
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager"},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager"},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "event_sequence", "sort_order": "DESC", "states": [], "track_changes": 0
+}

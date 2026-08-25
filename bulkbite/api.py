@@ -17,6 +17,9 @@ from bulkbite.document_ai import ai_is_configured, extract_measurements_with_ai
 from bulkbite.document_extraction import extract_measurement_rows, resolve_private_source
 from bulkbite.document_text import extract_private_text
 from bulkbite.receipt_extraction import extract_receipt_review
+from bulkbite.invoice_extraction import extract_cost_invoice_review
+from bulkbite.finance_ledger import create_actual_expense, get_finance_ledger
+from bulkbite.truth_ledger import append_truth_event
 from bulkbite.scan_identity import find_scan_owner, item_scan_codes, normalize_scan_code
 from bulkbite.variance import calculate_output_variance, calculate_usage_variance
 from bulkbite.planning import (
@@ -180,9 +183,9 @@ def get_finance_workspace(from_date=None, to_date=None):
 	actual_costs = frappe.get_all(
 		"BulkBite Cost Entry",
 		fields=[
-			"name", "cost_date", "cost_rule", "cost_category", "payee", "quantity",
+			"name", "cost_date", "expense_type", "cost_rule", "cost_category", "payee", "quantity",
 			"unit_rate", "amount", "vat_amount", "production_plan", "production_run", "employee", "evidence_file",
-			"accounting_category", "notes",
+			"accounting_category", "finance_event", "notes",
 		],
 		order_by="cost_date desc, creation desc",
 		limit_page_length=200,
@@ -205,6 +208,13 @@ def get_finance_workspace(from_date=None, to_date=None):
 		"expected_costs": rules,
 		"adjustments": adjustments,
 		"actual_costs": actual_costs,
+		"expense_types": frappe.get_all(
+			"BulkBite Expense Type",
+			fields=["name", "expense_type_name", "cost_category", "document_type", "default_vat_treatment", "accounting_category", "enabled", "notes"],
+			order_by="enabled desc, expense_type_name asc",
+		),
+		"finance_ledger": get_finance_ledger(start, end),
+		"can_create_expense_types": frappe.has_permission("BulkBite Expense Type", "create"),
 		"options": {
 			"suppliers": _finance_link_options("BulkBite Supplier", "supplier_name"),
 			"items": _finance_link_options("BulkBite Item", "item_name"),
@@ -212,6 +222,17 @@ def get_finance_workspace(from_date=None, to_date=None):
 			"supplier_offers": _finance_link_options("BulkBite Supplier Offer", "name"),
 		},
 	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_finance_ledger_workspace(from_date=None, to_date=None):
+	"""Expose verified finance events to managers and accountants without mutation."""
+	_require_roles("BulkBite Manager", "BulkBite Accountant")
+	start = getdate(from_date) if from_date else getdate(nowdate()).replace(day=1)
+	end = getdate(to_date) if to_date else add_days(add_months(start, 1), -1)
+	if start > end:
+		frappe.throw(_("From date must be on or before to date."))
+	return get_finance_ledger(start, end)
 
 
 def _current_workforce_snapshot():
@@ -256,18 +277,18 @@ def save_miscellaneous_cost(payload=None):
 	if any(evidence_urls):
 		_validate_private_evidence(evidence_urls)
 	amount = flt(data.get("amount")) or round(flt(data.get("quantity")) * flt(data.get("unit_rate")), 2)
-	if not data.get("cost_date") or not data.get("cost_category") or amount <= 0:
-		frappe.throw(_("Cost date, category, and an actual cost greater than zero are required."))
+	if not data.get("cost_date") or not data.get("expense_type") or not data.get("cost_category") or amount <= 0:
+		frappe.throw(_("Cost date, expense type, category, and an actual cost greater than zero are required."))
 	values = _pick_finance_fields(data, {
-		"cost_date", "cost_rule", "cost_category", "payee", "quantity", "unit_rate",
-		"vat_amount", "production_plan", "accounting_category", "notes",
+		"cost_date", "expense_type", "cost_rule", "cost_category", "payee", "quantity", "unit_rate",
+		"vat_amount", "currency", "production_plan", "accounting_category", "notes",
 	})
 	values["amount"] = amount
 	values["evidence_file"] = evidence_urls[0] if evidence_urls else None
-	doc = _save_finance_record("BulkBite Cost Entry", None, values)
+	doc, event = create_actual_expense(values)
 	if any(evidence_urls):
 		_attach_private_evidence(evidence_urls, doc.doctype, doc.name)
-	return {"name": doc.name, "cost_date": doc.cost_date, "amount": doc.amount}
+	return {"name": doc.name, "cost_date": doc.cost_date, "amount": doc.amount, "finance_event": event.name}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -446,6 +467,7 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Operating Cost Rule": {"label": "Operating cost rules", "singular_label": "operating cost rule", "description": "Expected labour, packaging, utilities, rent, delivery, and other costs."},
 	"BulkBite Cost Entry": {"label": "Actual costs", "singular_label": "actual cost", "description": "Evidence-backed labour and other actual operating costs for financial reporting."},
 	"BulkBite Cost Invoice": {"label": "Cost invoices", "singular_label": "cost invoice", "description": "Reviewed invoices that create evidence-backed actual operating costs."},
+	"BulkBite Expense Type": {"label": "Expense types", "singular_label": "expense type", "description": "Reusable invoice and miscellaneous expense classifications for finance review and accountant export."},
 	"BulkBite Customer Plan Type": {"label": "Customer plans", "singular_label": "customer plan", "description": "Serving sizes and schedule assumptions such as Lite 300 g, Standard 450 g, and Full 600 g."},
 	"BulkBite Location": {"label": "Locations", "singular_label": "location", "description": "The physical places where ingredients, meals, quarantine, and waste are measured."},
 	"BulkBite Recipe": {"label": "Recipes", "singular_label": "recipe", "description": "Versioned meal theory and controlled ingredient quantities."},
@@ -1008,37 +1030,9 @@ def start_cost_invoice_extraction(file_urls=None):
 
 
 def process_cost_invoice_extraction_job(file_urls, user=None):
-	"""Convert receipt-like invoice pages into editable cost suggestions and expected-rule matches."""
-	review = process_receipt_extraction_job(file_urls, user=user)
-	rules = frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name", "cost_name", "cost_category", "rate"])
-	lines = []
-	for row in review.get("lines") or []:
-		description = row.get("proposed_item_name") or row.get("source_quote") or "Invoice cost"
-		match = _match_cost_rule(description, rules)
-		lines.append({
-			"description": description,
-			"cost_rule": match.name if match else None,
-			"cost_category": match.cost_category if match else "Other Production Overhead",
-			"quantity": row.get("purchase_qty") or 1,
-			"unit_rate": row.get("price_per_pack") or row.get("amount") or 0,
-			"amount": row.get("amount") or 0,
-			"vat_amount": 0,
-			"confidence": row.get("confidence") or 0,
-			"notes": row.get("notes"),
-			"source_quote": row.get("source_quote"),
-		})
-	return {**review, "payee": review.get("proposed_supplier") or review.get("supplier"), "cost_lines": lines}
-
-
-def _match_cost_rule(description, rules):
-	needle = {token for token in str(description or "").lower().split() if len(token) > 2}
-	best, score = None, 0
-	for rule in rules:
-		candidate = {token for token in str(rule.cost_name or "").lower().split() if len(token) > 2}
-		current = len(needle & candidate) / len(candidate) if candidate else 0
-		if current > score:
-			best, score = rule, current
-	return best if score >= 0.5 else None
+	"""Extract all invoice pages through the dedicated Pydantic expense contract."""
+	sources = [resolve_private_source(file_url) for file_url in file_urls]
+	return extract_cost_invoice_review([source_path for _file_doc, source_path, _source_hash in sources], progress=_set_receipt_job_stage)
 
 
 def _set_receipt_job_stage(stage):
@@ -1129,6 +1123,7 @@ def create_cost_invoice(payload=None):
 		frappe.throw(_("Payee and invoice date are required."))
 	if not _as_list(data.get("costs")):
 		frappe.throw(_("Add at least one reviewed cost line."))
+	data["costs"] = _resolve_cost_invoice_expense_types(_as_list(data.get("costs")))
 	doc = frappe.get_doc({"doctype": "BulkBite Cost Invoice", **data}).insert()
 	_attach_private_evidence(evidence_urls, doc.doctype, doc.name)
 	return _serialize_cost_invoice(doc)
@@ -1136,7 +1131,7 @@ def create_cost_invoice(payload=None):
 
 @frappe.whitelist(methods=["POST"])
 def post_cost_invoice(name):
-	"""Create actual cost entries from one reviewed invoice exactly once."""
+	"""Create ledger-backed miscellaneous actual expenses from one reviewed invoice once."""
 	_require_roles("BulkBite Manager")
 	frappe.db.sql("select name from `tabBulkBite Cost Invoice` where name = %s for update", (name,))
 	invoice = frappe.get_doc("BulkBite Cost Invoice", name)
@@ -1145,17 +1140,59 @@ def post_cost_invoice(name):
 	if not invoice.costs:
 		frappe.throw(_("Review at least one cost line before posting the invoice."))
 	primary_evidence = invoice.evidence_files[0].evidence_file
+	posted_entries = []
+	line_vat_total = sum(flt(row.vat_amount) for row in invoice.costs)
+	line_amount_total = sum(flt(row.amount) for row in invoice.costs)
 	for row in invoice.costs:
-		entry = frappe.get_doc({
-			"doctype": "BulkBite Cost Entry", "cost_date": invoice.invoice_date, "cost_rule": row.cost_rule,
+		vat_amount = flt(row.vat_amount)
+		if not line_vat_total and flt(invoice.tax_amount) and line_amount_total:
+			vat_amount = round(flt(invoice.tax_amount) * flt(row.amount) / line_amount_total, 2)
+		gross_amount = round(flt(row.amount) + vat_amount, 2)
+		entry, event = create_actual_expense({
+			"cost_date": invoice.invoice_date, "expense_type": row.expense_type, "cost_rule": row.cost_rule,
 			"cost_category": row.cost_category, "payee": invoice.payee, "quantity": row.quantity,
-			"unit_rate": row.unit_rate, "amount": row.amount, "vat_amount": row.vat_amount,
+			"unit_rate": row.unit_rate, "amount": gross_amount, "vat_amount": vat_amount,
+			"currency": invoice.currency,
 			"production_plan": invoice.production_plan, "evidence_file": primary_evidence,
 			"accounting_category": row.accounting_category, "notes": f"From {invoice.name}: {row.description}. {row.notes or ''}".strip(),
-		}).insert()
+		}, reference_doctype=invoice.doctype, reference_name=invoice.name, reference_line=row.name)
 		row.db_set("cost_entry", entry.name, update_modified=False)
-	invoice.db_set({"costs_posted": 1, "status": "Costs Posted"})
+		row.db_set("finance_event", event.name, update_modified=False)
+		posted_entries.append({"cost_entry": entry.name, "finance_event": event.name, "amount": flt(entry.amount)})
+	truth = append_truth_event("COST_INVOICE_POSTED", invoice.doctype, invoice.name, {
+		"invoice": invoice.name, "invoice_date": invoice.invoice_date, "document_type": invoice.document_type,
+		"payee": invoice.payee, "invoice_number": invoice.invoice_number, "currency": invoice.currency,
+		"subtotal_amount": flt(invoice.subtotal_amount), "tax_amount": flt(invoice.tax_amount),
+		"total_amount": flt(invoice.total_amount), "actual_expenses": posted_entries,
+	})
+	invoice.db_set({"costs_posted": 1, "status": "Costs Posted", "truth_event": truth.name})
 	return _serialize_cost_invoice(invoice.reload())
+
+
+def _resolve_cost_invoice_expense_types(lines):
+	"""Resolve reviewed expense types and create only manager-approved proposals."""
+	resolved = []
+	for supplied in lines:
+		row = frappe._dict(supplied)
+		expense_type = row.get("expense_type")
+		if not expense_type and row.get("create_expense_type") and row.get("proposed_expense_type"):
+			name = " ".join(str(row.proposed_expense_type).split())[:140]
+			expense_type = frappe.db.get_value("BulkBite Expense Type", {"expense_type_name": name}, "name")
+			if not expense_type:
+				if not frappe.has_permission("BulkBite Expense Type", "create"):
+					frappe.throw(_("You cannot create the proposed expense type {0}.").format(name), frappe.PermissionError)
+				expense_type = frappe.get_doc({
+					"doctype": "BulkBite Expense Type", "expense_type_name": name,
+					"cost_category": row.get("cost_category") or "Other Production Overhead",
+					"document_type": row.get("document_type") or "General Supplier Invoice",
+					"default_vat_treatment": "Inclusive", "accounting_category": row.get("accounting_category"),
+					"enabled": 1, "notes": _("Created during reviewed invoice intake."),
+				}).insert().name
+		if not expense_type or not frappe.db.exists("BulkBite Expense Type", expense_type):
+			frappe.throw(_("Choose or approve an expense type for {0}.").format(row.get("description") or _("invoice line")))
+		allowed = {"description", "cost_rule", "cost_category", "quantity", "unit_rate", "amount", "vat_amount", "accounting_category", "confidence", "source_quote", "uncertainty", "notes"}
+		resolved.append({key: value for key, value in row.items() if key in allowed} | {"expense_type": expense_type})
+	return resolved
 
 
 @frappe.whitelist(methods=["GET"])
@@ -1437,15 +1474,18 @@ def get_accountant_export(from_date, to_date):
 	cost_entries = frappe.get_all(
 		"BulkBite Cost Entry",
 		filters={"cost_date": ["between", [start, end]]},
-		fields=["name", "cost_date", "cost_rule", "cost_category", "payee", "quantity", "unit_rate", "amount", "vat_amount", "production_plan", "production_run", "employee", "evidence_file", "accounting_category", "notes"],
+		fields=["name", "cost_date", "expense_type", "cost_rule", "cost_category", "payee", "quantity", "unit_rate", "amount", "vat_amount", "currency", "production_plan", "production_run", "employee", "evidence_file", "accounting_category", "finance_event", "notes"],
 		order_by="cost_date asc, name asc",
 	)
+	finance_ledger = get_finance_ledger(start, end)
 	return {
 		"period": {"from_date": start, "to_date": end, "currency": "ZAR"},
 		"receipts": receipts,
 		"stock_events": stock_events,
 		"closing_stock": balances,
 		"operating_costs": cost_entries,
+		"finance_events": finance_ledger["rows"],
+		"finance_chain": finance_ledger["summary"]["chain"],
 		"note": _("Operational export only. The accountant assigns accounts, tax treatment, and journal entries."),
 	}
 
@@ -1455,8 +1495,8 @@ def download_accountant_export(from_date, to_date, dataset="receipts"):
 	"""Download one accountant dataset as CSV without altering export state."""
 	_require_roles("BulkBite Manager", "BulkBite Accountant")
 	data = get_accountant_export(from_date, to_date)
-	if dataset not in {"receipts", "stock_events", "closing_stock", "operating_costs"}:
-		frappe.throw(_("Choose receipts, stock_events, closing_stock, or operating_costs."))
+	if dataset not in {"receipts", "stock_events", "closing_stock", "operating_costs", "finance_events"}:
+		frappe.throw(_("Choose receipts, stock_events, closing_stock, operating_costs, or finance_events."))
 	rows = data[dataset]
 	stream = io.StringIO()
 	fieldnames = list(rows[0].keys()) if rows else ["no_records"]

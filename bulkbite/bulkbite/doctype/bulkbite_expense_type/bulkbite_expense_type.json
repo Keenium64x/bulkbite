@@ -1,0 +1,20 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "EXP-.#####", "creation": "2026-08-25 12:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["expense_type_name", "cost_category", "document_type", "default_vat_treatment", "accounting_category", "enabled", "notes"],
+ "fields": [
+  {"fieldname": "expense_type_name", "fieldtype": "Data", "in_list_view": 1, "label": "Expense Type", "reqd": 1, "unique": 1},
+  {"fieldname": "cost_category", "fieldtype": "Select", "in_list_view": 1, "label": "Cost Category", "options": "Labour\nPackaging\nDelivery\nUtilities\nRent\nKitchen Consumables\nTransaction Fees\nOther Production Overhead", "reqd": 1},
+  {"default": "General Supplier Invoice", "fieldname": "document_type", "fieldtype": "Select", "label": "Usual Invoice Type", "options": "General Supplier Invoice\nUtilities\nRent and Property\nDelivery and Logistics\nProfessional Services\nEquipment and Maintenance\nInsurance and Compliance\nMarketing\nTelecoms and Software\nOther", "reqd": 1},
+  {"default": "Inclusive", "fieldname": "default_vat_treatment", "fieldtype": "Select", "label": "Default VAT Treatment", "options": "Inclusive\nExclusive\nNo VAT", "reqd": 1},
+  {"fieldname": "accounting_category", "fieldtype": "Data", "label": "Accountant Category"},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-25 12:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Expense Type", "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "expense_type_name", "sort_order": "ASC", "states": [], "track_changes": 1
+}

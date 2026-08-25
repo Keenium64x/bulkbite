@@ -1,8 +1,9 @@
 {
  "actions":[],"allow_rename":0,"autoname":"BB-COST-.YYYY.-.#####","creation":"2026-08-24 20:30:00.000000","doctype":"DocType","engine":"InnoDB",
- "field_order":["cost_date","cost_rule","cost_category","payee","quantity","unit_rate","amount","vat_amount","production_plan","production_run","employee","production_employee_row","evidence_file","accounting_category","notes"],
+ "field_order":["cost_date","expense_type","cost_rule","cost_category","payee","quantity","unit_rate","amount","vat_amount","currency","production_plan","production_run","employee","production_employee_row","evidence_file","accounting_category","finance_event","notes"],
  "fields":[
   {"default":"Today","fieldname":"cost_date","fieldtype":"Date","in_list_view":1,"label":"Cost Date","reqd":1},
+  {"fieldname":"expense_type","fieldtype":"Link","in_list_view":1,"label":"Expense Type","options":"BulkBite Expense Type"},
   {"fieldname":"cost_rule","fieldtype":"Link","label":"Expected Cost Rule","options":"BulkBite Operating Cost Rule"},
   {"fieldname":"cost_category","fieldtype":"Select","in_list_view":1,"label":"Cost Category","options":"Labour\nPackaging\nDelivery\nUtilities\nRent\nKitchen Consumables\nTransaction Fees\nOther Production Overhead","reqd":1},
   {"fieldname":"payee","fieldtype":"Data","label":"Employee, Supplier, or Payee"},
@@ -10,12 +11,14 @@
   {"default":"0","fieldname":"unit_rate","fieldtype":"Currency","label":"Actual Rate","non_negative":1},
   {"fieldname":"amount","fieldtype":"Currency","in_list_view":1,"label":"Actual Cost","non_negative":1,"reqd":1},
   {"default":"0","fieldname":"vat_amount","fieldtype":"Currency","label":"VAT Amount","non_negative":1},
+  {"default":"ZAR","fieldname":"currency","fieldtype":"Data","label":"Currency","read_only":1,"reqd":1},
   {"fieldname":"production_plan","fieldtype":"Link","label":"Production Plan","options":"BulkBite Production Plan"},
   {"fieldname":"production_run","fieldtype":"Link","label":"Production Run","options":"BulkBite Production Run","read_only":1},
   {"fieldname":"employee","fieldtype":"Link","label":"Employee","options":"BulkBite Employee","read_only":1},
   {"fieldname":"production_employee_row","fieldtype":"Data","label":"Production Employee Row","read_only":1,"unique":1},
   {"fieldname":"evidence_file","fieldtype":"Attach","label":"Evidence"},
   {"fieldname":"accounting_category","fieldtype":"Data","label":"Accountant Category"},
+  {"fieldname":"finance_event","fieldtype":"Link","label":"Finance Ledger Event","options":"BulkBite Finance Event","read_only":1,"unique":1},
   {"fieldname":"notes","fieldtype":"Small Text","label":"Notes"}
  ],
  "index_web_pages_for_search":0,"links":[],"modified":"2026-08-24 20:30:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Cost Entry","owner":"Administrator",

@@ -1,7 +1,7 @@
 {
   "id": "price-history",
   "name": "Prices and Costs",
-  "job": "Own the Stock price catalogue's flat field-selected exchange and Finance's expected costs, discounts, actual cost invoices, miscellaneous costs, and cost history without changing stock.",
+  "job": "Own the Stock price catalogue exchange and Finance's expected costs, discounts, miscellaneous expenses, dedicated Pydantic invoice review, manager-approved expense types, and immutable finance ledger.",
   "category": "Application",
   "source": "@/blocks/price-history/PriceHistory.vue",
   "public": "SystemPriceHistory",
@@ -10,8 +10,8 @@
   "components": ["date-picker", "linked-record-field", "file-uploader", "multi-file-uploader", "form-control", "select", "checkbox", "tabs", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "A manager needs to compare the price BulkBite planned with the price a reviewed receipt proves.",
-  "outgoingHandoff": "The manager can exchange exact-name price workbooks, review safe catalogue changes, configure costs, and see chronological theory, actual, and variance.",
-  "responsiveBehaviour": "Keep filters labelled, then let the comparison table scroll horizontally on narrow screens without hiding dates, suppliers, pack facts, or normalized prices.",
+  "outgoingHandoff": "Reviewed invoice lines become miscellaneous actual expenses, each posted expense becomes an immutable finance event, and the manager can inspect the verified accountant trail.",
+  "responsiveBehaviour": "Keep upload state, invoice facts, expense-type decisions, confidence, amounts, VAT, posting state, and ledger hashes labelled; stack each expense review card on mobile.",
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",

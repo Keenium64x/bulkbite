@@ -1,7 +1,7 @@
 {
   "id": "accountant-export",
   "name": "Reports and Accountant Export",
-  "job": "Compare revenue, frozen theoretical and actual food spend, savings, buying adjustments, and expected and actual operating costs by period, then export operational records without changing stock.",
+  "job": "Compare revenue, food spend, savings, and operating costs by period, then expose and export the verified immutable finance ledger and supporting operational records without mutation.",
   "category": "Application",
   "source": "@/blocks/accountant-export/AccountantExport.vue",
   "public": "SystemAccountantExport",
@@ -10,7 +10,7 @@
   "components": ["date-picker", "select", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "A manager needs a retrospective period comparison, while the accountant needs operational records outside BulkBite.",
-  "outgoingHandoff": "The manager sees gross profit, operating result, cost and savings sources, and the accountant can download operational records; the stock ledger remains unchanged.",
+  "outgoingHandoff": "The manager sees operating results and the accountant downloads finance events with dates, classifications, payees, VAT, evidence references, source documents, actors, and hash-chain proof.",
   "responsiveBehaviour": "Keep the period, dataset, record counts, note, and download action labelled and stacked on mobile.",
   "layoutContract": {
     "strategy": "grid",
