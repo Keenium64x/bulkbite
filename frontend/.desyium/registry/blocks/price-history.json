@@ -7,7 +7,7 @@
   "public": "SystemPriceHistory",
   "registrySource": "sources/blocks/price-history",
   "projectSource": "src/blocks/price-history",
-  "components": ["date-picker", "linked-record-field", "file-uploader", "multi-file-uploader", "form-control", "select", "checkbox", "tabs", "operational-button", "badge"],
+  "components": ["date-picker", "linked-record-field", "file-uploader", "multi-file-uploader", "form-control", "select", "checkbox-shadcn", "tabs", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "A manager needs to compare the price BulkBite planned with the price a reviewed receipt proves.",
   "outgoingHandoff": "Reviewed invoice lines become miscellaneous actual expenses, each posted expense becomes an immutable finance event, and the manager can inspect the verified accountant trail.",

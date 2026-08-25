@@ -7,7 +7,7 @@
   "public": "SystemDocumentReview",
   "registrySource": "sources/blocks/document-review",
   "projectSource": "src/blocks/document-review",
-  "components": ["file-uploader", "form-control", "select", "textarea", "checkbox", "operational-button", "badge"],
+  "components": ["file-uploader", "form-control", "select", "textarea", "checkbox-shadcn", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "A worker has written stock or production measurements in a private uploaded document or transcription.",
   "outgoingHandoff": "A reviewer accepts, edits, or rejects proposed rows before the system updates a production draft or creates an audit draft.",

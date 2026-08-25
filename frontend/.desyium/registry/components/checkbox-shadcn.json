@@ -2,22 +2,22 @@
   "id": "checkbox-shadcn",
   "name": "Checkbox Shadcn",
   "job": "Operational boolean or multiple selection using shadcn-vue",
-  "category": "Project",
-  "provider": "project",
+  "category": "Forms",
+	"provider": "shadcn-vue",
   "source": "@/components/checkbox-shadcn/CheckboxShadcn.vue",
   "install": {
     "type": "none"
   },
-  "states": [
-    "default",
-    "focus",
-    "disabled"
-  ],
+  "states": ["unchecked", "checked", "indeterminate", "focus", "disabled"],
   "exports": [
     {
       "source": "default",
-      "public": "SystemCheckboxShadcn",
-      "class": "system-checkbox-shadcn"
+      "public": "SystemCheckbox",
+      "class": "system-checkbox"
     }
-  ]
+  ],
+  "composes": ["reka-ui/checkbox", "lucide-vue-next/check"],
+  "accessibility": "Uses a native button role through Reka CheckboxRoot, supports keyboard toggling, disabled state, checked and indeterminate state, and an optional visible label.",
+  "responsiveBehaviour": "Keeps a compact 18 px indicator inside a labelled target of at least 40 px without changing surrounding form density.",
+  "failureBehaviour": "The boolean value remains visible and keyboard operable without animation or provider-specific styling."
 }

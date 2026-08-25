@@ -7,7 +7,7 @@
   "public": "SystemEmployeeManagement",
   "registrySource": "sources/blocks/employee-management",
   "projectSource": "src/blocks/employee-management",
-  "components": ["form-control", "select", "linked-record-field", "date-picker", "multi-file-uploader", "checkbox", "operational-button", "badge"],
+  "components": ["form-control", "select", "linked-record-field", "date-picker", "multi-file-uploader", "checkbox-shadcn", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "A manager opens Employees from Planning or Production and sees takt, required team-hours, available employee-hours, people, and employee-type theory in one continuous page.",
   "outgoingHandoff": "Planning and Production receive current capacity and eligible workers, while Finance receives expected and posted labour costs.",

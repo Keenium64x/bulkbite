@@ -7,7 +7,7 @@
   "public": "SystemMonthlyPlanning",
   "registrySource": "sources/blocks/monthly-planning",
   "projectSource": "src/blocks/monthly-planning",
-  "components": ["badge", "checkbox", "form-control", "linked-record-field", "operational-button"],
+  "components": ["badge", "checkbox-shadcn", "form-control", "linked-record-field", "operational-button"],
   "primitives": [],
   "incomingHandoff": "The manager knows the current customers or repeating meals have changed.",
   "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory. Manage employees opens the workforce page and returns the manager to Planning.",
