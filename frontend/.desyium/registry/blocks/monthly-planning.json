@@ -1,7 +1,7 @@
 {
   "id": "monthly-planning",
   "name": "Rolling Meal Direction",
-  "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and category-to-supplier routes.",
+  "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, category-to-supplier routes, and employee-hours-based workforce capacity.",
   "category": "Project",
   "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
   "public": "SystemMonthlyPlanning",
@@ -10,7 +10,7 @@
   "components": ["badge", "checkbox", "form-control", "linked-record-field", "operational-button"],
   "primitives": [],
   "incomingHandoff": "The manager knows the current customers or repeating meals have changed.",
-  "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory.",
+  "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory. Manage employees opens the workforce page and returns the manager to Planning.",
   "responsiveBehaviour": "Show four repeating meals in four, two, then one column while preserving labels, calculated units, supplier routing, and action order.",
   "layoutContract": {
     "strategy": "flow",

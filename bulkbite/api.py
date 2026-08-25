@@ -87,7 +87,7 @@ def get_workspace_snapshot():
 			"customer_plan_types": frappe.get_all("BulkBite Customer Plan Type", filters={"enabled": 1}, fields=["name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks"], order_by="serving_size_g"),
 			"item_categories": frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, fields=["name", "default_supplier"], order_by="name"),
 			"operating_cost_rules": frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name as value", "cost_name as label", "cost_category", "basis", "rate"], order_by="cost_category, cost_name"),
-			"employees": frappe.get_all("BulkBite Employee", filters={"status": "Active", "available_for_production": 1}, fields=["name as value", "full_name as label", "employee_type"], order_by="full_name"),
+			"employees": frappe.get_all("BulkBite Employee", filters={"status": "Active", "available_for_production": 1}, fields=["name as value", "full_name as label", "employee_type", "available_hours_per_run"], order_by="full_name"),
 		},
 	}
 	for run in result["recent_runs"]:
@@ -356,7 +356,7 @@ def get_employee_workspace():
 	)
 	employees = frappe.get_all(
 		"BulkBite Employee",
-		fields=["name", "full_name", "employee_type", "status", "available_for_production", "email_address", "phone_number", "start_date", "end_date", "use_payment_override", "payment_basis_override", "payment_rate_override", "notes"],
+		fields=["name", "full_name", "employee_type", "status", "available_for_production", "available_hours_per_run", "email_address", "phone_number", "start_date", "end_date", "use_payment_override", "payment_basis_override", "payment_rate_override", "notes"],
 		order_by="status asc, full_name",
 	)
 	documents = frappe.get_all(
@@ -404,12 +404,16 @@ def save_employee(payload=None):
 	if file_urls:
 		_validate_private_evidence(file_urls)
 	values = _pick_finance_fields(data, {
-		"full_name", "employee_type", "status", "available_for_production", "email_address",
+		"full_name", "employee_type", "status", "available_for_production", "available_hours_per_run", "email_address",
 		"phone_number", "start_date", "end_date", "use_payment_override",
 		"payment_basis_override", "payment_rate_override", "notes",
 	})
 	if not values.get("full_name") or not values.get("employee_type"):
 		frappe.throw(_("Employee name and employee type are required."))
+	if flt(values.get("available_hours_per_run")) < 0:
+		frappe.throw(_("Hours available per production run cannot be negative."))
+	if values.get("available_for_production") and not flt(values.get("available_hours_per_run")):
+		values["available_hours_per_run"] = flt(frappe.db.get_value("BulkBite Employee Type", values.get("employee_type"), "expected_hours_per_run"))
 	doc = frappe.get_doc("BulkBite Employee", data.name) if data.get("name") else frappe.new_doc("BulkBite Employee")
 	doc.check_permission("write" if data.get("name") else "create")
 	doc.update(values)
@@ -438,12 +442,18 @@ def save_production_employees(name, employees=None):
 		if employee.status != "Active":
 			frappe.throw(_("{0} is not an active employee.").format(employee.full_name))
 		employee_type = frappe.get_doc("BulkBite Employee Type", employee.employee_type)
+		supplied_available_hours = supplied.get("available_hours")
+		available_hours = flt(supplied_available_hours)
+		if available_hours < 0:
+			frappe.throw(_("Available hours for {0} cannot be negative.").format(employee.full_name))
+		if supplied_available_hours in (None, ""):
+			available_hours = flt(employee.available_hours_per_run) or flt(employee_type.expected_hours_per_run)
 		payment_basis = employee.payment_basis_override if employee.use_payment_override and employee.payment_basis_override else employee_type.payment_basis
 		payment_rate = employee.payment_rate_override if employee.use_payment_override else employee_type.payment_rate
 		pay = calculate_assignment_pay(frappe._dict({"payment_basis": payment_basis, "payment_rate": payment_rate}), supplied.get("hours_worked"), supplied.get("completion_status") or "Completed")
 		rows.append({
 			"employee": employee.name, "employee_name": employee.full_name, "employee_type": employee.employee_type,
-			"hours_worked": flt(supplied.get("hours_worked")), "completion_status": supplied.get("completion_status") or "Completed",
+			"available_hours": available_hours, "hours_worked": flt(supplied.get("hours_worked")), "completion_status": supplied.get("completion_status") or "Completed",
 			**pay, "notes": supplied.get("notes"),
 		})
 	run.set("employees", rows)

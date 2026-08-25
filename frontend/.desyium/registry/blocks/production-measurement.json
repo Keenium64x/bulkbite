@@ -1,7 +1,7 @@
 {
   "id": "production-measurement",
   "name": "Production Measurement",
-  "job": "Resume or open the next meal in the repeating direction, keep production date, food made, draft and posting controls together, and show production history.",
+  "job": "Resume or open the next meal in the repeating direction, capture each employee's run-specific available and actual hours, calculate takt and run capacity, keep posting controls together, and show production history.",
   "category": "Application",
   "source": "@/blocks/production-measurement/ProductionMeasurement.vue",
   "public": "SystemProductionMeasurement",
@@ -10,7 +10,7 @@
   "components": ["date-picker", "form-control", "linked-record-field", "select", "textarea", "operational-button", "badge"],
   "primitives": [],
   "incomingHandoff": "The rolling direction identifies the next meal and a worker opens Production after a cook.",
-  "outgoingHandoff": "The worker either discards the draft to reload current theory or explicitly posts frozen ingredient consumption and finished output, with Worker sheets available as an auxiliary handoff.",
+  "outgoingHandoff": "The worker either manages employees, opens Worker sheets, discards the draft to reload current theory, or posts frozen ingredient consumption, finished output, employee availability, and actual hours.",
   "responsiveBehaviour": "Keep expected, available, measurement method, actual quantity, and unit together; recompose every ingredient as a labelled mobile record.",
   "layoutContract": {
     "strategy": "grid",

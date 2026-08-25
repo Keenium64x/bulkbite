@@ -1,7 +1,7 @@
 {
   "id": "employee-management",
   "name": "Employee Management",
-  "job": "Show one-page Lean workforce capacity, maintain employee profiles with production-hour history, and configure employee-type theory under Production.",
+  "job": "Show red or green hour-based Lean workforce capacity, maintain each employee's per-run availability and production-hour history, and configure employee-type theory under Production.",
   "category": "Project",
   "source": "@/blocks/employee-management/EmployeeManagement.vue",
   "public": "SystemEmployeeManagement",
@@ -9,7 +9,7 @@
   "projectSource": "src/blocks/employee-management",
   "components": ["form-control", "select", "linked-record-field", "date-picker", "multi-file-uploader", "checkbox", "operational-button", "badge"],
   "primitives": [],
-  "incomingHandoff": "A manager opens Employees from Production and sees capacity, people, and employee-type theory in one continuous page.",
+  "incomingHandoff": "A manager opens Employees from Planning or Production and sees takt, required team-hours, available employee-hours, people, and employee-type theory in one continuous page.",
   "outgoingHandoff": "Planning and Production receive current capacity and eligible workers, while Finance receives expected and posted labour costs.",
   "responsiveBehaviour": "Keep Lean status and evidence readable first, then stack employee and role forms on mobile without hiding hours, capacity, pay basis, or document state.",
   "layoutContract": {

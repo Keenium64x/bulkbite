@@ -1,11 +1,12 @@
 {
  "actions":[],"allow_rename":0,"autoname":"BB-EMP-.#####","creation":"2026-08-25 09:00:00.000000","doctype":"DocType","engine":"InnoDB","modified":"2026-08-25 09:00:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Employee","owner":"Administrator",
- "title_field":"full_name","field_order":["full_name","employee_type","status","available_for_production","contact_section","email_address","phone_number","start_date","end_date","payment_section","use_payment_override","payment_basis_override","payment_rate_override","documents_section","documents","notes"],
+ "title_field":"full_name","field_order":["full_name","employee_type","status","available_for_production","available_hours_per_run","contact_section","email_address","phone_number","start_date","end_date","payment_section","use_payment_override","payment_basis_override","payment_rate_override","documents_section","documents","notes"],
  "fields":[
   {"fieldname":"full_name","fieldtype":"Data","in_list_view":1,"label":"Full Name","reqd":1},
   {"fieldname":"employee_type","fieldtype":"Link","in_list_view":1,"label":"Employee Type","options":"BulkBite Employee Type","reqd":1},
   {"default":"Active","fieldname":"status","fieldtype":"Select","in_list_view":1,"label":"Status","options":"Active\nInactive\nOn Leave\nEnded","reqd":1},
   {"default":"1","fieldname":"available_for_production","fieldtype":"Check","label":"Available for Production"},
+  {"default":"0","fieldname":"available_hours_per_run","fieldtype":"Float","label":"Hours Available per Production Run","non_negative":1},
   {"fieldname":"contact_section","fieldtype":"Section Break","label":"Contact and Employment"},
   {"fieldname":"email_address","fieldtype":"Data","label":"Email","options":"Email"},
   {"fieldname":"phone_number","fieldtype":"Data","label":"Phone"},

@@ -3,12 +3,27 @@ from __future__ import annotations
 import frappe
 
 from bulkbite.api import get_employee_workspace, save_employee, save_employee_type, save_production_employees
-from bulkbite.workforce import get_employee_capacity_snapshot, get_employee_production_history, post_production_employee_costs
+from bulkbite.workforce import calculate_hour_capacity, get_employee_capacity_snapshot, get_employee_production_history, post_production_employee_costs
 
 
 # =============================================================================
 # region ROLLED-BACK LEAN WORKFORCE PROOF
 # =============================================================================
+
+
+def run_hours():
+	"""Prove that individual employee-hours drive takt and capacity status."""
+	under = calculate_hour_capacity(required_output_qty=120, labour_minutes_per_unit=6, available_team_hours=7)
+	assert under == {
+		"required_team_hours": 12.0, "available_team_hours": 7.0, "hour_difference": -5.0,
+		"takt_minutes_per_unit": 3.5, "status": "Under capacity",
+	}
+	over = calculate_hour_capacity(required_output_qty=120, labour_minutes_per_unit=6, available_team_hours=13)
+	assert over == {
+		"required_team_hours": 12.0, "available_team_hours": 13.0, "hour_difference": 1.0,
+		"takt_minutes_per_unit": 6.5, "status": "Over capacity",
+	}
+	return {"under_capacity": under, "over_capacity": over}
 
 
 def run():
@@ -25,25 +40,33 @@ def run():
 		employee_results = [
 			save_employee({
 				"full_name": _unique("Proof Worker"), "employee_type": type_result["name"],
-				"status": "Active", "available_for_production": 1,
+				"status": "Active", "available_for_production": 1, "available_hours_per_run": available_hours,
 			})
-			for _ in range(2)
+			for available_hours in (5, 2)
 		]
 		workspace = get_employee_workspace()
 		assert any(row.name == type_result["name"] for row in workspace["employee_types"])
 		assert all(any(row.name == result["name"] for row in workspace["employees"]) for result in employee_results)
 
 		theory = get_employee_capacity_snapshot({"weekly_output_qty": 120})
-		assert theory["required_workers"] == 3
+		assert theory["required_workers"] == 4
 		assert theory["active_workers"] == 2
 		assert theory["required_team_hours"] == 12
-		assert theory["takt_minutes_per_kg"] == 2.5
+		assert theory["available_worker_hours"] == 7
+		assert theory["hour_difference"] == -5
+		assert theory["takt_minutes_per_kg"] == 3.5
 		assert theory["status"] == "Under capacity"
-		assert theory["worker_difference"] == -1
+
+		frappe.db.set_value("BulkBite Employee", employee_results[1]["name"], "available_hours_per_run", 8)
+		buffer = get_employee_capacity_snapshot({"weekly_output_qty": 120})
+		assert buffer["available_worker_hours"] == 13
+		assert buffer["hour_difference"] == 1
+		assert buffer["takt_minutes_per_kg"] == 6.5
+		assert buffer["status"] == "Over capacity"
 
 		draft_name = frappe.db.get_value("BulkBite Production Run", {"docstatus": 0}, "name", order_by="modified desc")
 		if not draft_name:
-			return {"capacity": theory, "assignment": "skipped because no draft production exists"}
+			return {"under_capacity": theory, "over_capacity": buffer, "assignment": "skipped because no draft production exists"}
 		run = save_production_employees(draft_name, [
 			{"employee": employee_results[0]["name"], "completion_status": "Completed", "hours_worked": 4},
 			{"employee": employee_results[1]["name"], "completion_status": "Completed", "hours_worked": 4},
@@ -65,7 +88,7 @@ def run():
 		assert actual["actual"]["labour_minutes_per_kg"] > 0
 		assert actual["planning_basis"] == "Actual rate"
 		return {
-			"theory": theory, "actual": actual["actual"], "history_rows": sum(len(rows) for rows in history.values()),
+			"under_capacity": theory, "over_capacity": buffer, "actual": actual["actual"], "history_rows": sum(len(rows) for rows in history.values()),
 			"labour_costs": first, "stock_events_unchanged": True,
 		}
 	finally:

@@ -25,13 +25,15 @@ def get_employee_capacity_snapshot(demand=None):
 		],
 		order_by="employee_type_name",
 	)
-	active_counts = {}
-	for employee_type in frappe.get_all(
+	available_people = frappe.get_all(
 		"BulkBite Employee",
 		filters={"status": "Active", "available_for_production": 1},
-		pluck="employee_type",
-	):
-		active_counts[employee_type] = active_counts.get(employee_type, 0) + 1
+		fields=["name", "full_name", "employee_type", "available_hours_per_run"],
+		order_by="full_name",
+	)
+	people_by_type = {}
+	for employee in available_people:
+		people_by_type.setdefault(employee.employee_type, []).append(employee)
 	recent_actual = _recent_actual_capacity()
 	rows = []
 	for employee_type in types:
@@ -43,16 +45,29 @@ def get_employee_capacity_snapshot(demand=None):
 		)
 		required_team_hours = required_capacity * theoretical_labour_minutes_per_unit / 60
 		required_workers = math.ceil(required_team_hours / planned_hours) if required_team_hours and planned_hours else 0
-		active_workers = active_counts.get(employee_type.name, 0)
-		available_capacity = round(active_workers * capacity_per_worker, 3)
-		available_worker_hours = round(active_workers * planned_hours, 2)
+		people = people_by_type.get(employee_type.name, [])
+		active_workers = len(people)
+		availability = [
+			{
+				"employee": person.name,
+				"full_name": person.full_name,
+				"available_hours": round(flt(person.available_hours_per_run), 2),
+			}
+			for person in people
+		]
+		available_worker_hours = round(sum(row["available_hours"] for row in availability), 2)
+		units_per_labour_hour = capacity_per_worker / planned_hours if capacity_per_worker and planned_hours else 0
+		available_capacity = round(available_worker_hours * units_per_labour_hour, 3)
 		worker_difference = active_workers - required_workers
+		hour_difference = round(available_worker_hours - required_team_hours, 2)
 		rows.append(
 			{
 				**employee_type,
 				"required_capacity": round(required_capacity, 3),
 				"available_capacity": available_capacity,
 				"available_worker_hours": available_worker_hours,
+				"hour_difference": hour_difference,
+				"available_people": availability,
 				"required_team_hours": round(required_team_hours, 2),
 				"theoretical_labour_minutes_per_unit": round(theoretical_labour_minutes_per_unit, 2),
 				"theoretical_units_per_labour_hour": round(60 / theoretical_labour_minutes_per_unit, 2) if theoretical_labour_minutes_per_unit else 0,
@@ -60,7 +75,7 @@ def get_employee_capacity_snapshot(demand=None):
 				"required_workers": required_workers,
 				"active_workers": active_workers,
 				"worker_difference": worker_difference,
-				"status": "Under capacity" if worker_difference < 0 else "Over capacity" if worker_difference > 0 else "At capacity",
+				"status": "Under capacity" if hour_difference < 0 else "Over capacity" if hour_difference > 0 else "At capacity",
 				"expected_run_cost": _expected_run_cost(employee_type, required_workers),
 				"expected_monthly_cost": _expected_monthly_cost(employee_type, required_workers),
 				"warning": _capacity_warning(employee_type, required_capacity),
@@ -202,14 +217,16 @@ def _team_capacity_summary(demand, rows, recent_actual):
 	)
 	actual_minutes_per_kg = flt(recent_actual.get("labour_minutes_per_kg"))
 	planning_minutes_per_kg = actual_minutes_per_kg or theoretical_labour_minutes_per_kg
-	required_team_hours = required_output_qty * planning_minutes_per_kg / 60
-	planned_hours_per_worker = _average_planned_hours(rows)
+	decision = calculate_hour_capacity(required_output_qty, planning_minutes_per_kg, available_worker_hours)
+	required_team_hours = decision["required_team_hours"]
+	average_available_hours = available_worker_hours / active_workers if active_workers else 0
 	required_workers = (
-		math.ceil(required_team_hours / planned_hours_per_worker)
-		if required_team_hours and planned_hours_per_worker else sum(row["required_workers"] for row in rows)
+		math.ceil(required_team_hours / average_available_hours)
+		if required_team_hours and average_available_hours else sum(row["required_workers"] for row in rows)
 	)
 	worker_difference = active_workers - required_workers
-	has_capacity_rate = bool(planning_minutes_per_kg and planned_hours_per_worker)
+	hour_difference = decision["hour_difference"]
+	has_capacity_rate = bool(planning_minutes_per_kg)
 	maximum_minutes_per_kg = available_worker_hours * 60 / required_output_qty if required_output_qty else 0
 	improvement_percent = (
 		max((planning_minutes_per_kg - maximum_minutes_per_kg) / planning_minutes_per_kg * 100, 0)
@@ -221,12 +238,13 @@ def _team_capacity_summary(demand, rows, recent_actual):
 		"required_workers": required_workers,
 		"active_workers": active_workers,
 		"worker_difference": worker_difference,
-		"status": "Capacity not configured" if required_output_qty and not has_capacity_rate else "Under capacity" if worker_difference < 0 else "Buffer available" if worker_difference > 0 else "Capacity ready",
+		"hour_difference": hour_difference,
+		"status": "Capacity not configured" if required_output_qty and not has_capacity_rate else decision["status"],
 		"planning_basis": "Actual rate" if actual_minutes_per_kg else "Theoretical rate",
-		"planned_hours_per_worker": round(planned_hours_per_worker, 2),
+		"planned_hours_per_worker": round(average_available_hours, 2),
 		"available_worker_hours": round(available_worker_hours, 2),
 		"required_team_hours": round(required_team_hours, 2),
-		"takt_minutes_per_kg": round(planned_hours_per_worker * 60 / required_output_qty, 2) if required_output_qty else 0,
+		"takt_minutes_per_kg": decision["takt_minutes_per_unit"],
 		"theoretical_labour_minutes_per_kg": round(theoretical_labour_minutes_per_kg, 2),
 		"planning_labour_minutes_per_kg": round(planning_minutes_per_kg, 2),
 		"maximum_labour_minutes_per_kg": round(maximum_minutes_per_kg, 2),
@@ -238,9 +256,20 @@ def _team_capacity_summary(demand, rows, recent_actual):
 	}
 
 
-def _average_planned_hours(rows):
-	worker_hours = [flt(row["expected_hours_per_run"]) for row in rows if flt(row["expected_hours_per_run"]) > 0]
-	return sum(worker_hours) / len(worker_hours) if worker_hours else 0
+def calculate_hour_capacity(required_output_qty, labour_minutes_per_unit, available_team_hours):
+	"""Return the production capacity decision from demand, work rate, and employee availability."""
+	required_output_qty = flt(required_output_qty)
+	labour_minutes_per_unit = flt(labour_minutes_per_unit)
+	available_team_hours = flt(available_team_hours)
+	required_team_hours = required_output_qty * labour_minutes_per_unit / 60
+	hour_difference = round(available_team_hours - required_team_hours, 2)
+	return {
+		"required_team_hours": round(required_team_hours, 2),
+		"available_team_hours": round(available_team_hours, 2),
+		"hour_difference": hour_difference,
+		"takt_minutes_per_unit": round(available_team_hours * 60 / required_output_qty, 2) if required_output_qty else 0,
+		"status": "Under capacity" if hour_difference < 0 else "Over capacity" if hour_difference > 0 else "At capacity",
+	}
 
 
 def calculate_assignment_pay(employee_type, hours_worked=0, completion_status="Completed"):

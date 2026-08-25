@@ -39,6 +39,7 @@ const auxiliaryMode = computed(() => {
   return ""
 })
 const activeSection = ref(resolveInitialSection())
+const employeeReturnSection = ref("production")
 const snapshot = ref(null)
 const inventory = ref(null)
 const plan = ref(null)
@@ -57,6 +58,11 @@ function navigate(id) {
   id === "overview" ? url.searchParams.delete("work") : url.searchParams.set("work", id)
   window.history.replaceState({}, "", url)
   requestAnimationFrame(() => document.querySelector(".app-shell__work")?.focus())
+}
+
+function openEmployees(origin) {
+  employeeReturnSection.value = origin === "planning" ? "planning" : "production"
+  navigate("employees")
 }
 
 function resolveInitialSection() {
@@ -102,9 +108,9 @@ onMounted(loadAll)
     <SystemAuxiliaryRecords v-if="auxiliaryMode" :mode="auxiliaryMode" :doctype="String(route.params.doctype || '')" :record-name="String(route.params.name || '')" @navigate="navigateAuxiliary" />
     <SystemStockOverview v-else-if="activeSection === 'overview'" mode="dashboard" :snapshot="snapshot" :inventory="inventory" :plan="plan" :loading="loading" :error="error" @open-workflow="navigate" />
     <SystemReceiptIntake v-else-if="activeSection === 'receipts'" :snapshot="snapshot" :inventory="inventory" :plan="plan" @changed="loadAll" />
-    <SystemProductionMeasurement v-else-if="activeSection === 'production'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-worker-sheets="navigate('documents')" @open-employees="navigate('employees')" />
-    <SystemEmployeeManagement v-else-if="activeSection === 'employees'" @close="navigate('production')" @changed="loadAll" />
-    <SystemMonthlyPlanning v-else-if="activeSection === 'planning'" :snapshot="snapshot" :plan="plan" @changed="loadAll" />
+    <SystemProductionMeasurement v-else-if="activeSection === 'production'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-worker-sheets="navigate('documents')" @open-employees="openEmployees('production')" />
+    <SystemEmployeeManagement v-else-if="activeSection === 'employees'" @close="navigate(employeeReturnSection)" @changed="loadAll" />
+    <SystemMonthlyPlanning v-else-if="activeSection === 'planning'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-employees="openEmployees('planning')" />
     <SystemBuyingPlan v-else-if="activeSection === 'buying'" :snapshot="snapshot" :plan="plan" @open-workflow="navigate" />
     <SystemDocumentReview v-else-if="activeSection === 'documents'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
     <SystemPriceHistory v-else-if="activeSection === 'finance'" mode="finance" :snapshot="snapshot" :inventory="inventory" @open-workflow="navigate" @changed="loadAll" />
