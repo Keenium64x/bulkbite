@@ -29,7 +29,7 @@ from bulkbite.planning import (
 	load_buying_theory,
 )
 from bulkbite.costing import calculate_operating_costs, enrich_spend_report
-from bulkbite.workforce import calculate_assignment_pay, get_employee_capacity_snapshot
+from bulkbite.workforce import calculate_assignment_pay, get_employee_capacity_snapshot, get_employee_production_history
 from bulkbite.price_workbook import (
 	apply_price_import,
 	build_price_workbook,
@@ -347,8 +347,14 @@ def get_employee_workspace():
 	documents_by_employee = {}
 	for document in documents:
 		documents_by_employee.setdefault(document.parent, []).append(document)
+	history_by_employee = get_employee_production_history([employee.name for employee in employees])
 	for employee in employees:
 		employee["documents"] = documents_by_employee.get(employee.name, [])
+		employee["production_history"] = history_by_employee.get(employee.name, [])
+		employee["total_completed_hours"] = round(sum(
+			flt(row.get("hours_worked")) for row in employee["production_history"]
+			if row.get("completion_status") == "Completed"
+		), 2)
 	return {"capacity": _current_workforce_snapshot(), "employee_types": types, "employees": employees}
 
 

@@ -27,6 +27,9 @@ const sections = [
   { id: "export", label: "Reports" },
   { id: "stock", label: "Stock" },
 ]
+const auxiliarySections = ["employees", "documents"]
+const activeSectionStorageKey = "bulkbite-active-section"
+const allowedSectionIds = new Set([...sections.map(section => section.id), ...auxiliarySections])
 const route = useRoute()
 const router = useRouter()
 const auxiliaryMode = computed(() => {
@@ -35,7 +38,7 @@ const auxiliaryMode = computed(() => {
   if (route.meta.auxiliaryCatalogue) return "catalogue"
   return ""
 })
-const activeSection = ref(new URLSearchParams(window.location.search).get("work") || "overview")
+const activeSection = ref(resolveInitialSection())
 const snapshot = ref(null)
 const inventory = ref(null)
 const plan = ref(null)
@@ -49,10 +52,18 @@ function navigate(id) {
   if (typeof id === "object") return navigateAuxiliary(id)
   if (route.path.startsWith("/bulkbite/setup")) router.push("/bulkbite")
   activeSection.value = id
+  window.localStorage.setItem(activeSectionStorageKey, id)
   const url = new URL(window.location.href)
   id === "overview" ? url.searchParams.delete("work") : url.searchParams.set("work", id)
   window.history.replaceState({}, "", url)
   requestAnimationFrame(() => document.querySelector(".app-shell__work")?.focus())
+}
+
+function resolveInitialSection() {
+  const urlSection = new URLSearchParams(window.location.search).get("work")
+  if (allowedSectionIds.has(urlSection)) return urlSection
+  const storedSection = window.localStorage.getItem(activeSectionStorageKey)
+  return allowedSectionIds.has(storedSection) ? storedSection : "overview"
 }
 
 function navigateAuxiliary(target) {

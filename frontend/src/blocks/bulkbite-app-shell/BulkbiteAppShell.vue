@@ -110,9 +110,9 @@ function toggleSidebar() {
             <p class="app-shell__header-label">Kitchen operations</p>
             <p class="app-shell__header-note">Plan, buy, receive, cook, and reconcile</p>
           </div>
-          <SystemOperationalButton class="app-shell__refresh" variant="subtle" size="md" :disabled="busy" :aria-busy="busy" :label="busy ? 'Refreshing stock' : 'Refresh stock'" @click="$emit('refresh')">
+          <SystemOperationalButton class="app-shell__refresh" variant="subtle" size="md" :disabled="busy" :aria-busy="busy" :label="busy ? 'Refreshing BulkBite data' : 'Refresh BulkBite data'" @click="$emit('refresh')">
             <span v-if="busy" class="app-shell__refresh-loader" aria-hidden="true" />
-            <span>{{ busy ? 'Refreshing' : 'Refresh stock' }}</span>
+            <span>{{ busy ? 'Refreshing' : 'Refresh' }}</span>
           </SystemOperationalButton>
         </header>
 

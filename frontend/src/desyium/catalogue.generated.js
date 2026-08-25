@@ -11006,7 +11006,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "employee-management",
       "name": "Employee Management",
-      "job": "Manage employee types, employee profiles, private documents, workforce capacity status, and production run assignments under Production.",
+      "job": "Show one-page Lean workforce capacity, maintain employee profiles with production-hour history, and configure employee-type theory under Production.",
       "category": "Project",
       "source": "@/blocks/employee-management/EmployeeManagement.vue",
       "public": "SystemEmployeeManagement",
@@ -11019,14 +11019,13 @@ export const systemCatalogue = Object.freeze({
         "date-picker",
         "multi-file-uploader",
         "checkbox",
-        "tabs",
         "operational-button",
         "badge"
       ],
       "primitives": [],
-      "incomingHandoff": "A manager opens Employees from Production to check workforce capacity, configure roles, or maintain a worker profile.",
+      "incomingHandoff": "A manager opens Employees from Production and sees capacity, people, and employee-type theory in one continuous page.",
       "outgoingHandoff": "Planning and Production receive current capacity and eligible workers, while Finance receives expected and posted labour costs.",
-      "responsiveBehaviour": "Keep status and forms in two columns where space allows, then stack fields and list facts on mobile without hiding pay basis, capacity, or document state.",
+      "responsiveBehaviour": "Keep Lean status and evidence readable first, then stack employee and role forms on mobile without hiding hours, capacity, pay basis, or document state.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
