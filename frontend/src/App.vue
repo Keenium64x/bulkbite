@@ -113,7 +113,7 @@ onMounted(loadAll)
     <SystemEmployeeManagement v-else-if="activeSection === 'employees'" @close="navigate(employeeReturnSection)" @changed="loadAll" />
     <SystemMonthlyPlanning v-else-if="activeSection === 'planning'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-employees="openEmployees('planning')" />
     <SystemMonthlyPlanning v-else-if="activeSection === 'forecasting'" mode="forecasting" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-employees="openEmployees('forecasting')" />
-    <SystemBuyingPlan v-else-if="activeSection === 'buying'" :snapshot="snapshot" :plan="plan" @open-workflow="navigate" />
+    <SystemBuyingPlan v-else-if="activeSection === 'buying'" :snapshot="snapshot" :plan="plan" @open-workflow="navigate" @changed="loadAll" />
     <SystemDocumentReview v-else-if="activeSection === 'documents'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
     <SystemPriceHistory v-else-if="activeSection === 'finance'" mode="finance" :snapshot="snapshot" :inventory="inventory" @open-workflow="navigate" @changed="loadAll" />
     <SystemAccountantExport v-else-if="activeSection === 'export'" />

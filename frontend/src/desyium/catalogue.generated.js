@@ -10947,7 +10947,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "buying-plan",
       "name": "Buying Plan",
-      "job": "Recalculate supplier-routed shortages from the current customer direction and stock, including pack rounding, discounts, overflow, and theoretical cost.",
+      "job": "Own category-to-supplier buying routes and recalculate supplier-routed shortages from the current customer direction and stock, including pack rounding, discounts, overflow, and theoretical cost.",
       "category": "Project",
       "source": "@/blocks/buying-plan/BuyingPlan.vue",
       "public": "SystemBuyingPlan",
@@ -10956,12 +10956,14 @@ export const systemCatalogue = Object.freeze({
       "components": [
         "badge",
         "card",
+        "checkbox-shadcn",
+        "linked-record-field",
         "operational-button"
       ],
       "primitives": [],
-      "incomingHandoff": "The current customer direction and stock position have calculated the next shortage basket.",
+      "incomingHandoff": "The current customer direction and stock position are ready for supplier routing and shortage calculation.",
       "outgoingHandoff": "The manager has supplier-grouped whole-pack quantities, expected cost, pack overflow, missing-price warnings, and a handoff to receipt capture.",
-      "responsiveBehaviour": "Keep supplier totals and warning states visible; allow the order table to scroll without clipping quantities or actions.",
+      "responsiveBehaviour": "Stack category route fields on mobile, keep supplier totals and warning states visible, and allow the order table to scroll without clipping quantities or actions.",
       "layoutContract": {
         "strategy": "flow",
         "pageAlignment": "grid",
@@ -11088,7 +11090,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "monthly-planning",
       "name": "Rolling Meal Direction",
-      "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, category-to-supplier routes, and employee-hours-based workforce capacity.",
+      "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and employee-hours-based workforce capacity.",
       "category": "Project",
       "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
       "public": "SystemMonthlyPlanning",
@@ -11096,15 +11098,15 @@ export const systemCatalogue = Object.freeze({
       "projectSource": "src/blocks/monthly-planning",
       "components": [
         "badge",
-        "checkbox-shadcn",
         "form-control",
         "linked-record-field",
-        "operational-button"
+        "operational-button",
+        "select"
       ],
       "primitives": [],
       "incomingHandoff": "The manager knows the current customers or repeating meals have changed.",
       "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory. Manage employees opens the workforce page and returns the manager to Planning.",
-      "responsiveBehaviour": "Show four repeating meals in four, two, then one column while preserving labels, calculated units, supplier routing, and action order.",
+      "responsiveBehaviour": "Show four repeating meals in four, two, then one column while preserving labels, calculated units, capacity controls, and action order.",
       "layoutContract": {
         "strategy": "flow",
         "pageAlignment": "grid",
