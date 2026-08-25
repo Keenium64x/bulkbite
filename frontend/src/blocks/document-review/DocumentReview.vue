@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from "vue"
-import { SystemBadge, SystemCheckbox, SystemFileUploader, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
+import { SystemBadge, SystemCheckboxShadcn, SystemFileUploader, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
 import { applyDocumentMeasurements, createDocumentExtractionDraft, reviewDocumentExtraction } from "@/resources/api"
 import { useRouter } from "vue-router"
 
@@ -57,7 +57,7 @@ async function applyRows() { busy.value = true; error.value = ""; try { const re
           <div><strong>{{ row.source_quote || row.source_line || row.proposed_item_name }}</strong><small>{{ row.source_page ? `Page ${row.source_page} · ` : "" }}{{ Number(row.confidence || 0).toFixed(0) }}% match · {{ row.warning || "No warning" }}</small></div>
           <SystemLinkedRecordField v-model="row.item_code" label="Matched item" :options="itemOptions" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" />
           <SystemFormControl v-model="row.qty" type="number" label="Quantity" min="0" step="0.1" size="lg" />
-          <SystemCheckbox v-model="row.accepted" label="Accept row" />
+          <SystemCheckboxShadcn v-model="row.accepted" label="Accept row" />
         </article>
       </div>
       <footer class="posting-bar">

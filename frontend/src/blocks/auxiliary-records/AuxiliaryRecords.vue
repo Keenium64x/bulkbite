@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue"
 import {
   SystemBadge,
   SystemCard,
-  SystemCheckbox,
+  SystemCheckboxShadcn,
   SystemDatePicker,
   SystemFormControl,
   SystemLinkedRecordField,
@@ -76,7 +76,7 @@ function clearReactive(target) {
   Object.keys(target).forEach((key) => delete target[key])
 }
 function fieldComponent(field) {
-  if (field.type === "Check") return SystemCheckbox
+  if (field.type === "Check") return SystemCheckboxShadcn
   if (field.type === "Date") return SystemDatePicker
   if (field.type === "Select") return SystemSelect
   if (["Small Text", "Text", "Long Text"].includes(field.type)) return SystemTextarea

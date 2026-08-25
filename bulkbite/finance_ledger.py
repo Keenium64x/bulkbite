@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 
 import frappe
 from frappe.utils import flt, getdate, now_datetime
+from openpyxl import Workbook
 
 from bulkbite.truth_ledger import canonicalize_payload
 
@@ -95,6 +97,32 @@ def get_finance_ledger(from_date, to_date):
 		},
 		"rows": rows,
 	}
+
+
+def build_finance_ledger_workbook(from_date, to_date):
+	"""Build one plain XLSX worksheet from verified immutable finance events."""
+	ledger = get_finance_ledger(from_date, to_date)
+	columns = [
+		("event_sequence", "Event sequence"), ("event_timestamp", "Event timestamp"), ("posting_date", "Posting date"),
+		("event_type", "Event type"), ("expense_type", "Expense type"), ("cost_category", "Cost category"),
+		("payee", "Payee"), ("amount", "Gross amount"), ("vat_amount", "VAT amount"), ("net_amount", "Net amount"),
+		("currency", "Currency"), ("accounting_category", "Accounting category"), ("reference_doctype", "Reference DocType"),
+		("reference_name", "Reference name"), ("reference_line", "Reference line"), ("cost_entry", "Cost entry"),
+		("evidence_file", "Evidence file"), ("actor", "Actor"), ("previous_hash", "Previous hash"), ("event_hash", "Event hash"),
+	]
+	workbook = Workbook()
+	worksheet = workbook.active
+	worksheet.title = "Finance Ledger"
+	worksheet.append([label for _, label in columns])
+	for row in ledger["rows"]:
+		values = dict(row)
+		values["net_amount"] = round(flt(values.get("amount")) - flt(values.get("vat_amount")), 2)
+		worksheet.append([values.get(fieldname) for fieldname, _ in columns])
+	for column in worksheet.columns:
+		worksheet.column_dimensions[column[0].column_letter].width = min(max(len(str(cell.value or "")) for cell in column) + 2, 44)
+	stream = io.BytesIO()
+	workbook.save(stream)
+	return stream.getvalue()
 
 
 def verify_finance_event_chain():

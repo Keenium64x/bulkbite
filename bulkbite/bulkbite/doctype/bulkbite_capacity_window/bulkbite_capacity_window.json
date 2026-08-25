@@ -1,0 +1,17 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": ["week_number", "scheduled_elapsed_hours", "runs_per_week", "team_template"],
+ "fields": [
+  {"fieldname": "week_number", "fieldtype": "Int", "in_list_view": 1, "label": "Week", "reqd": 1},
+  {"default": "4", "fieldname": "scheduled_elapsed_hours", "fieldtype": "Float", "in_list_view": 1, "label": "Hours per Run", "non_negative": 1, "reqd": 1},
+  {"default": "1", "fieldname": "runs_per_week", "fieldtype": "Int", "in_list_view": 1, "label": "Runs", "non_negative": 1, "reqd": 1},
+  {"fieldname": "team_template", "fieldtype": "Link", "in_list_view": 1, "label": "Team Template", "options": "BulkBite Team Template"}
+ ],
+ "module": "BulkBite",
+ "name": "BulkBite Capacity Window",
+ "permissions": []
+}

@@ -272,6 +272,89 @@ def calculate_hour_capacity(required_output_qty, labour_minutes_per_unit, availa
 	}
 
 
+def calculate_run_performance(actual_output_qty, actual_elapsed_hours, employees, planned_takt_minutes_per_kg=0):
+	"""Calculate actual production labour evidence and compare it with the frozen planned takt."""
+	actual_output_qty = flt(actual_output_qty)
+	actual_elapsed_hours = flt(actual_elapsed_hours)
+	completed = [row for row in employees or [] if row.get("completion_status") == "Completed"]
+	actual_labour_hours = sum(flt(row.get("hours_worked")) for row in completed)
+	actual_rate = actual_labour_hours * 60 / actual_output_qty if actual_output_qty else 0
+	planned_takt = flt(planned_takt_minutes_per_kg)
+	variance = actual_rate - planned_takt if actual_rate and planned_takt else 0
+	if not actual_rate or not planned_takt:
+		status = "Not measured"
+	elif abs(variance) <= 0.1:
+		status = "On pace"
+	elif variance < 0:
+		status = "Faster than takt"
+	else:
+		status = "Slower than takt"
+	return {
+		"actual_elapsed_hours": round(actual_elapsed_hours, 2),
+		"actual_team_size": len({row.get("employee") for row in completed if row.get("employee")}),
+		"actual_labour_hours": round(actual_labour_hours, 2),
+		"actual_labour_minutes_per_kg": round(actual_rate, 2),
+		"planned_takt_minutes_per_kg": round(planned_takt, 2),
+		"takt_variance_minutes_per_kg": round(variance, 2),
+		"takt_status": status,
+	}
+
+
+def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg):
+	"""Forecast weekly output, labour-hours, elapsed duration, and people gaps."""
+	forecast_weeks = max(int(forecast_weeks or 4), 1)
+	current_by_plan = {row.get("plan_type"): row for row in current_mix or []}
+	target_by_plan = {row.get("plan_type"): row for row in target_mix or []}
+	windows = {int(row.get("week_number") or 0): row for row in capacity_windows or []}
+	rows = []
+	for week in range(1, forecast_weeks + 1):
+		mix = []
+		for plan_type, current in current_by_plan.items():
+			target = target_by_plan.get(plan_type) or {}
+			target_week = max(int(target.get("target_week") or forecast_weeks), 1)
+			progress = min(week / target_week, 1)
+			current_customers = flt(current.get("customer_count"))
+			target_customers = flt(target.get("target_customers")) if target.get("target_customers") is not None else current_customers
+			mix.append({**current, "customer_count": round(current_customers + (target_customers - current_customers) * progress)})
+		demand = _forecast_demand(mix)
+		cycle_week = ((week - 1) % 4) + 1
+		window = windows.get(cycle_week) or {}
+		elapsed_hours = flt(window.get("scheduled_elapsed_hours"))
+		runs = max(int(window.get("runs_per_week") or 1), 1)
+		team_size = max(int(window.get("team_size") or 0), 0)
+		team_hours = elapsed_hours * runs * team_size
+		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
+		required_people = math.ceil(required_hours / (elapsed_hours * runs)) if required_hours and elapsed_hours else 0
+		people_difference = team_size - required_people
+		rows.append({
+			"week_number": week,
+			"cycle_week": cycle_week,
+			"customers": demand["total_customers"],
+			"required_output_qty": demand["weekly_output_qty"],
+			"scheduled_elapsed_hours": round(elapsed_hours * runs, 2),
+			"scheduled_team_hours": round(team_hours, 2),
+			"planned_takt_minutes_per_kg": round(team_hours * 60 / demand["weekly_output_qty"], 2) if demand["weekly_output_qty"] else 0,
+			"current_labour_minutes_per_kg": round(flt(labour_minutes_per_kg), 2),
+			"required_team_hours": round(required_hours, 2),
+			"expected_elapsed_hours": round(required_hours / team_size, 2) if team_size else 0,
+			"team_size": team_size,
+			"required_people": required_people,
+			"people_difference": people_difference,
+			"status": "Under capacity" if people_difference < 0 else "Over capacity" if people_difference > 0 else "At capacity",
+		})
+	return rows
+
+
+def _forecast_demand(mix):
+	weekly_servings = sum(flt(row.get("customer_count")) * flt(row.get("meals_per_day")) * flt(row.get("days_per_week")) for row in mix)
+	weekly_output = sum(flt(row.get("customer_count")) * flt(row.get("meals_per_day")) * flt(row.get("days_per_week")) * flt(row.get("serving_size_g")) / 1000 for row in mix)
+	return {
+		"total_customers": int(sum(flt(row.get("customer_count")) for row in mix)),
+		"weekly_servings": round(weekly_servings),
+		"weekly_output_qty": round(weekly_output, 3),
+	}
+
+
 def calculate_assignment_pay(employee_type, hours_worked=0, completion_status="Completed"):
 	"""Freeze the payment facts attributable to one production run."""
 	if completion_status != "Completed":

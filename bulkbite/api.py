@@ -18,7 +18,7 @@ from bulkbite.document_extraction import extract_measurement_rows, resolve_priva
 from bulkbite.document_text import extract_private_text
 from bulkbite.receipt_extraction import extract_receipt_review
 from bulkbite.invoice_extraction import extract_cost_invoice_review
-from bulkbite.finance_ledger import create_actual_expense, get_finance_ledger
+from bulkbite.finance_ledger import build_finance_ledger_workbook, create_actual_expense, get_finance_ledger
 from bulkbite.truth_ledger import append_truth_event
 from bulkbite.scan_identity import find_scan_owner, item_scan_codes, normalize_scan_code
 from bulkbite.variance import calculate_output_variance, calculate_usage_variance
@@ -32,7 +32,13 @@ from bulkbite.planning import (
 	load_buying_theory,
 )
 from bulkbite.costing import calculate_operating_costs, enrich_spend_report
-from bulkbite.workforce import calculate_assignment_pay, get_employee_capacity_snapshot, get_employee_production_history
+from bulkbite.workforce import (
+	calculate_assignment_pay,
+	calculate_capacity_forecast,
+	calculate_run_performance,
+	get_employee_capacity_snapshot,
+	get_employee_production_history,
+)
 from bulkbite.price_workbook import (
 	apply_price_import,
 	build_price_workbook,
@@ -63,7 +69,7 @@ def get_workspace_snapshot():
 		},
 		"recent_runs": frappe.get_all(
 			"BulkBite Production Run",
-		fields=["name", "production_date", "finished_item", "planned_output_qty", "actual_output_qty", "material_cost_variance", "docstatus", "output_stock_event"],
+			fields=["name", "production_date", "finished_item", "planned_output_qty", "actual_output_qty", "material_cost_variance", "docstatus", "output_stock_event", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_variance_minutes_per_kg", "takt_status"],
 			order_by="production_date desc, modified desc",
 			limit=200,
 		),
@@ -88,14 +94,40 @@ def get_workspace_snapshot():
 			"item_categories": frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, fields=["name", "default_supplier"], order_by="name"),
 			"operating_cost_rules": frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name as value", "cost_name as label", "cost_category", "basis", "rate"], order_by="cost_category, cost_name"),
 			"employees": frappe.get_all("BulkBite Employee", filters={"status": "Active", "available_for_production": 1}, fields=["name as value", "full_name as label", "employee_type", "available_hours_per_run"], order_by="full_name"),
+			"team_templates": _get_team_templates(),
 		},
 	}
 	for run in result["recent_runs"]:
 		for field in ("planned_output_qty", "actual_output_qty"):
 			run[field] = round_operational_quantity(run.get(field))
+	_enrich_run_workforce_evidence(result["recent_runs"])
 	_enrich_document_effects(result["recent_receipts"], "BulkBite Receipt Line", "items")
 	_enrich_document_effects(result["recent_cost_invoices"], "BulkBite Cost Invoice Line", "costs")
 	return result
+
+
+def _enrich_run_workforce_evidence(runs):
+	"""Provide calculated historical team evidence for runs saved before run-level fields existed."""
+	if not runs:
+		return
+	assignments = frappe.get_all(
+		"BulkBite Production Employee",
+		filters={"parent": ("in", [row.name for row in runs]), "parenttype": "BulkBite Production Run", "completion_status": "Completed"},
+		fields=["parent", "employee", "hours_worked"],
+	)
+	by_run = {}
+	for row in assignments:
+		by_run.setdefault(row.parent, []).append(row)
+	for run in runs:
+		if flt(run.actual_labour_hours) > 0:
+			continue
+		team = by_run.get(run.name, [])
+		team_hours = sum(flt(row.hours_worked) for row in team)
+		team_size = len({row.employee for row in team if row.employee})
+		run.actual_team_size = team_size
+		run.actual_labour_hours = round(team_hours, 2)
+		run.actual_elapsed_hours = round(team_hours / team_size, 2) if team_size else 0
+		run.actual_labour_minutes_per_kg = round(team_hours * 60 / flt(run.actual_output_qty), 2) if flt(run.actual_output_qty) else 0
 
 
 def _enrich_document_effects(documents, child_doctype, effect_type):
@@ -428,12 +460,15 @@ def save_employee(payload=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def save_production_employees(name, employees=None):
+def save_production_employees(name, employees=None, team_template=None, actual_elapsed_hours=None, scheduled_elapsed_hours=None):
 	"""Freeze reviewed employee attendance and pay facts for one draft run."""
 	_require_roles("BulkBite Worker", "BulkBite Manager")
 	run = frappe.get_doc("BulkBite Production Run", name)
 	if run.docstatus != 0:
 		frappe.throw(_("Employees can only be changed on a draft production run."))
+	elapsed_hours = flt(actual_elapsed_hours)
+	if elapsed_hours < 0:
+		frappe.throw(_("Actual elapsed time cannot be negative."))
 	rows = []
 	for supplied in _as_list(employees):
 		if not supplied.get("employee"):
@@ -450,15 +485,65 @@ def save_production_employees(name, employees=None):
 			available_hours = flt(employee.available_hours_per_run) or flt(employee_type.expected_hours_per_run)
 		payment_basis = employee.payment_basis_override if employee.use_payment_override and employee.payment_basis_override else employee_type.payment_basis
 		payment_rate = employee.payment_rate_override if employee.use_payment_override else employee_type.payment_rate
-		pay = calculate_assignment_pay(frappe._dict({"payment_basis": payment_basis, "payment_rate": payment_rate}), supplied.get("hours_worked"), supplied.get("completion_status") or "Completed")
+		completion_status = supplied.get("completion_status") or "Completed"
+		custom_hours = bool(supplied.get("custom_hours"))
+		hours_worked = flt(supplied.get("hours_worked")) if custom_hours else elapsed_hours
+		if completion_status in {"Absent", "Cancelled"}:
+			hours_worked = 0
+		pay = calculate_assignment_pay(frappe._dict({"payment_basis": payment_basis, "payment_rate": payment_rate}), hours_worked, completion_status)
 		rows.append({
 			"employee": employee.name, "employee_name": employee.full_name, "employee_type": employee.employee_type,
-			"available_hours": available_hours, "hours_worked": flt(supplied.get("hours_worked")), "completion_status": supplied.get("completion_status") or "Completed",
+			"available_hours": available_hours, "custom_hours": custom_hours, "hours_worked": hours_worked, "completion_status": completion_status,
 			**pay, "notes": supplied.get("notes"),
 		})
+	performance = calculate_run_performance(run.actual_output_qty, elapsed_hours, rows, run.planned_takt_minutes_per_kg)
+	run.team_template = team_template
+	run.actual_elapsed_hours = elapsed_hours
+	if scheduled_elapsed_hours is not None:
+		run.scheduled_elapsed_hours = flt(scheduled_elapsed_hours)
+	for fieldname, value in performance.items():
+		run.set(fieldname, value)
 	run.set("employees", rows)
 	run.save()
 	return _serialize_run(run)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_team_template(payload=None):
+	"""Create or update one reusable production crew template."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	if not data.get("template_name"):
+		frappe.throw(_("Enter a team template name."))
+	members = []
+	seen = set()
+	for row in _as_list(data.get("members")):
+		employee = row.get("employee")
+		if not employee or employee in seen:
+			continue
+		seen.add(employee)
+		members.append({"employee": employee, "default_hours_override": flt(row.get("default_hours_override")), "enabled": bool(row.get("enabled", True))})
+	if not members:
+		frappe.throw(_("Add at least one employee to the team template."))
+	doc = frappe.get_doc("BulkBite Team Template", data.name) if data.get("name") else frappe.new_doc("BulkBite Team Template")
+	doc.update({"template_name": data.template_name, "default_elapsed_hours": flt(data.get("default_elapsed_hours")) or 4, "enabled": bool(data.get("enabled", True)), "notes": data.get("notes")})
+	doc.set("members", members)
+	doc.save()
+	return {"name": doc.name, "template_name": doc.template_name}
+
+
+def _get_team_templates():
+	rows = []
+	for template in frappe.get_all("BulkBite Team Template", filters={"enabled": 1}, fields=["name", "template_name", "default_elapsed_hours", "notes"], order_by="template_name"):
+		template["members"] = frappe.get_all(
+			"BulkBite Team Template Member",
+			filters={"parent": template.name, "parenttype": "BulkBite Team Template", "enabled": 1},
+			fields=["employee", "employee_name", "employee_type", "default_hours_override"],
+			order_by="idx asc",
+		)
+		template["team_size"] = len(template["members"])
+		rows.append(template)
+	return rows
 
 
 # endregion EMPLOYEE AND CAPACITY MANAGEMENT
@@ -482,6 +567,7 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Location": {"label": "Locations", "singular_label": "location", "description": "The physical places where ingredients, meals, quarantine, and waste are measured."},
 	"BulkBite Recipe": {"label": "Recipes", "singular_label": "recipe", "description": "Versioned meal theory and controlled ingredient quantities."},
 	"BulkBite Production Plan": {"label": "Production plans", "singular_label": "plan", "description": "Planned recipes and meal quantities used by the production workflow."},
+	"BulkBite Team Template": {"label": "Team templates", "singular_label": "team template", "description": "Reusable groups that prefill the people expected in a normal production run."},
 }
 _AUXILIARY_FIELD_TYPES = {"Data", "Int", "Float", "Currency", "Date", "Select", "Check", "Small Text", "Text", "Long Text", "Link", "Table"}
 
@@ -760,7 +846,15 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"date_note": plan.date_note,
 		"location": location,
 		"customer_demand": demand,
-		"customer_mix": [{"plan_type": row.plan_type, "customer_count": row.customer_count, "serving_size_g": round_operational_quantity(row.serving_size_g), "weekly_servings": row.weekly_servings, "weekly_output_qty": round_operational_quantity(row.weekly_output_qty)} for row in plan.customer_mix],
+		"customer_mix": [{
+			"plan_type": row.plan_type,
+			"customer_count": row.customer_count,
+			"serving_size_g": round_operational_quantity(row.serving_size_g),
+			"meals_per_day": frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "meals_per_day"),
+			"days_per_week": frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "days_per_week"),
+			"weekly_servings": row.weekly_servings,
+			"weekly_output_qty": round_operational_quantity(row.weekly_output_qty),
+		} for row in plan.customer_mix],
 		"purchase_routes": [{"item_category": row.item_category, "supplier": row.supplier, "use_discounted_price": row.use_discounted_price} for row in plan.purchase_routes],
 		"rows": rows,
 		"total_requirements": requirements,
@@ -769,8 +863,48 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"workforce": get_employee_capacity_snapshot(demand),
 		"runs": runs,
 	}
+	result["capacity_plan"] = _build_capacity_plan(plan, result["customer_mix"], result["workforce"])
 	result["next_production"] = _next_production_station(result["rows"], runs)
 	return result
+
+
+def _build_capacity_plan(plan, current_mix, workforce):
+	"""Resolve saved weekly windows and return the rolling workforce forecast."""
+	templates = {row["name"]: row for row in _get_team_templates()}
+	windows = []
+	for week in range(1, 5):
+		saved = next((row for row in plan.capacity_windows if int(row.week_number or 0) == week), None)
+		template_name = (saved.team_template if saved else None) or plan.default_team_template
+		template = templates.get(template_name) or {}
+		windows.append({
+			"week_number": week,
+			"scheduled_elapsed_hours": flt(saved.scheduled_elapsed_hours if saved else template.get("default_elapsed_hours")) or 4,
+			"runs_per_week": int(saved.runs_per_week if saved else 1) or 1,
+			"team_template": template_name,
+			"team_size": int(template.get("team_size") or 0),
+		})
+	target_by_plan = {row.plan_type: row for row in plan.forecast_customer_mix or []}
+	target_mix = [
+		{
+			"plan_type": row["plan_type"],
+			"target_customers": int((target_by_plan.get(row["plan_type"]).target_customers if target_by_plan.get(row["plan_type"]) else row["customer_count"]) or 0),
+			"target_week": int((target_by_plan.get(row["plan_type"]).target_week if target_by_plan.get(row["plan_type"]) else plan.forecast_weeks) or 4),
+		}
+		for row in current_mix
+	]
+	return {
+		"forecast_weeks": int(plan.forecast_weeks or 4),
+		"default_team_template": plan.default_team_template,
+		"windows": windows,
+		"target_customer_mix": target_mix,
+		"forecast": calculate_capacity_forecast(
+			current_mix,
+			target_mix,
+			plan.forecast_weeks or 4,
+			windows,
+			workforce.get("planning_labour_minutes_per_kg"),
+		),
+	}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -787,6 +921,8 @@ def save_monthly_production_plan(payload=None):
 	plan.period_start = getdate(data.get("period_start") or plan.period_start or nowdate())
 	plan.period_end = getdate(data.get("period_end") or plan.period_end or add_days(plan.period_start, 27))
 	plan.notes = data.get("notes")
+	plan.forecast_weeks = max(int(data.get("forecast_weeks") or 4), 1)
+	plan.default_team_template = data.get("default_team_template")
 	plan.set(
 		"customer_mix",
 		[
@@ -830,6 +966,20 @@ def save_monthly_production_plan(payload=None):
 			for index, row in enumerate(rows, start=1)
 		],
 	)
+	plan.set(
+		"capacity_windows",
+		[
+			{"week_number": index, "scheduled_elapsed_hours": flt(row.get("scheduled_elapsed_hours")) or 4, "runs_per_week": max(int(row.get("runs_per_week") or 1), 1), "team_template": row.get("team_template") or plan.default_team_template}
+			for index, row in enumerate(_as_list(data.get("capacity_windows"))[:4], start=1)
+		],
+	)
+	plan.set(
+		"forecast_customer_mix",
+		[
+			{"plan_type": row.get("plan_type"), "target_customers": max(int(row.get("target_customers") or 0), 0), "target_week": max(int(row.get("target_week") or plan.forecast_weeks), 1)}
+			for row in _as_list(data.get("forecast_customer_mix")) if row.get("plan_type")
+		],
+	)
 	plan.save()
 	frappe.db.set_value(
 		"BulkBite Production Plan",
@@ -870,6 +1020,9 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 		if run.docstatus:
 			frappe.throw(_("This planned week has already been posted as production run {0}.").format(run.name))
 		return _serialize_run(run)
+	capacity_plan = get_production_plan_snapshot(plan.name, source_location).get("capacity_plan") or {}
+	capacity_window = next((row for row in capacity_plan.get("windows") or [] if int(row.get("week_number") or 0) == int(plan_row.week_number or 0)), {})
+	workforce = get_employee_capacity_snapshot(calculate_customer_demand(plan.customer_mix))
 	return create_production_run(
 		{
 			"production_date": getdate(production_date),
@@ -881,6 +1034,9 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 			"recipe": plan_row.recipe,
 			"planned_output_qty": plan_row.planned_output_qty,
 			"actual_output_qty": plan_row.planned_output_qty,
+			"team_template": capacity_window.get("team_template") or plan.default_team_template,
+			"scheduled_elapsed_hours": capacity_window.get("scheduled_elapsed_hours"),
+			"planned_takt_minutes_per_kg": workforce.get("planning_labour_minutes_per_kg"),
 			"source_location": source_location,
 			"target_location": target_location,
 			"notes": _("Created from production plan {0}, week {1}.").format(plan.name, plan_row.week_number),
@@ -1410,7 +1566,33 @@ def get_spend_report(from_date, to_date):
 	start, end = getdate(from_date), getdate(to_date)
 	if start > end:
 		frappe.throw(_("From date must be on or before to date."))
-	return enrich_spend_report(build_spend_report(start, end))
+	report = enrich_spend_report(build_spend_report(start, end))
+	report["production_capacity_actuals"] = _get_production_capacity_actuals(start, end)
+	return report
+
+
+def _get_production_capacity_actuals(from_date, to_date):
+	"""Summarise posted team evidence for the selected reporting period."""
+	runs = frappe.get_all(
+		"BulkBite Production Run",
+		filters={"docstatus": 1, "production_date": ["between", [from_date, to_date]]},
+		fields=["name", "production_date", "finished_item", "actual_output_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_variance_minutes_per_kg", "takt_status"],
+		order_by="production_date asc, name asc",
+	)
+	_enrich_run_workforce_evidence(runs)
+	total_output = sum(flt(row.actual_output_qty) for row in runs)
+	total_labour = sum(flt(row.actual_labour_hours) for row in runs)
+	return {
+		"summary": {
+			"run_count": len(runs),
+			"output_qty": round(total_output, 3),
+			"labour_hours": round(total_labour, 2),
+			"average_team_size": round(sum(flt(row.actual_team_size) for row in runs) / len(runs), 1) if runs else 0,
+			"actual_labour_minutes_per_kg": round(total_labour * 60 / total_output, 2) if total_output else 0,
+			"runs_on_pace": sum(1 for row in runs if row.takt_status in {"Faster than takt", "On pace"}),
+		},
+		"runs": runs,
+	}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -1517,6 +1699,15 @@ def download_accountant_export(from_date, to_date, dataset="receipts"):
 	frappe.response.filename = f"bulkbite-{dataset}-{getdate(from_date)}-to-{getdate(to_date)}.csv"
 	frappe.response.filecontent = stream.getvalue()
 	frappe.response.type = "download"
+
+
+@frappe.whitelist(methods=["GET"])
+def download_finance_ledger_workbook(from_date, to_date):
+	"""Download verified immutable finance events as one plain Excel worksheet."""
+	_require_roles("BulkBite Manager", "BulkBite Accountant")
+	frappe.response.filename = f"bulkbite-finance-ledger-{getdate(from_date)}-to-{getdate(to_date)}.xlsx"
+	frappe.response.filecontent = build_finance_ledger_workbook(from_date, to_date)
+	frappe.response.type = "binary"
 
 
 # endregion AUDIT APPROVAL AND ACCOUNTANT EXPORT
@@ -1812,6 +2003,15 @@ def _serialize_run(run):
 		"expected_material_cost": run.expected_material_cost,
 		"actual_material_cost": run.actual_material_cost,
 		"material_cost_variance": run.material_cost_variance,
+		"team_template": run.team_template,
+		"scheduled_elapsed_hours": round(flt(run.scheduled_elapsed_hours), 2),
+		"actual_elapsed_hours": round(flt(run.actual_elapsed_hours), 2),
+		"actual_team_size": int(run.actual_team_size or 0),
+		"actual_labour_hours": round(flt(run.actual_labour_hours), 2),
+		"actual_labour_minutes_per_kg": round(flt(run.actual_labour_minutes_per_kg), 2),
+		"planned_takt_minutes_per_kg": round(flt(run.planned_takt_minutes_per_kg), 2),
+		"takt_variance_minutes_per_kg": round(flt(run.takt_variance_minutes_per_kg), 2),
+		"takt_status": run.takt_status,
 		"output_stock_event": run.output_stock_event,
 		"truth_event": run.truth_event,
 		"notes": run.notes,

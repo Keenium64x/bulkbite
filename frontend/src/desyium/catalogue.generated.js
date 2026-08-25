@@ -2377,14 +2377,16 @@ export const systemCatalogue = Object.freeze({
       "id": "checkbox-shadcn",
       "name": "Checkbox Shadcn",
       "job": "Operational boolean or multiple selection using shadcn-vue",
-      "category": "Project",
-      "provider": "project",
+      "category": "Forms",
+      "provider": "shadcn-vue",
       "source": "@/components/checkbox-shadcn/CheckboxShadcn.vue",
       "install": {
         "type": "none"
       },
       "states": [
-        "default",
+        "unchecked",
+        "checked",
+        "indeterminate",
         "focus",
         "disabled"
       ],
@@ -2392,9 +2394,16 @@ export const systemCatalogue = Object.freeze({
         {
           "source": "default",
           "public": "SystemCheckboxShadcn",
-          "class": "system-checkbox-shadcn"
+          "class": "system-checkbox"
         }
       ],
+      "composes": [
+        "reka-ui/checkbox",
+        "lucide-vue-next/check"
+      ],
+      "accessibility": "Uses a native button role through Reka CheckboxRoot, supports keyboard toggling, disabled state, checked and indeterminate state, and an optional visible label.",
+      "responsiveBehaviour": "Keeps a compact 18 px indicator inside a labelled target of at least 40 px without changing surrounding form density.",
+      "failureBehaviour": "The boolean value remains visible and keyboard operable without animation or provider-specific styling.",
       "scope": "project"
     },
     {
@@ -10849,7 +10858,7 @@ export const systemCatalogue = Object.freeze({
       "components": [
         "badge",
         "card",
-        "checkbox",
+        "checkbox-shadcn",
         "date-picker",
         "form-control",
         "linked-record-field",
@@ -10993,7 +11002,7 @@ export const systemCatalogue = Object.freeze({
         "form-control",
         "select",
         "textarea",
-        "checkbox",
+        "checkbox-shadcn",
         "operational-button",
         "badge"
       ],
@@ -11042,7 +11051,7 @@ export const systemCatalogue = Object.freeze({
         "linked-record-field",
         "date-picker",
         "multi-file-uploader",
-        "checkbox",
+        "checkbox-shadcn",
         "operational-button",
         "badge"
       ],
@@ -11087,7 +11096,7 @@ export const systemCatalogue = Object.freeze({
       "projectSource": "src/blocks/monthly-planning",
       "components": [
         "badge",
-        "checkbox",
+        "checkbox-shadcn",
         "form-control",
         "linked-record-field",
         "operational-button"
@@ -11138,7 +11147,7 @@ export const systemCatalogue = Object.freeze({
         "multi-file-uploader",
         "form-control",
         "select",
-        "checkbox",
+        "checkbox-shadcn",
         "tabs",
         "operational-button",
         "badge"

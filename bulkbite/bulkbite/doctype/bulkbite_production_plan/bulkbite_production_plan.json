@@ -5,7 +5,7 @@
  "creation": "2026-08-20 17:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["plan_title", "status", "period_start", "period_end", "business_name", "customer_mix", "purchase_routes", "source_workbook", "source_sheet", "date_note", "plan_rows", "expected_purchase_cost", "buying_snapshot_json", "notes"],
+ "field_order": ["plan_title", "status", "period_start", "period_end", "business_name", "customer_mix", "purchase_routes", "source_workbook", "source_sheet", "date_note", "plan_rows", "capacity_section", "forecast_weeks", "default_team_template", "capacity_windows", "forecast_customer_mix", "expected_purchase_cost", "buying_snapshot_json", "notes"],
  "fields": [
   {"fieldname": "plan_title", "fieldtype": "Data", "in_list_view": 1, "label": "Plan Title", "reqd": 1},
   {"default": "Relative Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Relative Draft\nDated Draft\nActive\nCompleted\nCancelled", "reqd": 1},
@@ -18,6 +18,11 @@
   {"fieldname": "source_sheet", "fieldtype": "Data", "label": "Source Sheet", "read_only": 1},
   {"fieldname": "date_note", "fieldtype": "Small Text", "label": "Date Note", "read_only": 1},
   {"fieldname": "plan_rows", "fieldtype": "Table", "label": "Planned Recipes", "options": "BulkBite Production Plan Row", "reqd": 1},
+  {"fieldname": "capacity_section", "fieldtype": "Section Break", "label": "Production Capacity Plan"},
+  {"default": "4", "fieldname": "forecast_weeks", "fieldtype": "Int", "label": "Forecast Weeks", "non_negative": 1},
+  {"fieldname": "default_team_template", "fieldtype": "Link", "label": "Default Team Template", "options": "BulkBite Team Template"},
+  {"fieldname": "capacity_windows", "fieldtype": "Table", "label": "Weekly Production Windows", "options": "BulkBite Capacity Window"},
+  {"fieldname": "forecast_customer_mix", "fieldtype": "Table", "label": "Forecast Customer Mix", "options": "BulkBite Forecast Customer Mix"},
   {"fieldname": "expected_purchase_cost", "fieldtype": "Currency", "label": "Expected Purchase Cost", "read_only": 1},
   {"fieldname": "buying_snapshot_json", "fieldtype": "Long Text", "hidden": 1, "label": "Buying Theory Snapshot", "read_only": 1},
   {"fieldname": "notes", "fieldtype": "Small Text", "label": "Plan Notes"}

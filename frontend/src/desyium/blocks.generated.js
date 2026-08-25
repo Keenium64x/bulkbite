@@ -83,7 +83,7 @@ export const installedBlocks = Object.freeze([
     "components": [
       "badge",
       "card",
-      "checkbox",
+      "checkbox-shadcn",
       "date-picker",
       "form-control",
       "linked-record-field",
@@ -227,7 +227,7 @@ export const installedBlocks = Object.freeze([
       "form-control",
       "select",
       "textarea",
-      "checkbox",
+      "checkbox-shadcn",
       "operational-button",
       "badge"
     ],
@@ -276,7 +276,7 @@ export const installedBlocks = Object.freeze([
       "linked-record-field",
       "date-picker",
       "multi-file-uploader",
-      "checkbox",
+      "checkbox-shadcn",
       "operational-button",
       "badge"
     ],
@@ -321,7 +321,7 @@ export const installedBlocks = Object.freeze([
     "projectSource": "src/blocks/monthly-planning",
     "components": [
       "badge",
-      "checkbox",
+      "checkbox-shadcn",
       "form-control",
       "linked-record-field",
       "operational-button"
@@ -372,7 +372,7 @@ export const installedBlocks = Object.freeze([
       "multi-file-uploader",
       "form-control",
       "select",
-      "checkbox",
+      "checkbox-shadcn",
       "tabs",
       "operational-button",
       "badge"

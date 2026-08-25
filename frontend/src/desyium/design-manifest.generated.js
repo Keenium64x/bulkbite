@@ -10,7 +10,6 @@ export const designManifest = Object.freeze({
     "calendar",
     "card",
     "chart",
-    "checkbox",
     "checkbox-shadcn",
     "combobox",
     "date-picker",

@@ -89,7 +89,14 @@ export const savePriceAdjustment = (payload) => call("bulkbite.api.save_price_ad
 export const getEmployeeWorkspace = () => call("bulkbite.api.get_employee_workspace", {}, "GET")
 export const saveEmployeeType = (payload) => call("bulkbite.api.save_employee_type", { payload })
 export const saveEmployee = (payload) => call("bulkbite.api.save_employee", { payload })
-export const saveProductionEmployees = (name, employees) => call("bulkbite.api.save_production_employees", { name, employees })
+export const saveTeamTemplate = (payload) => call("bulkbite.api.save_team_template", { payload })
+export const saveProductionEmployees = (name, employees, teamTemplate, actualElapsedHours, scheduledElapsedHours) => call("bulkbite.api.save_production_employees", {
+  name,
+  employees,
+  team_template: teamTemplate,
+  actual_elapsed_hours: actualElapsedHours,
+  scheduled_elapsed_hours: scheduledElapsedHours,
+})
 
 export function priceWorkbookUrl(fields) {
   return `/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`
@@ -101,6 +108,10 @@ export function accountantExportUrl(fromDate, toDate, dataset) {
     to_date: toDate,
     dataset,
   })}`
+}
+
+export function financeLedgerWorkbookUrl(fromDate, toDate) {
+  return `/api/method/bulkbite.api.download_finance_ledger_workbook?${new URLSearchParams({ from_date: fromDate, to_date: toDate })}`
 }
 
 // endregion FRAPPE TRANSPORT

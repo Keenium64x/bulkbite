@@ -1,0 +1,16 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": ["plan_type", "target_customers", "target_week"],
+ "fields": [
+  {"fieldname": "plan_type", "fieldtype": "Link", "in_list_view": 1, "label": "Customer Plan", "options": "BulkBite Customer Plan Type", "reqd": 1},
+  {"default": "0", "fieldname": "target_customers", "fieldtype": "Int", "in_list_view": 1, "label": "Forecast Customers", "non_negative": 1},
+  {"default": "4", "fieldname": "target_week", "fieldtype": "Int", "label": "Target Week", "non_negative": 1, "reqd": 1}
+ ],
+ "module": "BulkBite",
+ "name": "BulkBite Forecast Customer Mix",
+ "permissions": []
+}

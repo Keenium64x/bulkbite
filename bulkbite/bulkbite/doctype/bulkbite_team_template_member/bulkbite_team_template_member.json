@@ -1,0 +1,18 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": ["employee", "employee_name", "employee_type", "default_hours_override", "enabled"],
+ "fields": [
+  {"fieldname": "employee", "fieldtype": "Link", "in_list_view": 1, "label": "Employee", "options": "BulkBite Employee", "reqd": 1},
+  {"fetch_from": "employee.full_name", "fieldname": "employee_name", "fieldtype": "Data", "in_list_view": 1, "label": "Employee Name", "read_only": 1},
+  {"fetch_from": "employee.employee_type", "fieldname": "employee_type", "fieldtype": "Link", "in_list_view": 1, "label": "Employee Type", "options": "BulkBite Employee Type", "read_only": 1},
+  {"fieldname": "default_hours_override", "fieldtype": "Float", "label": "Custom Hours", "non_negative": 1},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"}
+ ],
+ "module": "BulkBite",
+ "name": "BulkBite Team Template Member",
+ "permissions": []
+}

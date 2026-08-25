@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
 import {
-  SystemBadge, SystemCheckbox, SystemDatePicker, SystemFormControl, SystemLinkedRecordField,
+  SystemBadge, SystemCheckboxShadcn, SystemDatePicker, SystemFormControl, SystemLinkedRecordField,
   SystemMultiFileUploader, SystemOperationalButton, SystemSelect,
 } from "@/desyium"
 import { getEmployeeWorkspace, saveEmployee, saveEmployeeType } from "@/resources/api"
@@ -163,7 +163,7 @@ onMounted(loadWorkspace)
         <SystemDatePicker v-model="employee.end_date" label="End date" format="YYYY-MM-DD" />
         <SystemFormControl v-model="employee.notes" label="Notes" />
       </div>
-      <div class="check-row"><label class="check-field"><SystemCheckbox v-model="employee.available_for_production" /><span>Available for production</span></label><label class="check-field"><SystemCheckbox v-model="employee.use_payment_override" /><span>Override employee-type payment</span></label></div>
+      <div class="check-row"><label class="check-field"><SystemCheckboxShadcn v-model="employee.available_for_production" /><span>Available for production</span></label><label class="check-field"><SystemCheckboxShadcn v-model="employee.use_payment_override" /><span>Override employee-type payment</span></label></div>
       <div v-if="employee.use_payment_override" class="field-grid"><label class="employee-select-field"><span>Payment basis override</span><SystemSelect v-model="employee.payment_basis_override" :options="paymentOptions" /></label><SystemFormControl v-model="employee.payment_rate_override" label="Payment rate override" type="number" step="0.1" min="0" /></div>
       <div class="document-area"><strong>Private documents</strong><SystemMultiFileUploader v-model="documents" accept="image/*,.pdf" label="Add employee documents" /></div>
       <div class="button-row"><SystemOperationalButton v-if="employee.name" variant="outline" :disabled="savingEmployee" @click="resetEmployee">Cancel edit</SystemOperationalButton><SystemOperationalButton variant="solid" :loading="savingEmployee" :disabled="!employeeTypeOptions.length" @click="submitEmployee">{{ employee.name ? 'Save employee' : 'Add employee' }}</SystemOperationalButton></div>
@@ -197,7 +197,7 @@ onMounted(loadWorkspace)
         <SystemFormControl v-model="employeeType.description" label="Role description" />
         <SystemFormControl v-model="employeeType.working_assumptions" label="Capacity assumptions" />
       </div>
-      <label class="check-field"><SystemCheckbox v-model="employeeType.enabled" /><span>Use this employee type in capacity planning</span></label>
+      <label class="check-field"><SystemCheckboxShadcn v-model="employeeType.enabled" /><span>Use this employee type in capacity planning</span></label>
       <div class="button-row"><SystemOperationalButton v-if="employeeType.name" variant="outline" :disabled="savingType" @click="resetEmployeeType">Cancel edit</SystemOperationalButton><SystemOperationalButton variant="solid" :loading="savingType" @click="submitEmployeeType">{{ employeeType.name ? 'Save employee type' : 'Add employee type' }}</SystemOperationalButton></div>
     </section>
 

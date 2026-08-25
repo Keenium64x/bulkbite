@@ -1,0 +1,25 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:template_name",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["template_name", "enabled", "default_elapsed_hours", "members", "notes"],
+ "fields": [
+  {"fieldname": "template_name", "fieldtype": "Data", "in_list_view": 1, "label": "Team Template", "reqd": 1, "unique": 1},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"default": "4", "fieldname": "default_elapsed_hours", "fieldtype": "Float", "label": "Default Elapsed Hours", "non_negative": 1, "reqd": 1},
+  {"fieldname": "members", "fieldtype": "Table", "label": "Default Team Members", "options": "BulkBite Team Template Member", "reqd": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "module": "BulkBite",
+ "name": "BulkBite Team Template",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "BulkBite Worker"}
+ ],
+ "sort_field": "template_name",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

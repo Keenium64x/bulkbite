@@ -78,6 +78,8 @@ class BulkBiteProductionRun(Document):
 		for row in self.employees or []:
 			if row.payment_basis == "Hourly" and row.completion_status == "Completed" and flt(row.hours_worked) <= 0:
 				frappe.throw(_("Enter hours worked for hourly employee {0}.").format(row.employee_name or row.employee))
+		if self._action == "submit" and self.employees and flt(self.actual_elapsed_hours) <= 0:
+			frappe.throw(_("Enter the actual elapsed production time before posting team evidence."))
 
 	def _validate_submission_boundary(self):
 		if self.stock_events_posted and self.docstatus == 0:

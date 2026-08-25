@@ -12,7 +12,7 @@
   "exports": [
     {
       "source": "default",
-      "public": "SystemCheckbox",
+      "public": "SystemCheckboxShadcn",
       "class": "system-checkbox"
     }
   ],

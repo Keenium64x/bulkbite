@@ -1,11 +1,12 @@
 {
  "actions":[],"creation":"2026-08-25 09:00:00.000000","doctype":"DocType","editable_grid":1,"engine":"InnoDB","istable":1,"modified":"2026-08-25 09:00:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Production Employee","owner":"Administrator",
- "field_order":["employee","employee_name","employee_type","available_hours","hours_worked","completion_status","payment_basis","payment_rate","payable_amount","cost_entry","notes"],
+ "field_order":["employee","employee_name","employee_type","available_hours","custom_hours","hours_worked","completion_status","payment_basis","payment_rate","payable_amount","cost_entry","notes"],
  "fields":[
   {"fieldname":"employee","fieldtype":"Link","in_list_view":1,"label":"Employee","options":"BulkBite Employee","reqd":1},
   {"fieldname":"employee_name","fieldtype":"Data","in_list_view":1,"label":"Employee Name","read_only":1},
   {"fieldname":"employee_type","fieldtype":"Link","in_list_view":1,"label":"Employee Type","options":"BulkBite Employee Type","read_only":1,"reqd":1},
   {"default":"0","fieldname":"available_hours","fieldtype":"Float","in_list_view":1,"label":"Hours Available for this Run","non_negative":1},
+  {"default":"0","fieldname":"custom_hours","fieldtype":"Check","label":"Use Custom Hours"},
   {"default":"0","fieldname":"hours_worked","fieldtype":"Float","in_list_view":1,"label":"Hours Worked","non_negative":1},
   {"default":"Completed","fieldname":"completion_status","fieldtype":"Select","in_list_view":1,"label":"Work Status","options":"Assigned\nCompleted\nAbsent\nCancelled","reqd":1},
   {"fieldname":"payment_basis","fieldtype":"Select","label":"Frozen Payment Basis","options":"Once-off\nHourly\nWeekly\nMonthly\nPer Production Run","read_only":1,"reqd":1},

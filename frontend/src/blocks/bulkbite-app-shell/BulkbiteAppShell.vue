@@ -14,6 +14,7 @@ import {
   Tags,
   Settings,
   Truck,
+  UsersRound,
   UserRound,
 } from "lucide-vue-next"
 import { SystemLink, SystemOperationalButton } from "@/desyium"
@@ -33,6 +34,7 @@ defineProps({
     { label: "Locations", icon: MapPin, doctype: "BulkBite Location", href: "/bulkbite/setup/BulkBite%20Location" },
     { label: "Meal plans", icon: CalendarDays, doctype: "BulkBite Production Plan", href: "/bulkbite/setup/BulkBite%20Production%20Plan" },
     { label: "Customer plans", icon: UserRound, doctype: "BulkBite Customer Plan Type", href: "/bulkbite/setup/BulkBite%20Customer%20Plan%20Type" },
+    { label: "Team templates", icon: UsersRound, doctype: "BulkBite Team Template", href: "/bulkbite/setup/BulkBite%20Team%20Template" },
   ] },
   activeSection: { type: String, required: true },
   user: { type: String, default: "" },
@@ -90,8 +92,9 @@ function toggleSidebar() {
             </div>
           </div>
 
-          <SystemOperationalButton v-if="user && user !== 'Guest'" class="app-shell__sidebar-action app-shell__session-action" variant="ghost" :loading="sessionBusy" loading-text="Signing out" label="Log out" :tooltip="sidebarCollapsed ? 'Log out' : undefined" @click="$emit('logout')">
-            <LogOut aria-hidden="true" />
+          <SystemOperationalButton v-if="user && user !== 'Guest'" class="app-shell__sidebar-action app-shell__session-action" variant="ghost" :loading="sessionBusy && !sidebarCollapsed" loading-text="Signing out" label="Log out" :tooltip="sidebarCollapsed ? 'Log out' : undefined" :aria-label="sidebarCollapsed ? 'Log out' : undefined" @click="$emit('logout')">
+            <span v-if="sessionBusy && sidebarCollapsed" class="app-shell__session-loader" aria-hidden="true" />
+            <LogOut v-else aria-hidden="true" />
             <span class="app-shell__utility-label app-shell__session-label">Log out</span>
           </SystemOperationalButton>
 
@@ -138,4 +141,6 @@ function toggleSidebar() {
 .app-shell__refresh-loader{display:block;flex:0 0 .75rem;width:.75rem;height:.75rem;border:1.5px solid currentColor;border-right-color:transparent;border-radius:999px;animation:app-shell-spin .7s linear infinite}@keyframes app-shell-spin{to{transform:rotate(360deg)}}
 :deep(.app-shell__collapse){border:var(--border-width-1) solid var(--theme-navigation-sidebar-border)!important;background:var(--theme-navigation-sidebar-control)!important;color:var(--theme-navigation-sidebar-text)!important}:deep(.app-shell__collapse svg){width:1rem!important;height:1rem!important;stroke:currentColor!important}:deep(.app-shell__sidebar-action){color:var(--theme-navigation-sidebar-muted)!important}:deep(.app-shell__sidebar-action > span.truncate){display:flex!important;align-items:center!important;gap:var(--spacing-xs)!important;width:100%;height:auto!important;overflow:visible!important}:deep(.app-shell__sidebar-action > span.truncate svg),:deep(.app-shell__session-link svg){flex:0 0 1.05rem!important;width:1.05rem!important;height:1.05rem!important;stroke:currentColor!important}:deep(.app-shell__export-button:hover),:deep(.app-shell__export-button.is-active),:deep(.app-shell__session-action:hover){background:var(--theme-navigation-sidebar-hover)!important;color:var(--theme-navigation-sidebar-text)!important}:deep(.app-shell__refresh){flex:0 0 8.75rem!important;width:8.75rem!important;min-width:8.75rem!important;max-width:8.75rem!important;height:2.75rem!important;min-height:2.75rem!important;max-height:2.75rem!important;border-color:var(--theme-navigation-header-border)!important;background:var(--theme-navigation-header-control)!important;color:var(--theme-navigation-header-text)!important}.app-shell__refresh :deep(> span.truncate){display:flex;align-items:center;justify-content:center;gap:var(--spacing-2xs);width:100%;overflow:visible;color:inherit!important}.app-shell__refresh :deep(> span.truncate > span:last-child){min-width:5.25rem;text-align:left}.app-shell__account-copy{display:block}.app-shell__account-copy p{font-size:var(--font-size--2);font-weight:var(--font-weight-600)}
 @media(min-width:64.0625rem){.app-shell__account{grid-template-columns:minmax(0,1fr) 2.25rem;align-items:center;padding:var(--spacing-2xs)}:deep(.app-shell__session-action),:deep(.app-shell__session-link){display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 2.25rem!important;width:2.25rem!important;min-width:2.25rem!important;height:2.25rem!important;min-height:2.25rem!important;padding:0!important;white-space:nowrap}:deep(.app-shell__session-action > span.truncate){justify-content:center!important;gap:0!important}:deep(.app-shell__session-action > span.truncate svg){flex:0 0 1rem!important;width:1rem!important;height:1rem!important}.app-shell__session-label{display:none!important}}
+.app-shell__session-loader{display:block;flex:0 0 .8rem;width:.8rem;height:.8rem;border:1.5px solid currentColor;border-right-color:transparent;border-radius:999px;animation:app-shell-spin .7s linear infinite}
+@media(min-width:64.0625rem){.app-shell--collapsed .app-shell__sidebar{padding-inline:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account{display:grid;grid-template-columns:2.5rem;justify-content:center;justify-items:center;gap:var(--spacing-2xs);padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account-user{display:grid;grid-template-columns:2.5rem;width:2.5rem;height:2.5rem}.app-shell--collapsed .app-shell__account-avatar{width:2.5rem;height:2.5rem}.app-shell--collapsed :deep(.app-shell__session-action),.app-shell--collapsed .app-shell__session-link{display:flex!important;flex:0 0 2.5rem!important;width:2.5rem!important;min-width:2.5rem!important;max-width:2.5rem!important;height:2.5rem!important;min-height:2.5rem!important;max-height:2.5rem!important;padding:0!important;overflow:hidden!important}}
 </style>
