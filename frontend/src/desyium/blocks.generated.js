@@ -315,7 +315,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "monthly-planning",
     "name": "Rolling Meal Direction",
-    "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and employee-hours-based workforce capacity.",
+    "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and employee-hours-based workforce capacity with one period total followed by its weekly breakdown.",
     "category": "Project",
     "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
     "public": "SystemMonthlyPlanning",
