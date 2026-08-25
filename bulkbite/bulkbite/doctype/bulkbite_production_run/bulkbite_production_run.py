@@ -4,6 +4,7 @@ from frappe.model.document import Document
 from frappe.utils import flt
 
 from bulkbite.stock_production import apply_run_variances, get_available_stock, load_expected_usage, post_production_run, record_production_event
+from bulkbite.workforce import post_production_employee_costs
 
 
 # =============================================================================
@@ -24,8 +25,9 @@ class BulkBiteProductionRun(Document):
 			return
 		output_event = post_production_run(self)
 		event = record_production_event(self, output_event.name)
+		post_production_employee_costs(self)
 		self.db_set(
-			{"stock_events_posted": 1, "output_stock_event": output_event.name, "truth_event": event.name},
+			{"stock_events_posted": 1, "employee_costs_posted": 1, "output_stock_event": output_event.name, "truth_event": event.name},
 			update_modified=False,
 		)
 
@@ -67,6 +69,15 @@ class BulkBiteProductionRun(Document):
 							row.item_code
 						)
 					)
+		self._validate_employee_assignments()
+
+	def _validate_employee_assignments(self):
+		employees = [row.employee for row in self.employees or []]
+		if len(employees) != len(set(employees)):
+			frappe.throw(_("Add each employee only once to a production run."))
+		for row in self.employees or []:
+			if row.payment_basis == "Hourly" and row.completion_status == "Completed" and flt(row.hours_worked) <= 0:
+				frappe.throw(_("Enter hours worked for hourly employee {0}.").format(row.employee_name or row.employee))
 
 	def _validate_submission_boundary(self):
 		if self.stock_events_posted and self.docstatus == 0:

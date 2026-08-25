@@ -16,6 +16,13 @@ const supplierOptions = computed(() => (props.snapshot?.options?.suppliers || []
 const totalCustomers = computed(() => form.customer_mix.reduce((sum, row) => sum + Number(row.customer_count || 0), 0))
 const weeklyServings = computed(() => form.customer_mix.reduce((sum, row) => sum + Number(row.customer_count || 0) * Number(row.meals_per_day || 0) * Number(row.days_per_week || 0), 0))
 const weeklyKg = computed(() => roundQuantity(form.customer_mix.reduce((sum, row) => sum + Number(row.customer_count || 0) * Number(row.meals_per_day || 0) * Number(row.days_per_week || 0) * Number(row.serving_size_g || 0) / 1000, 0)))
+const workforceRows = computed(() => (props.plan?.workforce?.rows || []).map(row => {
+  const requiredCapacity = row.capacity_basis === "Meals per Production Run" ? weeklyServings.value : row.capacity_basis === "Kg per Production Run" ? weeklyKg.value : row.capacity_basis === "Customers Served" ? totalCustomers.value : row.required_capacity
+  const requiredWorkers = requiredCapacity && Number(row.capacity_per_worker) > 0 ? Math.ceil(requiredCapacity / Number(row.capacity_per_worker)) : 0
+  const difference = Number(row.active_workers || 0) - requiredWorkers
+  return { ...row, required_capacity: requiredCapacity, required_workers: requiredWorkers, worker_difference: difference, status: difference < 0 ? "Under capacity" : difference > 0 ? "Over capacity" : "At capacity" }
+}))
+const underCapacityTypes = computed(() => workforceRows.value.filter(row => row.status === "Under capacity").length)
 
 watch(() => [props.plan, props.snapshot], hydrate, { immediate: true, deep: true })
 
@@ -110,10 +117,13 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
       </div>
     </section>
 
+    <section class="data-section workforce-section"><div class="section-heading"><div><p class="eyebrow">Workforce capacity</p><h2>Can the current team make this plan?</h2><p>Capacity updates with the customer counts above. Manage employee roles and profiles from Production.</p></div><SystemBadge :theme="underCapacityTypes ? 'orange' : 'green'">{{ underCapacityTypes ? `${underCapacityTypes} roles under capacity` : 'Team capacity ready' }}</SystemBadge></div><div class="workforce-list"><article v-for="row in workforceRows" :key="row.name"><div><strong>{{ row.employee_type_name }}</strong><small>{{ row.required_workers }} needed · {{ row.active_workers }} active</small></div><SystemBadge :theme="row.status === 'Under capacity' ? 'orange' : row.status === 'At capacity' ? 'green' : undefined">{{ row.status }}</SystemBadge></article><p v-if="!workforceRows.length" class="state-message">No employee types are configured yet. Add them from Production, Employees.</p></div></section>
+
     <footer class="posting-bar"><div><SystemBadge>{{ form.name ? "DIRECTION READY TO UPDATE" : "NEW DIRECTION" }}</SystemBadge><p>Saving recalculates future ingredient demand, shortages, supplier packs, and expected cost. Existing production drafts keep their saved theory.</p></div><div class="button-row"><SystemOperationalButton v-if="form.name" variant="ghost" size="lg" :disabled="busy" @click="cancelDirection">Cancel direction</SystemOperationalButton><SystemOperationalButton variant="solid" size="lg" :loading="busy" @click="savePlan">{{ form.name ? "Update direction" : "Save direction" }}</SystemOperationalButton></div></footer>
   </section>
 </template>
 
 <style scoped>
+.workforce-list{display:grid;gap:var(--spacing-xs)}.workforce-list article{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.workforce-list small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}
 .plan-mix,.route-grid{display:grid;gap:var(--spacing-xs)}.plan-mix__row,.route-row{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(9rem,.5fr) minmax(10rem,.6fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.plan-mix__row>div:first-child{align-self:center;display:grid;gap:var(--spacing-3xs)}.plan-mix__row small,.week-card p{color:var(--theme-text-muted)}.calculated-value{align-self:center;display:grid;gap:var(--spacing-3xs)}.calculated-value span{color:var(--theme-text-muted);font-size:var(--font-size--2)}.week-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-s)}.week-card{display:grid;align-content:start;gap:var(--spacing-s);min-width:0;max-width:100%;overflow:visible;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.week-card :deep(*){min-width:0;max-width:100%}.week-card :deep(.system-linked-record-field__actions){flex-wrap:wrap}.week-card :deep(.system-linked-record-field__actions button){min-width:0;max-width:100%;white-space:normal}.week-card p{margin:0}.route-row{grid-template-columns:minmax(10rem,.45fr) minmax(15rem,1fr) minmax(12rem,.65fr)}.route-row>strong{align-self:center}@media(max-width:70rem){.week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:44rem){.plan-mix__row,.route-row,.week-grid{grid-template-columns:1fr}}
 </style>

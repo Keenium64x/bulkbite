@@ -29,6 +29,7 @@ from bulkbite.planning import (
 	load_buying_theory,
 )
 from bulkbite.costing import calculate_operating_costs, enrich_spend_report
+from bulkbite.workforce import calculate_assignment_pay, get_employee_capacity_snapshot
 from bulkbite.price_workbook import (
 	apply_price_import,
 	build_price_workbook,
@@ -83,6 +84,7 @@ def get_workspace_snapshot():
 			"customer_plan_types": frappe.get_all("BulkBite Customer Plan Type", filters={"enabled": 1}, fields=["name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks"], order_by="serving_size_g"),
 			"item_categories": frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, fields=["name", "default_supplier"], order_by="name"),
 			"operating_cost_rules": frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name as value", "cost_name as label", "cost_category", "basis", "rate"], order_by="cost_category, cost_name"),
+			"employees": frappe.get_all("BulkBite Employee", filters={"status": "Active", "available_for_production": 1}, fields=["name as value", "full_name as label", "employee_type"], order_by="full_name"),
 		},
 	}
 	for run in result["recent_runs"]:
@@ -149,10 +151,12 @@ def get_finance_workspace(from_date=None, to_date=None):
 	if start > end:
 		frappe.throw(_("From date must be on or before to date."))
 	operating = calculate_operating_costs(start, end)
+	workforce = _current_workforce_snapshot()
 	spend = enrich_spend_report(build_spend_report(start, end))
 	expected_amounts = {row["name"]: row["amount"] for row in operating["expected_rows"]}
 	rules = frappe.get_all(
 		"BulkBite Operating Cost Rule",
+		filters={"cost_category": ("!=", "Labour")},
 		fields=[
 			"name", "cost_code", "cost_name", "cost_category", "basis", "rate",
 			"employee_count", "hours_per_employee", "default_quantity", "recurrence",
@@ -177,7 +181,7 @@ def get_finance_workspace(from_date=None, to_date=None):
 		"BulkBite Cost Entry",
 		fields=[
 			"name", "cost_date", "cost_rule", "cost_category", "payee", "quantity",
-			"unit_rate", "amount", "vat_amount", "production_plan", "evidence_file",
+			"unit_rate", "amount", "vat_amount", "production_plan", "production_run", "employee", "evidence_file",
 			"accounting_category", "notes",
 		],
 		order_by="cost_date desc, creation desc",
@@ -197,6 +201,7 @@ def get_finance_workspace(from_date=None, to_date=None):
 			), 2),
 		},
 		"breakdown": operating["breakdown"],
+		"workforce": workforce,
 		"expected_costs": rules,
 		"adjustments": adjustments,
 		"actual_costs": actual_costs,
@@ -209,13 +214,23 @@ def get_finance_workspace(from_date=None, to_date=None):
 	}
 
 
+def _current_workforce_snapshot():
+	plan_name = frappe.db.get_value("BulkBite Production Plan", {"status": "Active"}, "name", order_by="modified desc")
+	if not plan_name:
+		return get_employee_capacity_snapshot()
+	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
+	return get_employee_capacity_snapshot(calculate_customer_demand(plan.customer_mix))
+
+
 @frappe.whitelist(methods=["POST"])
 def save_expected_cost_rule(payload=None):
-	"""Create or update one reviewed employee or recurring expected-cost rule."""
+	"""Create or update one reviewed non-employee expected-cost rule."""
 	_require_roles("BulkBite Manager")
 	data = _as_dict(payload)
 	if not data.get("cost_name") or not data.get("cost_category") or not data.get("basis"):
 		frappe.throw(_("Cost type, category, and basis are required."))
+	if data.get("cost_category") == "Labour":
+		frappe.throw(_("Employee costs are configured through employee types under Production."))
 	if data.get("basis") == "Hourly":
 		if int(data.get("employee_count") or 0) < 1 or flt(data.get("hours_per_employee")) <= 0:
 			frappe.throw(_("Hourly costs need at least one employee and hours per employee."))
@@ -302,6 +317,114 @@ def _save_finance_record(doctype, name, values):
 
 
 # endregion FRONTEND SNAPSHOT
+
+
+# =============================================================================
+# region EMPLOYEE AND CAPACITY MANAGEMENT
+# =============================================================================
+
+
+@frappe.whitelist(methods=["GET"])
+def get_employee_workspace():
+	"""Return workforce status, employee types, profiles, and assignment options."""
+	_require_roles("BulkBite Manager", "BulkBite Worker", "BulkBite Accountant")
+	types = frappe.get_all(
+		"BulkBite Employee Type",
+		fields=["name", "employee_type_name", "description", "capacity_basis", "capacity_per_worker", "expected_hours_per_run", "payment_basis", "payment_rate", "working_assumptions", "enabled"],
+		order_by="enabled desc, employee_type_name",
+	)
+	employees = frappe.get_all(
+		"BulkBite Employee",
+		fields=["name", "full_name", "employee_type", "status", "available_for_production", "email_address", "phone_number", "start_date", "end_date", "use_payment_override", "payment_basis_override", "payment_rate_override", "notes"],
+		order_by="status asc, full_name",
+	)
+	documents = frappe.get_all(
+		"BulkBite Employee Document",
+		filters={"parent": ("in", [row.name for row in employees])},
+		fields=["name", "parent", "document_type", "document_file", "expiry_date", "notes"],
+		order_by="idx",
+	) if employees else []
+	documents_by_employee = {}
+	for document in documents:
+		documents_by_employee.setdefault(document.parent, []).append(document)
+	for employee in employees:
+		employee["documents"] = documents_by_employee.get(employee.name, [])
+	return {"capacity": _current_workforce_snapshot(), "employee_types": types, "employees": employees}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_employee_type(payload=None):
+	"""Create or update one role with measurable capacity and a payment rule."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	values = _pick_finance_fields(data, {
+		"employee_type_name", "description", "capacity_basis", "capacity_per_worker",
+		"expected_hours_per_run", "payment_basis", "payment_rate", "working_assumptions", "enabled",
+	})
+	if not values.get("employee_type_name") or not values.get("capacity_basis") or not values.get("payment_basis"):
+		frappe.throw(_("Employee type, capacity basis, and payment basis are required."))
+	doc = _save_finance_record("BulkBite Employee Type", data.get("name"), values)
+	return {"name": doc.name, "employee_type_name": doc.employee_type_name}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_employee(payload=None):
+	"""Create or update one employee profile and its reviewed private documents."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	documents = _as_list(data.get("documents"))
+	file_urls = [row.get("document_file") for row in documents if row.get("document_file")]
+	if file_urls:
+		_validate_private_evidence(file_urls)
+	values = _pick_finance_fields(data, {
+		"full_name", "employee_type", "status", "available_for_production", "email_address",
+		"phone_number", "start_date", "end_date", "use_payment_override",
+		"payment_basis_override", "payment_rate_override", "notes",
+	})
+	if not values.get("full_name") or not values.get("employee_type"):
+		frappe.throw(_("Employee name and employee type are required."))
+	doc = frappe.get_doc("BulkBite Employee", data.name) if data.get("name") else frappe.new_doc("BulkBite Employee")
+	doc.check_permission("write" if data.get("name") else "create")
+	doc.update(values)
+	doc.set("documents", [
+		{"document_type": row.get("document_type") or _("Employee document"), "document_file": row.get("document_file"), "expiry_date": row.get("expiry_date"), "notes": row.get("notes")}
+		for row in documents if row.get("document_file")
+	])
+	doc.save()
+	if file_urls:
+		_attach_private_evidence(file_urls, doc.doctype, doc.name)
+	return {"name": doc.name, "full_name": doc.full_name, "status": doc.status}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_production_employees(name, employees=None):
+	"""Freeze reviewed employee attendance and pay facts for one draft run."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	run = frappe.get_doc("BulkBite Production Run", name)
+	if run.docstatus != 0:
+		frappe.throw(_("Employees can only be changed on a draft production run."))
+	rows = []
+	for supplied in _as_list(employees):
+		if not supplied.get("employee"):
+			continue
+		employee = frappe.get_doc("BulkBite Employee", supplied.get("employee"))
+		if employee.status != "Active":
+			frappe.throw(_("{0} is not an active employee.").format(employee.full_name))
+		employee_type = frappe.get_doc("BulkBite Employee Type", employee.employee_type)
+		payment_basis = employee.payment_basis_override if employee.use_payment_override and employee.payment_basis_override else employee_type.payment_basis
+		payment_rate = employee.payment_rate_override if employee.use_payment_override else employee_type.payment_rate
+		pay = calculate_assignment_pay(frappe._dict({"payment_basis": payment_basis, "payment_rate": payment_rate}), supplied.get("hours_worked"), supplied.get("completion_status") or "Completed")
+		rows.append({
+			"employee": employee.name, "employee_name": employee.full_name, "employee_type": employee.employee_type,
+			"hours_worked": flt(supplied.get("hours_worked")), "completion_status": supplied.get("completion_status") or "Completed",
+			**pay, "notes": supplied.get("notes"),
+		})
+	run.set("employees", rows)
+	run.save()
+	return _serialize_run(run)
+
+
+# endregion EMPLOYEE AND CAPACITY MANAGEMENT
 
 
 # =============================================================================
@@ -605,6 +728,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"total_requirements": requirements,
 		"buying": buying,
 		"financial_summary": build_dashboard_financial_summary(demand, rows, plan.name),
+		"workforce": get_employee_capacity_snapshot(demand),
 		"runs": runs,
 	}
 	result["next_production"] = _next_production_station(result["rows"], runs)
@@ -1307,7 +1431,7 @@ def get_accountant_export(from_date, to_date):
 	cost_entries = frappe.get_all(
 		"BulkBite Cost Entry",
 		filters={"cost_date": ["between", [start, end]]},
-		fields=["name", "cost_date", "cost_rule", "cost_category", "payee", "quantity", "unit_rate", "amount", "vat_amount", "production_plan", "evidence_file", "accounting_category", "notes"],
+		fields=["name", "cost_date", "cost_rule", "cost_category", "payee", "quantity", "unit_rate", "amount", "vat_amount", "production_plan", "production_run", "employee", "evidence_file", "accounting_category", "notes"],
 		order_by="cost_date asc, name asc",
 	)
 	return {
@@ -1613,6 +1737,7 @@ def _serialize_run(run):
 			if value.get(field) is not None:
 				value[field] = round(flt(value[field]), 3)
 		ingredients.append(value)
+	employees = [row.as_dict() for row in run.employees or []]
 	return {
 		"name": run.name,
 		"docstatus": run.docstatus,
@@ -1635,6 +1760,8 @@ def _serialize_run(run):
 		"truth_event": run.truth_event,
 		"notes": run.notes,
 		"ingredients": ingredients,
+		"employees": employees,
+		"employee_costs_posted": run.employee_costs_posted,
 	}
 
 

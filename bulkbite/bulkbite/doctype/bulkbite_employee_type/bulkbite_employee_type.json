@@ -1,0 +1,19 @@
+{
+ "actions":[],"allow_rename":1,"autoname":"field:employee_type_name","creation":"2026-08-25 09:00:00.000000","doctype":"DocType","engine":"InnoDB","modified":"2026-08-25 09:00:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Employee Type","owner":"Administrator",
+ "field_order":["employee_type_name","description","capacity_section","capacity_basis","capacity_per_worker","expected_hours_per_run","working_assumptions","payment_section","payment_basis","payment_rate","enabled"],
+ "fields":[
+  {"fieldname":"employee_type_name","fieldtype":"Data","in_list_view":1,"label":"Employee Type","reqd":1,"unique":1},
+  {"fieldname":"description","fieldtype":"Small Text","label":"Description"},
+  {"fieldname":"capacity_section","fieldtype":"Section Break","label":"Production Capacity"},
+  {"default":"Meals per Production Run","fieldname":"capacity_basis","fieldtype":"Select","in_list_view":1,"label":"Capacity Basis","options":"Meals per Production Run\nKg per Production Run\nCustomers Served\nHours Available\nRuns per Period","reqd":1},
+  {"default":"1","fieldname":"capacity_per_worker","fieldtype":"Float","label":"Capacity per Worker","non_negative":1,"reqd":1},
+  {"default":"0","fieldname":"expected_hours_per_run","fieldtype":"Float","label":"Expected Hours per Production Run","non_negative":1},
+  {"fieldname":"working_assumptions","fieldtype":"Small Text","label":"Working Assumptions"},
+  {"fieldname":"payment_section","fieldtype":"Section Break","label":"Payment"},
+  {"default":"Monthly","fieldname":"payment_basis","fieldtype":"Select","in_list_view":1,"label":"Payment Basis","options":"Once-off\nHourly\nWeekly\nMonthly\nPer Production Run","reqd":1},
+  {"default":"0","fieldname":"payment_rate","fieldtype":"Currency","in_list_view":1,"label":"Payment Rate","non_negative":1,"reqd":1},
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","in_list_view":1,"label":"Enabled"}
+ ],
+ "permissions":[{"create":1,"delete":1,"export":1,"print":1,"read":1,"report":1,"role":"System Manager","share":1,"write":1},{"create":1,"delete":1,"export":1,"print":1,"read":1,"report":1,"role":"BulkBite Manager","share":1,"write":1},{"read":1,"role":"BulkBite Worker"}],
+ "sort_field":"employee_type_name","sort_order":"ASC","track_changes":1
+}

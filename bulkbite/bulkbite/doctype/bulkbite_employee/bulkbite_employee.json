@@ -1,0 +1,24 @@
+{
+ "actions":[],"allow_rename":0,"autoname":"BB-EMP-.#####","creation":"2026-08-25 09:00:00.000000","doctype":"DocType","engine":"InnoDB","modified":"2026-08-25 09:00:00.000000","modified_by":"Administrator","module":"BulkBite","name":"BulkBite Employee","owner":"Administrator",
+ "title_field":"full_name","field_order":["full_name","employee_type","status","available_for_production","contact_section","email_address","phone_number","start_date","end_date","payment_section","use_payment_override","payment_basis_override","payment_rate_override","documents_section","documents","notes"],
+ "fields":[
+  {"fieldname":"full_name","fieldtype":"Data","in_list_view":1,"label":"Full Name","reqd":1},
+  {"fieldname":"employee_type","fieldtype":"Link","in_list_view":1,"label":"Employee Type","options":"BulkBite Employee Type","reqd":1},
+  {"default":"Active","fieldname":"status","fieldtype":"Select","in_list_view":1,"label":"Status","options":"Active\nInactive\nOn Leave\nEnded","reqd":1},
+  {"default":"1","fieldname":"available_for_production","fieldtype":"Check","label":"Available for Production"},
+  {"fieldname":"contact_section","fieldtype":"Section Break","label":"Contact and Employment"},
+  {"fieldname":"email_address","fieldtype":"Data","label":"Email","options":"Email"},
+  {"fieldname":"phone_number","fieldtype":"Data","label":"Phone"},
+  {"default":"Today","fieldname":"start_date","fieldtype":"Date","label":"Start Date"},
+  {"fieldname":"end_date","fieldtype":"Date","label":"End Date"},
+  {"fieldname":"payment_section","fieldtype":"Section Break","label":"Payment Override"},
+  {"default":"0","fieldname":"use_payment_override","fieldtype":"Check","label":"Override Employee Type Payment"},
+  {"fieldname":"payment_basis_override","fieldtype":"Select","label":"Payment Basis Override","options":"Once-off\nHourly\nWeekly\nMonthly\nPer Production Run"},
+  {"default":"0","fieldname":"payment_rate_override","fieldtype":"Currency","label":"Payment Rate Override","non_negative":1},
+  {"fieldname":"documents_section","fieldtype":"Section Break","label":"Private Documents"},
+  {"fieldname":"documents","fieldtype":"Table","label":"Documents","options":"BulkBite Employee Document"},
+  {"fieldname":"notes","fieldtype":"Small Text","label":"Notes"}
+ ],
+ "permissions":[{"create":1,"delete":1,"export":1,"print":1,"read":1,"report":1,"role":"System Manager","share":1,"write":1},{"create":1,"delete":1,"export":1,"print":1,"read":1,"report":1,"role":"BulkBite Manager","share":1,"write":1},{"read":1,"role":"BulkBite Worker"}],
+ "sort_field":"full_name","sort_order":"ASC","track_changes":1
+}

@@ -7,6 +7,7 @@ import {
   SystemBulkbiteAppShell,
   SystemBuyingPlan,
   SystemDocumentReview,
+  SystemEmployeeManagement,
   SystemMonthlyPlanning,
   SystemProductionMeasurement,
   SystemPriceHistory,
@@ -90,7 +91,8 @@ onMounted(loadAll)
     <SystemAuxiliaryRecords v-if="auxiliaryMode" :mode="auxiliaryMode" :doctype="String(route.params.doctype || '')" :record-name="String(route.params.name || '')" @navigate="navigateAuxiliary" />
     <SystemStockOverview v-else-if="activeSection === 'overview'" mode="dashboard" :snapshot="snapshot" :inventory="inventory" :plan="plan" :loading="loading" :error="error" @open-workflow="navigate" />
     <SystemReceiptIntake v-else-if="activeSection === 'receipts'" :snapshot="snapshot" :inventory="inventory" :plan="plan" @changed="loadAll" />
-    <SystemProductionMeasurement v-else-if="activeSection === 'production'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-worker-sheets="navigate('documents')" />
+    <SystemProductionMeasurement v-else-if="activeSection === 'production'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-worker-sheets="navigate('documents')" @open-employees="navigate('employees')" />
+    <SystemEmployeeManagement v-else-if="activeSection === 'employees'" @close="navigate('production')" @changed="loadAll" />
     <SystemMonthlyPlanning v-else-if="activeSection === 'planning'" :snapshot="snapshot" :plan="plan" @changed="loadAll" />
     <SystemBuyingPlan v-else-if="activeSection === 'buying'" :snapshot="snapshot" :plan="plan" @open-workflow="navigate" />
     <SystemDocumentReview v-else-if="activeSection === 'documents'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />

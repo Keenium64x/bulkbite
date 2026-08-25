@@ -4,24 +4,26 @@ import Block1 from "../blocks/auxiliary-records/AuxiliaryRecords.vue"
 import Block2 from "../blocks/bulkbite-app-shell/BulkbiteAppShell.vue"
 import Block3 from "../blocks/buying-plan/BuyingPlan.vue"
 import Block4 from "../blocks/document-review/DocumentReview.vue"
-import Block5 from "../blocks/monthly-planning/MonthlyPlanning.vue"
-import Block6 from "../blocks/price-history/PriceHistory.vue"
-import Block7 from "../blocks/production-measurement/ProductionMeasurement.vue"
-import Block8 from "../blocks/receipt-intake/ReceiptIntake.vue"
-import Block9 from "../blocks/stock-overview/StockOverview.vue"
-import Block10 from "../blocks/stock-reconciliation/StockReconciliation.vue"
+import Block5 from "../blocks/employee-management/EmployeeManagement.vue"
+import Block6 from "../blocks/monthly-planning/MonthlyPlanning.vue"
+import Block7 from "../blocks/price-history/PriceHistory.vue"
+import Block8 from "../blocks/production-measurement/ProductionMeasurement.vue"
+import Block9 from "../blocks/receipt-intake/ReceiptIntake.vue"
+import Block10 from "../blocks/stock-overview/StockOverview.vue"
+import Block11 from "../blocks/stock-reconciliation/StockReconciliation.vue"
 
 export const SystemAccountantExport = Block0
 export const SystemAuxiliaryRecords = Block1
 export const SystemBulkbiteAppShell = Block2
 export const SystemBuyingPlan = Block3
 export const SystemDocumentReview = Block4
-export const SystemMonthlyPlanning = Block5
-export const SystemPriceHistory = Block6
-export const SystemProductionMeasurement = Block7
-export const SystemReceiptIntake = Block8
-export const SystemStockOverview = Block9
-export const SystemStockReconciliation = Block10
+export const SystemEmployeeManagement = Block5
+export const SystemMonthlyPlanning = Block6
+export const SystemPriceHistory = Block7
+export const SystemProductionMeasurement = Block8
+export const SystemReceiptIntake = Block9
+export const SystemStockOverview = Block10
+export const SystemStockReconciliation = Block11
 
 export const installedBlocks = Object.freeze([
   {
@@ -256,6 +258,56 @@ export const installedBlocks = Object.freeze([
     "motionContract": {
       "mode": "still",
       "justification": "Review confidence comes from visible evidence and explicit state, not animation."
+    },
+    "scope": "project"
+  },
+  {
+    "id": "employee-management",
+    "name": "Employee Management",
+    "job": "Manage employee types, employee profiles, private documents, workforce capacity status, and production run assignments under Production.",
+    "category": "Project",
+    "source": "@/blocks/employee-management/EmployeeManagement.vue",
+    "public": "SystemEmployeeManagement",
+    "registrySource": "sources/blocks/employee-management",
+    "projectSource": "src/blocks/employee-management",
+    "components": [
+      "form-control",
+      "select",
+      "linked-record-field",
+      "date-picker",
+      "multi-file-uploader",
+      "checkbox",
+      "tabs",
+      "operational-button",
+      "badge"
+    ],
+    "primitives": [],
+    "incomingHandoff": "A manager opens Employees from Production to check workforce capacity, configure roles, or maintain a worker profile.",
+    "outgoingHandoff": "Planning and Production receive current capacity and eligible workers, while Finance receives expected and posted labour costs.",
+    "responsiveBehaviour": "Keep status and forms in two columns where space allows, then stack fields and list facts on mobile without hiding pay basis, capacity, or document state.",
+    "layoutContract": {
+      "strategy": "grid",
+      "pageAlignment": "grid",
+      "padding": "var(--spacing-l) 0",
+      "gap": "var(--spacing-m)",
+      "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+    },
+    "surfaceContract": {
+      "placement": "none",
+      "semanticOwner": "[data-block='employee-management']",
+      "scope": "none",
+      "edgeTreatment": "none",
+      "boundaryReason": null,
+      "contentSeparation": "Content padding does not define primitive bounds.",
+      "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+    },
+    "actionContract": {
+      "primaryPreset": "operational-action",
+      "secondaryPreset": "secondary-action"
+    },
+    "motionContract": {
+      "mode": "still",
+      "justification": "Workforce records and capacity status must be immediately readable; only provider control feedback moves."
     },
     "scope": "project"
   },

@@ -51,6 +51,7 @@ export const designManifest = Object.freeze({
     "bulkbite-app-shell",
     "buying-plan",
     "document-review",
+    "employee-management",
     "monthly-planning",
     "price-history",
     "production-measurement",

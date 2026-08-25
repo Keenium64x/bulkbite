@@ -4,6 +4,7 @@ import frappe
 from frappe.utils import date_diff, flt, getdate
 
 from bulkbite.planning import calculate_customer_demand
+from bulkbite.workforce import get_employee_capacity_snapshot
 
 
 # =============================================================================
@@ -17,7 +18,7 @@ def calculate_operating_costs(from_date, to_date):
 	drivers = _period_drivers(start, end)
 	rules = frappe.get_all(
 		"BulkBite Operating Cost Rule",
-		filters={"enabled": 1},
+		filters={"enabled": 1, "cost_category": ("!=", "Labour")},
 		fields=["name", "cost_code", "cost_name", "cost_category", "basis", "rate", "employee_count", "hours_per_employee", "default_quantity", "recurrence", "effective_from", "effective_to", "vat_treatment", "accounting_category"],
 		order_by="cost_category asc, cost_name asc",
 	)
@@ -29,6 +30,8 @@ def calculate_operating_costs(from_date, to_date):
 			continue
 		quantity = _rule_quantity(rule, drivers, start, end)
 		expected_rows.append({**rule, "quantity": round(quantity, 3), "amount": round(quantity * flt(rule.rate), 2)})
+	workforce = _expected_workforce_costs()
+	expected_rows.extend(workforce)
 	actual_rows = frappe.get_all(
 		"BulkBite Cost Entry",
 		filters={"cost_date": ["between", [start, end]]},
@@ -50,6 +53,29 @@ def calculate_operating_costs(from_date, to_date):
 		"expected_total": round(sum(flt(row["amount"]) for row in expected_rows), 2),
 		"actual_total": round(sum(flt(row.amount) for row in actual_rows), 2),
 	}
+
+
+def _expected_workforce_costs():
+	"""Return employee-type forecasts separately from miscellaneous cost rules."""
+	plan_name = frappe.db.get_value("BulkBite Production Plan", {"status": "Active"}, "name", order_by="modified desc")
+	if not plan_name:
+		return []
+	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
+	snapshot = get_employee_capacity_snapshot(calculate_customer_demand(plan.customer_mix))
+	return [
+		{
+			"name": f"WORKFORCE::{row['name']}",
+			"cost_code": None,
+			"cost_name": row["employee_type_name"],
+			"cost_category": "Labour",
+			"basis": row["payment_basis"],
+			"rate": row["payment_rate"],
+			"quantity": row["required_workers"],
+			"amount": row["expected_monthly_cost"],
+			"workforce_forecast": 1,
+		}
+		for row in snapshot["rows"]
+	]
 
 
 def enrich_spend_report(report):

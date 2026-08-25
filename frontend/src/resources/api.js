@@ -86,6 +86,10 @@ export const getFinanceWorkspace = (fromDate, toDate) => call("bulkbite.api.get_
 export const saveExpectedCostRule = (payload) => call("bulkbite.api.save_expected_cost_rule", { payload })
 export const saveMiscellaneousCost = (payload) => call("bulkbite.api.save_miscellaneous_cost", { payload })
 export const savePriceAdjustment = (payload) => call("bulkbite.api.save_price_adjustment", { payload })
+export const getEmployeeWorkspace = () => call("bulkbite.api.get_employee_workspace", {}, "GET")
+export const saveEmployeeType = (payload) => call("bulkbite.api.save_employee_type", { payload })
+export const saveEmployee = (payload) => call("bulkbite.api.save_employee", { payload })
+export const saveProductionEmployees = (name, employees) => call("bulkbite.api.save_production_employees", { name, employees })
 
 export function priceWorkbookUrl(fields) {
   return `/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`
