@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 
 from bulkbite.api import get_employee_workspace, save_employee, save_employee_type, save_production_employees
-from bulkbite.workforce import calculate_hour_capacity, get_employee_capacity_snapshot, get_employee_production_history, post_production_employee_costs
+from bulkbite.workforce import calculate_capacity_forecast, calculate_hour_capacity, get_employee_capacity_snapshot, get_employee_production_history, post_production_employee_costs
 
 
 # =============================================================================
@@ -24,6 +24,21 @@ def run_hours():
 		"takt_minutes_per_unit": 6.5, "status": "Over capacity",
 	}
 	return {"under_capacity": under, "over_capacity": over}
+
+
+def run_capacity_carry_forward():
+	"""Prove that early spare effort covers later weekly demand until the balance is exhausted."""
+	mix = [{"plan_type": "Proof", "customer_count": 10, "meals_per_day": 1, "days_per_week": 1, "serving_size_g": 1000}]
+	runs = [
+		{"week_number": week, "run_number": 1, "scheduled_elapsed_hours": hours, "planned_people": 1}
+		for week, hours in enumerate((30, 2, 2, 2), start=1)
+	]
+	weeks = calculate_capacity_forecast(mix, mix, 4, [], 60, runs)
+	assert [row["week_team_hour_difference"] for row in weeks] == [20.0, -8.0, -8.0, -8.0]
+	assert [row["closing_team_hour_balance"] for row in weeks] == [20.0, 12.0, 4.0, -4.0]
+	assert [row["status"] for row in weeks] == ["Over capacity", "Over capacity", "Over capacity", "Under capacity"]
+	assert [row["team_hour_difference"] for row in weeks] == [20.0, -8.0, -8.0, -8.0]
+	return {"weeks": weeks}
 
 
 def run():

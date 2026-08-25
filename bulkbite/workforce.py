@@ -272,6 +272,19 @@ def calculate_hour_capacity(required_output_qty, labour_minutes_per_unit, availa
 	}
 
 
+def calculate_capacity_balance(opening_team_hours, available_team_hours, required_team_hours):
+	"""Carry spare capacity or backlog through one ordered production period."""
+	opening_balance = round(flt(opening_team_hours), 2)
+	week_difference = round(flt(available_team_hours) - flt(required_team_hours), 2)
+	closing_balance = round(opening_balance + week_difference, 2)
+	return {
+		"opening_team_hour_balance": opening_balance,
+		"week_team_hour_difference": week_difference,
+		"closing_team_hour_balance": closing_balance,
+		"status": "Under capacity" if closing_balance < 0 else "Over capacity" if closing_balance > 0 else "At capacity",
+	}
+
+
 def calculate_run_performance(actual_output_qty, actual_elapsed_hours, employees, planned_takt_minutes_per_kg=0):
 	"""Calculate actual production labour evidence and compare it with the frozen planned takt."""
 	actual_output_qty = flt(actual_output_qty)
@@ -308,6 +321,7 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 	windows = {int(row.get("week_number") or 0): row for row in capacity_windows or []}
 	runs_by_week = _group_capacity_runs(capacity_runs)
 	rows = []
+	carried_team_hours = 0
 	for week in range(1, forecast_weeks + 1):
 		mix = []
 		for plan_type, current in current_by_plan.items():
@@ -326,10 +340,11 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
 		required_average_crew = required_hours / elapsed_hours if required_hours and elapsed_hours else 0
 		required_people = math.ceil(required_hours / elapsed_hours) if required_hours and elapsed_hours else 0
-		hour_difference = team_hours - required_hours
-		additional_people = math.ceil(abs(hour_difference) / elapsed_hours) if hour_difference < 0 and elapsed_hours else 0
-		people_above = math.floor(hour_difference / elapsed_hours) if hour_difference > 0 and elapsed_hours else 0
-		people_difference = people_above if hour_difference >= 0 else -additional_people
+		balance = calculate_capacity_balance(carried_team_hours, team_hours, required_hours)
+		carried_team_hours = balance["closing_team_hour_balance"]
+		additional_people = math.ceil(abs(carried_team_hours) / elapsed_hours) if carried_team_hours < 0 and elapsed_hours else 0
+		people_above = math.floor(carried_team_hours / elapsed_hours) if carried_team_hours > 0 and elapsed_hours else 0
+		people_difference = people_above if carried_team_hours >= 0 else -additional_people
 		rows.append({
 			"week_number": week,
 			"cycle_week": cycle_week,
@@ -347,10 +362,10 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			"people_difference": people_difference,
 			"additional_people_needed": additional_people,
 			"people_above_requirement": people_above,
-			"team_hour_difference": round(hour_difference, 2),
+			**balance,
+			"team_hour_difference": balance["week_team_hour_difference"],
 			"run_count": len(schedule),
 			"schedule": schedule,
-			"status": "Under capacity" if hour_difference < 0 else "Over capacity" if hour_difference > 0 else "At capacity",
 		})
 	return rows
 
