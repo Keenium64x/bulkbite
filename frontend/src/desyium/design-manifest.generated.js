@@ -11,6 +11,7 @@ export const designManifest = Object.freeze({
     "card",
     "chart",
     "checkbox",
+    "checkbox-shadcn",
     "combobox",
     "date-picker",
     "date-range-picker",

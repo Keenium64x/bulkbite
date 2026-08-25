@@ -12,6 +12,7 @@ export declare const SystemCardContent: Component
 export declare const SystemCardFooter: Component
 export declare const SystemChart: Component
 export declare const SystemCheckbox: Component
+export declare const SystemCheckboxShadcn: Component
 export declare const SystemCombobox: Component
 export declare const SystemDatePicker: Component
 export declare const SystemDateRangePicker: Component

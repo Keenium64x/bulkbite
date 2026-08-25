@@ -29,7 +29,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "accountant-export",
     "name": "Reports and Accountant Export",
-    "job": "Compare revenue, frozen theoretical and actual food spend, savings, buying adjustments, and expected and actual operating costs by period, then export operational records without changing stock.",
+    "job": "Compare revenue, food spend, savings, and operating costs by period, then expose and export the verified immutable finance ledger and supporting operational records without mutation.",
     "category": "Application",
     "source": "@/blocks/accountant-export/AccountantExport.vue",
     "public": "SystemAccountantExport",
@@ -43,7 +43,7 @@ export const installedBlocks = Object.freeze([
     ],
     "primitives": [],
     "incomingHandoff": "A manager needs a retrospective period comparison, while the accountant needs operational records outside BulkBite.",
-    "outgoingHandoff": "The manager sees gross profit, operating result, cost and savings sources, and the accountant can download operational records; the stock ledger remains unchanged.",
+    "outgoingHandoff": "The manager sees operating results and the accountant downloads finance events with dates, classifications, payees, VAT, evidence references, source documents, actors, and hash-chain proof.",
     "responsiveBehaviour": "Keep the period, dataset, record counts, note, and download action labelled and stacked on mobile.",
     "layoutContract": {
       "strategy": "grid",
@@ -264,7 +264,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "employee-management",
     "name": "Employee Management",
-    "job": "Show one-page Lean workforce capacity, maintain employee profiles with production-hour history, and configure employee-type theory under Production.",
+    "job": "Show red or green hour-based Lean workforce capacity, maintain each employee's per-run availability and production-hour history, and configure employee-type theory under Production.",
     "category": "Project",
     "source": "@/blocks/employee-management/EmployeeManagement.vue",
     "public": "SystemEmployeeManagement",
@@ -281,7 +281,7 @@ export const installedBlocks = Object.freeze([
       "badge"
     ],
     "primitives": [],
-    "incomingHandoff": "A manager opens Employees from Production and sees capacity, people, and employee-type theory in one continuous page.",
+    "incomingHandoff": "A manager opens Employees from Planning or Production and sees takt, required team-hours, available employee-hours, people, and employee-type theory in one continuous page.",
     "outgoingHandoff": "Planning and Production receive current capacity and eligible workers, while Finance receives expected and posted labour costs.",
     "responsiveBehaviour": "Keep Lean status and evidence readable first, then stack employee and role forms on mobile without hiding hours, capacity, pay basis, or document state.",
     "layoutContract": {
@@ -313,7 +313,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "monthly-planning",
     "name": "Rolling Meal Direction",
-    "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and category-to-supplier routes.",
+    "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, category-to-supplier routes, and employee-hours-based workforce capacity.",
     "category": "Project",
     "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
     "public": "SystemMonthlyPlanning",
@@ -328,7 +328,7 @@ export const installedBlocks = Object.freeze([
     ],
     "primitives": [],
     "incomingHandoff": "The manager knows the current customers or repeating meals have changed.",
-    "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory.",
+    "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory. Manage employees opens the workforce page and returns the manager to Planning.",
     "responsiveBehaviour": "Show four repeating meals in four, two, then one column while preserving labels, calculated units, supplier routing, and action order.",
     "layoutContract": {
       "strategy": "flow",
@@ -359,7 +359,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "price-history",
     "name": "Prices and Costs",
-    "job": "Own the Stock price catalogue's flat field-selected exchange and Finance's expected costs, discounts, actual cost invoices, miscellaneous costs, and cost history without changing stock.",
+    "job": "Own the Stock price catalogue exchange and Finance's expected costs, discounts, miscellaneous expenses, dedicated Pydantic invoice review, manager-approved expense types, and immutable finance ledger.",
     "category": "Application",
     "source": "@/blocks/price-history/PriceHistory.vue",
     "public": "SystemPriceHistory",
@@ -379,8 +379,8 @@ export const installedBlocks = Object.freeze([
     ],
     "primitives": [],
     "incomingHandoff": "A manager needs to compare the price BulkBite planned with the price a reviewed receipt proves.",
-    "outgoingHandoff": "The manager can exchange exact-name price workbooks, review safe catalogue changes, configure costs, and see chronological theory, actual, and variance.",
-    "responsiveBehaviour": "Keep filters labelled, then let the comparison table scroll horizontally on narrow screens without hiding dates, suppliers, pack facts, or normalized prices.",
+    "outgoingHandoff": "Reviewed invoice lines become miscellaneous actual expenses, each posted expense becomes an immutable finance event, and the manager can inspect the verified accountant trail.",
+    "responsiveBehaviour": "Keep upload state, invoice facts, expense-type decisions, confidence, amounts, VAT, posting state, and ledger hashes labelled; stack each expense review card on mobile.",
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
@@ -410,7 +410,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "production-measurement",
     "name": "Production Measurement",
-    "job": "Resume or open the next meal in the repeating direction, keep production date, food made, draft and posting controls together, and show production history.",
+    "job": "Resume or open the next meal in the repeating direction, capture each employee's run-specific available and actual hours, calculate takt and run capacity, keep posting controls together, and show production history.",
     "category": "Application",
     "source": "@/blocks/production-measurement/ProductionMeasurement.vue",
     "public": "SystemProductionMeasurement",
@@ -427,7 +427,7 @@ export const installedBlocks = Object.freeze([
     ],
     "primitives": [],
     "incomingHandoff": "The rolling direction identifies the next meal and a worker opens Production after a cook.",
-    "outgoingHandoff": "The worker either discards the draft to reload current theory or explicitly posts frozen ingredient consumption and finished output, with Worker sheets available as an auxiliary handoff.",
+    "outgoingHandoff": "The worker either manages employees, opens Worker sheets, discards the draft to reload current theory, or posts frozen ingredient consumption, finished output, employee availability, and actual hours.",
     "responsiveBehaviour": "Keep expected, available, measurement method, actual quantity, and unit together; recompose every ingredient as a labelled mobile record.",
     "layoutContract": {
       "strategy": "grid",
