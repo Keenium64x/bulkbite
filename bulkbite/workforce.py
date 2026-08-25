@@ -300,12 +300,13 @@ def calculate_run_performance(actual_output_qty, actual_elapsed_hours, employees
 	}
 
 
-def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg):
-	"""Forecast weekly output, labour-hours, elapsed duration, and people gaps."""
+def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg, capacity_runs=None):
+	"""Forecast demand against an explicit repeating production schedule."""
 	forecast_weeks = max(int(forecast_weeks or 4), 1)
 	current_by_plan = {row.get("plan_type"): row for row in current_mix or []}
 	target_by_plan = {row.get("plan_type"): row for row in target_mix or []}
 	windows = {int(row.get("week_number") or 0): row for row in capacity_windows or []}
+	runs_by_week = _group_capacity_runs(capacity_runs)
 	rows = []
 	for week in range(1, forecast_weeks + 1):
 		mix = []
@@ -318,31 +319,68 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			mix.append({**current, "customer_count": round(current_customers + (target_customers - current_customers) * progress)})
 		demand = _forecast_demand(mix)
 		cycle_week = ((week - 1) % 4) + 1
-		window = windows.get(cycle_week) or {}
-		elapsed_hours = flt(window.get("scheduled_elapsed_hours"))
-		runs = max(int(window.get("runs_per_week") or 1), 1)
-		team_size = max(int(window.get("team_size") or 0), 0)
-		team_hours = elapsed_hours * runs * team_size
+		schedule = runs_by_week.get(cycle_week) or _expand_capacity_window(windows.get(cycle_week) or {})
+		elapsed_hours = sum(flt(run.get("scheduled_elapsed_hours")) for run in schedule)
+		team_hours = sum(flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0) for run in schedule)
+		team_size = round(team_hours / elapsed_hours, 1) if elapsed_hours else 0
 		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
-		required_people = math.ceil(required_hours / (elapsed_hours * runs)) if required_hours and elapsed_hours else 0
-		people_difference = team_size - required_people
+		required_average_crew = required_hours / elapsed_hours if required_hours and elapsed_hours else 0
+		required_people = math.ceil(required_hours / elapsed_hours) if required_hours and elapsed_hours else 0
+		hour_difference = team_hours - required_hours
+		additional_people = math.ceil(abs(hour_difference) / elapsed_hours) if hour_difference < 0 and elapsed_hours else 0
+		people_above = math.floor(hour_difference / elapsed_hours) if hour_difference > 0 and elapsed_hours else 0
+		people_difference = people_above if hour_difference >= 0 else -additional_people
 		rows.append({
 			"week_number": week,
 			"cycle_week": cycle_week,
 			"customers": demand["total_customers"],
 			"required_output_qty": demand["weekly_output_qty"],
-			"scheduled_elapsed_hours": round(elapsed_hours * runs, 2),
+			"scheduled_elapsed_hours": round(elapsed_hours, 2),
 			"scheduled_team_hours": round(team_hours, 2),
 			"planned_takt_minutes_per_kg": round(team_hours * 60 / demand["weekly_output_qty"], 2) if demand["weekly_output_qty"] else 0,
 			"current_labour_minutes_per_kg": round(flt(labour_minutes_per_kg), 2),
 			"required_team_hours": round(required_hours, 2),
 			"expected_elapsed_hours": round(required_hours / team_size, 2) if team_size else 0,
 			"team_size": team_size,
+			"required_average_crew": round(required_average_crew, 2),
 			"required_people": required_people,
 			"people_difference": people_difference,
-			"status": "Under capacity" if people_difference < 0 else "Over capacity" if people_difference > 0 else "At capacity",
+			"additional_people_needed": additional_people,
+			"people_above_requirement": people_above,
+			"team_hour_difference": round(hour_difference, 2),
+			"run_count": len(schedule),
+			"schedule": schedule,
+			"status": "Under capacity" if hour_difference < 0 else "Over capacity" if hour_difference > 0 else "At capacity",
 		})
 	return rows
+
+
+def _group_capacity_runs(capacity_runs):
+	grouped = {}
+	for supplied in capacity_runs or []:
+		run = dict(supplied)
+		week = int(run.get("week_number") or 0)
+		if week not in range(1, 5) or flt(run.get("scheduled_elapsed_hours")) <= 0:
+			continue
+		grouped.setdefault(week, []).append(run)
+	for runs in grouped.values():
+		runs.sort(key=lambda row: (int(row.get("run_number") or 0), row.get("day_of_week") or ""))
+	return grouped
+
+
+def _expand_capacity_window(window):
+	elapsed = flt(window.get("scheduled_elapsed_hours"))
+	count = max(int(window.get("runs_per_week") or 1), 1)
+	return [
+		{
+			"run_number": index + 1,
+			"day_of_week": "Unscheduled",
+			"scheduled_elapsed_hours": elapsed,
+			"planned_people": int(window.get("team_size") or 0),
+			"team_template": window.get("team_template"),
+		}
+		for index in range(count)
+	]
 
 
 def _forecast_demand(mix):

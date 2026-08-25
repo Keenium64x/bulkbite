@@ -2,19 +2,22 @@
 import { computed, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { SystemBadge, SystemCheckboxShadcn, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect } from "@/desyium"
-import { cancelProductionPlan, saveMonthlyProductionPlan } from "@/resources/api"
+import { calculateCapacityScenario, cancelProductionPlan, saveMonthlyProductionPlan } from "@/resources/api"
 
-const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null } })
+const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null }, mode: { type: String, default: "planning" } })
 const emit = defineEmits(["changed", "open-employees"])
 const router = useRouter()
 const busy = ref(false)
 const error = ref("")
-const form = reactive({ name: "", plan_title: "", status: "Active", customer_mix: [], plan_rows: [], purchase_routes: [], forecast_weeks: 4, default_team_template: "", capacity_windows: [], forecast_customer_mix: [] })
+const form = reactive({ name: "", plan_title: "", status: "Active", customer_mix: [], plan_rows: [], purchase_routes: [], forecast_weeks: 4, default_team_template: "", capacity_windows: [], capacity_runs: [], forecast_customer_mix: [] })
+const scenarioForecast = ref([])
+let scenarioTimer
 const planTypes = computed(() => props.snapshot?.options?.customer_plan_types || [])
 const recipeOptions = computed(() => (props.snapshot?.options?.recipes || []).map(row => ({ label: row.recipe_name, value: row.name })))
 const supplierOptions = computed(() => (props.snapshot?.options?.suppliers || []).map(value => ({ label: value, value })))
 const teamTemplates = computed(() => props.snapshot?.options?.team_templates || [])
 const teamTemplateOptions = computed(() => teamTemplates.value.map(row => ({ label: row.template_name, value: row.name })))
+const dayOptions = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(value => ({ label: value, value }))
 const totalCustomers = computed(() => form.customer_mix.reduce((sum, row) => sum + Number(row.customer_count || 0), 0))
 const weeklyServings = computed(() => form.customer_mix.reduce((sum, row) => sum + Number(row.customer_count || 0) * Number(row.meals_per_day || 0) * Number(row.days_per_week || 0), 0))
 const weeklyKg = computed(() => roundQuantity(form.customer_mix.reduce((sum, row) => sum + Number(row.customer_count || 0) * Number(row.meals_per_day || 0) * Number(row.days_per_week || 0) * Number(row.serving_size_g || 0) / 1000, 0)))
@@ -47,6 +50,7 @@ const workforceSummary = computed(() => {
 })
 
 watch(() => [props.plan, props.snapshot], hydrate, { immediate: true, deep: true })
+watch(() => [form.forecast_weeks, form.default_team_template, form.forecast_customer_mix, form.capacity_runs], queueScenarioCalculation, { deep: true })
 
 function hydrate() {
   Object.assign(form, {
@@ -71,13 +75,49 @@ function hydrate() {
       const saved = props.plan?.capacity_plan?.windows?.find(row => Number(row.week_number) === index + 1)
       return { week_number: index + 1, scheduled_elapsed_hours: Number(saved?.scheduled_elapsed_hours || 4), runs_per_week: Number(saved?.runs_per_week || 1), team_template: saved?.team_template || props.plan?.capacity_plan?.default_team_template || "" }
     }),
+    capacity_runs: props.plan?.capacity_plan?.runs?.length
+      ? props.plan.capacity_plan.runs.map(row => ({ ...row }))
+      : Array.from({ length: 4 }, (_, index) => ({ week_number: index + 1, run_number: 1, day_of_week: "Saturday", scheduled_elapsed_hours: Number(props.plan?.capacity_plan?.windows?.[index]?.scheduled_elapsed_hours || 5), team_template: props.plan?.capacity_plan?.windows?.[index]?.team_template || props.plan?.capacity_plan?.default_team_template || "", planned_people: Number(props.plan?.capacity_plan?.windows?.[index]?.team_size || 0) })),
     forecast_customer_mix: planTypes.value.map(type => {
       const current = props.plan?.capacity_plan?.target_customer_mix?.find(row => row.plan_type === type.name)
       const base = props.plan?.customer_mix?.find(row => row.plan_type === type.name)
       return { plan_type: type.name, target_customers: Number(current?.target_customers ?? base?.customer_count ?? 0), target_week: Number(current?.target_week || props.plan?.capacity_plan?.forecast_weeks || 4) }
     }),
   })
+  scenarioForecast.value = props.plan?.capacity_plan?.forecast || []
 }
+
+function queueScenarioCalculation() {
+  if (props.mode !== "forecasting" || !props.plan) return
+  window.clearTimeout(scenarioTimer)
+  scenarioTimer = window.setTimeout(calculateScenario, 250)
+}
+
+async function calculateScenario() {
+  try {
+    const result = await calculateCapacityScenario({
+      current_mix: form.customer_mix,
+      target_mix: form.forecast_customer_mix,
+      forecast_weeks: form.forecast_weeks,
+      capacity_windows: form.capacity_windows.map(row => ({ ...row, team_size: templateSize(row.team_template || form.default_team_template) })),
+      capacity_runs: form.capacity_runs.map(row => ({ ...row, team_template: row.team_template || form.default_team_template, planned_people: Number(row.planned_people || templateSize(row.team_template || form.default_team_template)) })),
+      labour_minutes_per_kg: Number(props.plan?.workforce?.planning_labour_minutes_per_kg || 0),
+    })
+    scenarioForecast.value = result.forecast || []
+  } catch (exception) { error.value = exception.message }
+}
+
+function templateSize(name) { return Number(teamTemplates.value.find(row => row.name === name)?.team_size || 0) }
+function addCapacityRun(weekNumber = 1) {
+  const sameWeek = form.capacity_runs.filter(row => Number(row.week_number) === Number(weekNumber))
+  form.capacity_runs.push({ week_number: Number(weekNumber), run_number: sameWeek.length + 1, day_of_week: "Saturday", scheduled_elapsed_hours: 5, team_template: form.default_team_template, planned_people: templateSize(form.default_team_template) })
+}
+function removeCapacityRun(index) { form.capacity_runs.splice(index, 1) }
+function applyDefaultTeam(row) {
+  row.team_template = form.default_team_template
+  row.planned_people = templateSize(form.default_team_template)
+}
+function changeCapacityRunTeam(row, value) { row.team_template = value; row.planned_people = templateSize(value) }
 
 function openLinked(mode, doctype) {
   router.push(mode === "create" ? { name: "AuxiliaryRecordCreate", params: { doctype } } : { name: "BulkBiteSetupList", params: { doctype } })
@@ -109,10 +149,10 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
 
 <template>
   <section data-block="monthly-planning" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Planning</p><h1>Set the current meal direction</h1><p>Keep customer numbers current and choose the four meals that repeat. Future buying and production recalculate whenever this direction changes.</p></div><SystemBadge>{{ form.name ? "ACTIVE DIRECTION" : "NEW DIRECTION" }}</SystemBadge></header>
+    <header class="workflow-header"><div><p class="eyebrow">{{ mode === 'forecasting' ? 'Forecasting' : 'Planning' }}</p><h1>{{ mode === 'forecasting' ? 'Test future production capacity' : 'Set the current meal direction' }}</h1><p>{{ mode === 'forecasting' ? 'Try customer growth, cooking days, hours, and crew sizes before changing the active plan.' : 'Keep customer numbers current and choose the four meals that repeat. Future buying and production recalculate whenever this direction changes.' }}</p></div><SystemBadge>{{ mode === 'forecasting' ? 'SCENARIO' : form.name ? 'ACTIVE DIRECTION' : 'NEW DIRECTION' }}</SystemBadge></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
 
-    <section class="form-section">
+    <section v-if="mode === 'planning'" class="form-section">
       <div class="section-heading"><div><p class="eyebrow">Customers</p><h2>Current customer mix</h2><p>Update these counts whenever customers change. Serving sizes and meal frequency come from customer plan records.</p></div><SystemBadge>{{ totalCustomers }} customers</SystemBadge></div>
       <div class="field-grid">
         <SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" />
@@ -127,7 +167,7 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
       <div class="metric-board"><div><strong>{{ totalCustomers }}</strong><span>customers</span></div><div><strong>{{ weeklyServings }}</strong><span>portions per week</span></div><div><strong>{{ number(weeklyKg) }} kg</strong><span>food per week</span></div><div><strong>{{ number(weeklyKg * 4) }} kg</strong><span>one full cycle</span></div></div>
     </section>
 
-    <section class="form-section">
+    <section v-if="mode === 'planning'" class="form-section">
       <div class="section-heading"><div><p class="eyebrow">Meal cycle</p><h2>Choose the four repeating meals</h2><p>Production advances through these meals in order, then starts again at meal one.</p></div></div>
       <div class="week-grid">
         <article v-for="row in form.plan_rows" :key="row.week_number" class="week-card">
@@ -138,7 +178,7 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
       </div>
     </section>
 
-    <section class="form-section">
+    <section v-if="mode === 'planning'" class="form-section">
       <div class="section-heading"><div><p class="eyebrow">Buying routes</p><h2>Choose where each category is bought</h2><p>Every enabled food category appears here. Add categories in setup, assign them to items, then choose the usual supplier.</p></div><div class="button-row"><SystemOperationalButton variant="outline" @click="openLinked('create', 'BulkBite Item Category')">Add category</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="openLinked('list', 'BulkBite Item Category')">Manage categories</SystemOperationalButton></div></div>
       <div v-if="!form.purchase_routes.length" class="state-message">Add at least one enabled food category before saving the plan.</div>
       <div class="route-grid">
@@ -150,29 +190,53 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
       </div>
     </section>
 
-    <section class="form-section capacity-plan-section">
-      <div class="section-heading"><div><p class="eyebrow">Production run plan</p><h2>Set the weekly time available</h2><p>These four weekly windows repeat each month. Forecasting tests the current team against expected customer growth.</p></div><SystemOperationalButton variant="outline" @click="emit('open-employees', 'planning')">Manage employees</SystemOperationalButton></div>
-      <div class="field-grid"><SystemFormControl v-model="form.forecast_weeks" type="number" min="4" step="1" label="Forecast weeks" /><SystemSelect v-model="form.default_team_template" label="Default team" :options="teamTemplateOptions" placeholder="Choose a team template" /></div>
-      <div class="capacity-window-grid"><article v-for="row in form.capacity_windows" :key="row.week_number"><SystemBadge>WEEK {{ row.week_number }}</SystemBadge><SystemFormControl v-model="row.scheduled_elapsed_hours" type="number" min="0" step="0.1" label="Hours per run" /><SystemFormControl v-model="row.runs_per_week" type="number" min="1" step="1" label="Runs that week" /><SystemSelect v-model="row.team_template" label="Team" :options="teamTemplateOptions" placeholder="Default team" /></article></div>
-      <div class="forecast-mix"><article v-for="row in form.forecast_customer_mix" :key="row.plan_type"><div><strong>{{ row.plan_type }}</strong><small>Customer count reached by the target week</small></div><SystemFormControl v-model="row.target_customers" type="number" min="0" step="1" label="Forecast customers" /><SystemFormControl v-model="row.target_week" type="number" min="1" step="1" label="By week" /></article></div>
-    </section>
+    <template v-if="mode === 'forecasting'">
+      <section class="form-section capacity-plan-section">
+        <div class="section-heading"><div><p class="eyebrow">Scenario setup</p><h2>Test a future production schedule</h2><p>Change customer growth, cooking days, hours, and people. Results recalculate without changing the active direction until you save.</p></div><div class="button-row"><SystemOperationalButton variant="outline" @click="emit('open-employees', 'forecasting')">Manage employees</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="openLinked('create', 'BulkBite Team Template')">Create team</SystemOperationalButton></div></div>
+        <div class="forecast-settings">
+          <SystemFormControl v-model="form.forecast_weeks" type="number" min="1" step="1" label="Weeks to forecast" />
+          <SystemLinkedRecordField v-model="form.default_team_template" label="Default team template" :options="teamTemplateOptions" placeholder="Choose the usual team" create-label="Create team template" manage-label="Manage team templates" @create="openLinked('create', 'BulkBite Team Template')" @manage="openLinked('list', 'BulkBite Team Template')" />
+        </div>
+        <div class="forecast-mix"><article v-for="row in form.forecast_customer_mix" :key="row.plan_type"><div><strong>{{ row.plan_type }}</strong><small>Customer count reached by the target week</small></div><SystemFormControl v-model="row.target_customers" type="number" min="0" step="1" label="Future customers" /><SystemFormControl v-model="row.target_week" type="number" min="1" step="1" label="Reach by week" /></article></div>
+      </section>
 
-    <section class="data-section workforce-section">
-      <div class="section-heading"><div><p class="eyebrow">Lean workforce capacity</p><h2>Can the current team make this plan?</h2><p>Customer changes update demand, available team-hours, takt time, and the hours needed at the current production rate.</p></div><div class="button-row"><SystemOperationalButton variant="outline" @click="emit('open-employees', 'planning')">Manage employees</SystemOperationalButton><SystemBadge :theme="workforceSummary.status === 'Under capacity' ? 'red' : 'green'">{{ workforceSummary.status }}</SystemBadge></div></div>
-      <div class="capacity-status-card" :class="workforceSummary.status === 'Under capacity' ? 'is-under' : 'is-ready'"><div><span>Capacity decision</span><strong>{{ workforceSummary.status }}</strong><p v-if="workforceSummary.status === 'Under capacity'">The plan needs {{ number(Math.abs(workforceSummary.hourDifference)) }} more team-hours at the current rate.</p><p v-else>The team has {{ number(Math.max(workforceSummary.hourDifference, 0)) }} team-hours above the current requirement.</p></div><SystemBadge :theme="workforceSummary.status === 'Under capacity' ? 'red' : 'green'">{{ number(workforceSummary.availableHours) }} h available</SystemBadge></div>
-      <div class="metric-board workforce-metrics"><div><strong>{{ number(workforceSummary.taktMinutesPerKg) }} min/kg</strong><span>planned takt, slowest allowable team pace</span></div><div><strong>{{ number(workforceSummary.planningMinutesPerKg) }} min/kg</strong><span>current demonstrated team rate</span></div><div><strong>{{ number(workforceSummary.requiredTeamHours) }} hours</strong><span>team-hours required</span></div><div><strong>{{ number(workforceSummary.requiredTeamHours / Math.max(workforceSummary.activeWorkers, 1)) }} hours</strong><span>expected elapsed time with current crew</span></div><div><strong>{{ workforceSummary.requiredWorkers }}</strong><span>people required</span></div><div><strong>{{ Math.abs(workforceSummary.activeWorkers - workforceSummary.requiredWorkers) }}</strong><span>{{ workforceSummary.activeWorkers < workforceSummary.requiredWorkers ? 'additional people needed' : 'people above requirement' }}</span></div></div>
-      <p class="workforce-basis">Planning with the {{ workforceSummary.planningBasis.toLowerCase() }}. {{ workforceSummary.activeWorkers }} active employees provide {{ number(workforceSummary.availableHours) }} team-hours for one run.</p>
-      <div class="forecast-table table-wrap"><table><thead><tr><th>Week</th><th>Customers</th><th>Food</th><th>Hours scheduled</th><th>Team-hours</th><th>Required</th><th>Expected duration</th><th>People</th><th>Decision</th></tr></thead><tbody><tr v-for="row in plan?.capacity_plan?.forecast || []" :key="row.week_number"><td>Week {{ row.week_number }}</td><td>{{ row.customers }}</td><td>{{ number(row.required_output_qty) }} kg</td><td>{{ number(row.scheduled_elapsed_hours) }} h</td><td>{{ number(row.scheduled_team_hours) }} h</td><td>{{ number(row.required_team_hours) }} h</td><td>{{ number(row.expected_elapsed_hours) }} h</td><td>{{ row.team_size }} current / {{ row.required_people }} needed</td><td><SystemBadge :theme="row.status === 'Under capacity' ? 'red' : 'green'">{{ row.status }}</SystemBadge></td></tr></tbody></table></div>
-      <div class="workforce-list"><article v-for="row in workforceRows" :key="row.name"><div><strong>{{ row.employee_type_name }}</strong><small>{{ number(row.required_team_hours) }} h needed · {{ number(row.available_worker_hours) }} h available · {{ row.active_workers }} people</small></div><SystemBadge :theme="row.status === 'Under capacity' ? 'red' : 'green'">{{ row.status }}</SystemBadge></article><p v-if="!workforceRows.length" class="state-message">No employee types are configured yet. Manage employees to add the current team and its available hours.</p></div>
-    </section>
+      <section class="form-section">
+        <div class="section-heading"><div><p class="eyebrow">Cooking schedule</p><h2>Enter the runs you could make</h2><p>Each row is one cooking session. A week can have one run or several runs with different hours and crew sizes.</p></div><SystemOperationalButton variant="solid" @click="addCapacityRun(1)">Add run</SystemOperationalButton></div>
+        <div class="capacity-run-list">
+          <article v-for="(row, index) in form.capacity_runs" :key="index">
+            <SystemFormControl v-model="row.week_number" type="number" min="1" max="4" step="1" label="Cycle week" />
+            <SystemSelect v-model="row.day_of_week" label="Day" :options="dayOptions" />
+            <SystemFormControl v-model="row.scheduled_elapsed_hours" type="number" min="0.1" step="0.1" label="Cooking hours" />
+            <SystemLinkedRecordField :model-value="row.team_template" label="Team template" :options="teamTemplateOptions" placeholder="Use default team" create-label="Create team template" manage-label="Manage team templates" @create="openLinked('create', 'BulkBite Team Template')" @manage="openLinked('list', 'BulkBite Team Template')" @update:model-value="changeCapacityRunTeam(row, $event)" />
+            <SystemFormControl v-model="row.planned_people" type="number" min="1" step="1" label="People working" />
+            <div class="run-actions"><SystemOperationalButton v-if="form.default_team_template" variant="ghost" @click="applyDefaultTeam(row)">Use default</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="removeCapacityRun(index)">Remove</SystemOperationalButton></div>
+          </article>
+        </div>
+      </section>
 
-    <footer class="posting-bar"><div><SystemBadge>{{ form.name ? "DIRECTION READY TO UPDATE" : "NEW DIRECTION" }}</SystemBadge><p>Saving recalculates future ingredient demand, shortages, supplier packs, and expected cost. Existing production drafts keep their saved theory.</p></div><div class="button-row"><SystemOperationalButton v-if="form.name" variant="ghost" size="lg" :disabled="busy" @click="cancelDirection">Cancel direction</SystemOperationalButton><SystemOperationalButton variant="solid" size="lg" :loading="busy" @click="savePlan">{{ form.name ? "Update direction" : "Save direction" }}</SystemOperationalButton></div></footer>
+      <section class="data-section workforce-section">
+        <div class="section-heading"><div><p class="eyebrow">Capacity forecast</p><h2>Does this schedule make enough food?</h2><p>Required labour comes from the current demonstrated production rate. Available labour comes only from the runs above.</p></div><SystemBadge :theme="scenarioForecast.some(row => row.status === 'Under capacity') ? 'red' : 'green'">{{ scenarioForecast.some(row => row.status === 'Under capacity') ? 'Capacity gap' : 'Schedule works' }}</SystemBadge></div>
+        <div class="forecast-week-list">
+          <article v-for="row in scenarioForecast" :key="row.week_number" :class="row.status === 'Under capacity' ? 'is-under' : 'is-ready'">
+            <div class="forecast-week-heading"><div><span>Week {{ row.week_number }}</span><strong>{{ row.status }}</strong></div><SystemBadge :theme="row.status === 'Under capacity' ? 'red' : 'green'">{{ row.run_count }} {{ row.run_count === 1 ? 'run' : 'runs' }}</SystemBadge></div>
+            <div class="capacity-equation"><strong>{{ number(row.scheduled_team_hours) }} team-hours scheduled</strong><span>{{ row.team_hour_difference < 0 ? '+' : '−' }}</span><strong>{{ number(Math.abs(row.team_hour_difference)) }} team-hours {{ row.team_hour_difference < 0 ? 'short' : 'spare' }}</strong><span>=</span><strong>{{ number(row.required_team_hours) }} team-hours required</strong></div>
+            <div class="metric-board"><div><strong>{{ number(row.required_output_qty) }} kg</strong><span>food required</span></div><div><strong>{{ number(row.scheduled_elapsed_hours) }} h</strong><span>cooking time entered</span></div><div><strong>{{ number(row.scheduled_team_hours) }} h</strong><span>team-hours available</span></div><div><strong>{{ number(row.required_team_hours) }} h</strong><span>team-hours needed</span></div><div><strong>{{ number(row.expected_elapsed_hours) }} h</strong><span>time needed with current crew</span></div><div><strong>{{ number(row.current_labour_minutes_per_kg) }} min/kg</strong><span>current demonstrated rate</span></div></div>
+            <p v-if="row.status === 'Under capacity'">If every session keeps its entered hours, add {{ row.additional_people_needed }} {{ row.additional_people_needed === 1 ? 'person' : 'people' }} to every run. The minimum uniform crew is {{ row.required_people }}.</p><p v-else-if="row.people_above_requirement">This schedule has {{ row.people_above_requirement }} {{ row.people_above_requirement === 1 ? 'person' : 'people' }} above the minimum on every run.</p><p v-else>This schedule matches the calculated requirement.</p>
+          </article>
+        </div>
+      </section>
+
+      <footer class="posting-bar"><div><SystemBadge>FORECAST SCENARIO</SystemBadge><p>Save these customer targets and production sessions as the active forecast. Planning meals, buying routes, and posted production remain unchanged.</p></div><SystemOperationalButton variant="solid" size="lg" :loading="busy" @click="savePlan">Save forecast</SystemOperationalButton></footer>
+    </template>
+
+    <footer v-if="mode === 'planning'" class="posting-bar"><div><SystemBadge>{{ form.name ? "DIRECTION READY TO UPDATE" : "NEW DIRECTION" }}</SystemBadge><p>Saving recalculates future ingredient demand, shortages, supplier packs, and expected cost. Existing production drafts keep their saved theory.</p></div><div class="button-row"><SystemOperationalButton v-if="form.name" variant="ghost" size="lg" :disabled="busy" @click="cancelDirection">Cancel direction</SystemOperationalButton><SystemOperationalButton variant="solid" size="lg" :loading="busy" @click="savePlan">{{ form.name ? "Update direction" : "Save direction" }}</SystemOperationalButton></div></footer>
   </section>
 </template>
 
 <style scoped>
 .capacity-window-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-s)}.capacity-window-grid article{display:grid;align-content:start;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.forecast-mix{display:grid;gap:var(--spacing-xs);margin-top:var(--spacing-s)}.forecast-mix article{display:grid;grid-template-columns:minmax(12rem,1fr) repeat(2,minmax(8rem,.5fr));align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.forecast-mix small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.forecast-table{margin-top:var(--spacing-s)}
+.forecast-settings{display:grid;grid-template-columns:minmax(10rem,.35fr) minmax(18rem,1fr);align-items:end;gap:var(--spacing-s)}.capacity-run-list,.forecast-week-list{display:grid;gap:var(--spacing-xs)}.capacity-run-list article{display:grid;grid-template-columns:minmax(6rem,.35fr) minmax(8rem,.55fr) minmax(8rem,.55fr) minmax(14rem,1fr) minmax(7rem,.4fr) auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.run-actions{display:flex;align-items:flex-end;gap:var(--spacing-2xs)}.forecast-week-list>article{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.forecast-week-list>article.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 7%,var(--theme-surface-raised))}.forecast-week-list>article.is-ready{border-color:color-mix(in oklch,var(--theme-success) 44%,var(--theme-border))}.forecast-week-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s)}.forecast-week-heading span{display:block;color:var(--theme-text-muted);font-size:var(--font-size--2)}.forecast-week-heading strong{font-size:var(--font-size-1)}.capacity-equation{display:flex;align-items:center;flex-wrap:wrap;gap:var(--spacing-xs);padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-field);background:var(--theme-secondary)}.capacity-equation span{color:var(--theme-text-muted)}.forecast-week-list p{margin:0;color:var(--theme-text-muted)}
 .workforce-list{display:grid;gap:var(--spacing-xs)}.workforce-list article{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.workforce-list small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.workforce-metrics{margin-bottom:var(--spacing-s)}.workforce-basis{margin:0 0 var(--spacing-s);color:var(--theme-text-muted)}.capacity-status-card{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);margin-bottom:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card)}.capacity-status-card.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 10%,var(--theme-surface-raised))}.capacity-status-card.is-ready{border-color:color-mix(in oklch,var(--theme-success) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 10%,var(--theme-surface-raised))}.capacity-status-card span,.capacity-status-card p{color:var(--theme-text-muted)}.capacity-status-card strong{display:block;margin-top:var(--spacing-3xs);font-size:var(--font-size-2)}.capacity-status-card p{margin:var(--spacing-3xs) 0 0}
 .plan-mix,.route-grid{display:grid;gap:var(--spacing-xs)}.plan-mix__row,.route-row{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(9rem,.5fr) minmax(10rem,.6fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.plan-mix__row>div:first-child{align-self:center;display:grid;gap:var(--spacing-3xs)}.plan-mix__row small,.week-card p{color:var(--theme-text-muted)}.calculated-value{align-self:center;display:grid;gap:var(--spacing-3xs)}.calculated-value span{color:var(--theme-text-muted);font-size:var(--font-size--2)}.week-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-s)}.week-card{display:grid;align-content:start;gap:var(--spacing-s);min-width:0;max-width:100%;overflow:visible;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.week-card :deep(*){min-width:0;max-width:100%}.week-card :deep(.system-linked-record-field__actions){flex-wrap:wrap}.week-card :deep(.system-linked-record-field__actions button){min-width:0;max-width:100%;white-space:normal}.week-card p{margin:0}.route-row{grid-template-columns:minmax(10rem,.45fr) minmax(15rem,1fr) minmax(12rem,.65fr)}.route-row>strong{align-self:center}@media(max-width:70rem){.week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:44rem){.plan-mix__row,.route-row,.week-grid{grid-template-columns:1fr}.workforce-list article,.capacity-status-card{align-items:flex-start;flex-direction:column}}
-@media(max-width:70rem){.capacity-window-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:44rem){.capacity-window-grid,.forecast-mix article{grid-template-columns:1fr}}
+@media(max-width:70rem){.capacity-window-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.capacity-run-list article{grid-template-columns:repeat(3,minmax(0,1fr))}.run-actions{grid-column:1/-1}}@media(max-width:44rem){.capacity-window-grid,.forecast-mix article,.forecast-settings,.capacity-run-list article{grid-template-columns:minmax(0,1fr)}.capacity-run-list article>*{min-width:0}.capacity-run-list :deep(.system-linked-record-field__label),.capacity-run-list :deep(.system-linked-record-field>div){width:100%;min-width:0}.run-actions{grid-column:auto;flex-wrap:wrap}.forecast-week-heading{align-items:flex-start;flex-direction:column}}
 </style>

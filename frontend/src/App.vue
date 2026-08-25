@@ -20,6 +20,7 @@ import { assignScanCode, getInventorySnapshot, getProductionPlanSnapshot, getWor
 const sections = [
   { id: "overview", label: "Dashboard" },
   { id: "planning", label: "Planning" },
+  { id: "forecasting", label: "Forecasting" },
   { id: "buying", label: "Buying" },
   { id: "receipts", label: "Receipts" },
   { id: "production", label: "Production" },
@@ -61,7 +62,7 @@ function navigate(id) {
 }
 
 function openEmployees(origin) {
-  employeeReturnSection.value = origin === "planning" ? "planning" : "production"
+  employeeReturnSection.value = ["planning", "forecasting"].includes(origin) ? origin : "production"
   navigate("employees")
 }
 
@@ -111,6 +112,7 @@ onMounted(loadAll)
     <SystemProductionMeasurement v-else-if="activeSection === 'production'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-worker-sheets="navigate('documents')" @open-employees="openEmployees('production')" />
     <SystemEmployeeManagement v-else-if="activeSection === 'employees'" @close="navigate(employeeReturnSection)" @changed="loadAll" />
     <SystemMonthlyPlanning v-else-if="activeSection === 'planning'" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-employees="openEmployees('planning')" />
+    <SystemMonthlyPlanning v-else-if="activeSection === 'forecasting'" mode="forecasting" :snapshot="snapshot" :plan="plan" @changed="loadAll" @open-employees="openEmployees('forecasting')" />
     <SystemBuyingPlan v-else-if="activeSection === 'buying'" :snapshot="snapshot" :plan="plan" @open-workflow="navigate" />
     <SystemDocumentReview v-else-if="activeSection === 'documents'" :snapshot="snapshot" :inventory="inventory" @changed="loadAll" />
     <SystemPriceHistory v-else-if="activeSection === 'finance'" mode="finance" :snapshot="snapshot" :inventory="inventory" @open-workflow="navigate" @changed="loadAll" />

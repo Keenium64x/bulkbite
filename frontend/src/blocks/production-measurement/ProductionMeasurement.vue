@@ -1,7 +1,8 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue"
-import { SystemBadge, SystemCheckboxShadcn, SystemDatePicker, SystemFormControl, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
-import { createRunFromPlan, discardProductionRun, saveProductionEmployees, submitProductionRun, updateProductionActuals } from "@/resources/api"
+import { useRouter } from "vue-router"
+import { SystemBadge, SystemCheckboxShadcn, SystemDatePicker, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
+import { createRunFromPlan, discardProductionRun, getRecipeExpectation, saveProductionEmployees, submitProductionRun, updateProductionActuals } from "@/resources/api"
 
 // =============================================================================
 // region PLANNED PRODUCTION STATION
@@ -9,6 +10,7 @@ import { createRunFromPlan, discardProductionRun, saveProductionEmployees, submi
 
 const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null } })
 const emit = defineEmits(["changed", "open-worker-sheets", "open-employees"])
+const router = useRouter()
 const localToday = () => { const value = new Date(); return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}` }
 const productionDate = ref(localToday())
 const actualOutput = ref(0)
@@ -17,6 +19,9 @@ const measurements = reactive([])
 const employeeRows = reactive([])
 const teamTemplate = ref("")
 const actualElapsedHours = ref(0)
+const selectedRecipe = ref("")
+const plannedOutput = ref(0)
+const directionAction = ref("Advance Direction")
 const run = ref(null)
 const busy = ref(false)
 const error = ref("")
@@ -39,6 +44,9 @@ function hydrateStation(value) {
   if (!row) return
   productionDate.value = run.value?.production_date || row.planned_date || localToday()
   actualOutput.value = roundQuantity(run.value?.actual_output_qty ?? row.planned_output_qty)
+  plannedOutput.value = roundQuantity(run.value?.planned_output_qty ?? row.planned_output_qty)
+  selectedRecipe.value = run.value?.recipe || row.recipe
+  directionAction.value = run.value?.direction_action || "Advance Direction"
   notes.value = run.value?.notes || ""
   const runIngredients = new Map((run.value?.ingredients || []).map(item => [item.item_code, item]))
   row.ingredients.forEach(item => {
@@ -59,7 +67,9 @@ async function saveRun() {
     if (!productionDate.value) throw new Error("Choose the production date.")
     if (Number(actualOutput.value) <= 0) throw new Error("Food made must be greater than zero.")
     if (measurements.some(item => Number(item.measurement_method === "Remaining" ? item.remaining_qty : item.actual_qty) < 0)) throw new Error("Ingredient measurements cannot be negative.")
-    if (!run.value) run.value = await createRunFromPlan(props.plan.name, selectedRow.value.name, productionDate.value, props.plan.location, "Finished Meals")
+    if (!selectedRecipe.value) throw new Error("Choose the meal that was made.")
+    if (Number(plannedOutput.value) <= 0) throw new Error("Planned output must be greater than zero.")
+    if (!run.value) run.value = await createRunFromPlan(props.plan.name, selectedRow.value.name, productionDate.value, props.plan.location, "Finished Meals", selectedRecipe.value, plannedOutput.value, directionAction.value)
     run.value = await updateProductionActuals(run.value.name, roundQuantity(actualOutput.value), measurements.map(item => ({ item_code: item.item_code, measurement_method: item.measurement_method, actual_qty: roundQuantity(item.actual_qty), remaining_qty: roundQuantity(item.remaining_qty) })), notes.value)
     run.value = await saveProductionEmployees(run.value.name, employeeRows, teamTemplate.value, actualElapsedHours.value, selectedCapacityWindow.value?.scheduled_elapsed_hours)
     dirtySinceSave.value = false
@@ -104,6 +114,12 @@ const planningRate = computed(() => Number(props.plan?.workforce?.planning_labou
 const runOutput = computed(() => Number(actualOutput.value || selectedRow.value?.planned_output_qty || 0))
 const teamTemplates = computed(() => props.snapshot?.options?.team_templates || [])
 const teamTemplateOptions = computed(() => teamTemplates.value.map(row => ({ label: row.template_name, value: row.name })))
+const recipeOptions = computed(() => (props.snapshot?.options?.recipes || []).map(row => ({ label: row.recipe_name, value: row.name })))
+const directionOptions = [
+  { label: "Advance to the next planned meal", value: "Advance Direction" },
+  { label: "Repeat this planned meal next time", value: "Repeat Meal" },
+  { label: "Off-plan meal, leave direction where it is", value: "Off Plan" },
+]
 const actualTeam = computed(() => employeeRows.filter(row => row.completion_status === "Completed" && row.employee))
 const labourHours = computed(() => actualTeam.value.reduce((sum, row) => sum + Number(row.custom_hours ? row.hours_worked : actualElapsedHours.value), 0))
 const actualRate = computed(() => runOutput.value ? labourHours.value * 60 / runOutput.value : 0)
@@ -120,6 +136,17 @@ function applyTeamTemplate() {
   employeeRows.splice(0, employeeRows.length, ...template.members.map(member => ({ employee: member.employee, employee_name: member.employee_name, employee_type: member.employee_type, custom_hours: Number(member.default_hours_override || 0) > 0, hours_worked: Number(member.default_hours_override || actualElapsedHours.value), completion_status: "Completed", notes: "" })))
   dirtySinceSave.value = true
 }
+async function changeRecipe(recipe) {
+  selectedRecipe.value = recipe
+  if (run.value || !recipe || Number(plannedOutput.value) <= 0) return
+  error.value = ""
+  try {
+    const expectation = await getRecipeExpectation(recipe, plannedOutput.value, props.plan.location)
+    measurements.splice(0, measurements.length, ...expectation.ingredients.map(item => ({ ...item, available_qty: item.available_before_measurement, measurement_method: "Used", actual_qty: roundQuantity(item.expected_qty), remaining_qty: roundQuantity(item.available_before_measurement) })))
+    actualOutput.value = plannedOutput.value
+  } catch (exception) { error.value = exception.message }
+}
+function openRecipeRecords(create = false) { router.push({ name: create ? "AuxiliaryRecordCreate" : "BulkBiteSetupList", params: { doctype: "BulkBite Recipe" } }) }
 
 // endregion PLANNED PRODUCTION STATION
 </script>
@@ -131,7 +158,9 @@ function applyTeamTemplate() {
     <div v-if="!plan" class="state-message">Set the current meal direction before recording production.</div>
     <template v-else-if="selectedRow">
       <section class="form-section">
-        <div class="section-heading"><div><p class="eyebrow">Current meal</p><h2>{{ selectedRow.finished_item_name }}</h2><p>{{ plan.plan_title }}, meal {{ selectedRow.week_number }}. The saved draft keeps this theory even if customer counts change later.</p></div><SystemBadge>{{ quantity(selectedRow.planned_output_qty) }} kg expected</SystemBadge></div>
+        <div class="section-heading"><div><p class="eyebrow">Current direction</p><h2>{{ selectedRow.finished_item_name }}</h2><p>{{ plan.plan_title }}, meal {{ selectedRow.week_number }}. Choose whether this run completes the planned meal, repeats it next time, or records something off plan.</p></div><SystemBadge>{{ quantity(selectedRow.planned_output_qty) }} kg expected</SystemBadge></div>
+        <div class="production-direction-grid"><SystemLinkedRecordField :model-value="selectedRecipe" label="Meal actually made" :options="recipeOptions" placeholder="Choose a recipe" create-label="Create recipe" manage-label="Manage recipes" :disabled="Boolean(run)" @update:model-value="changeRecipe" @create="openRecipeRecords(true)" @manage="openRecipeRecords(false)" /><SystemSelect v-model="directionAction" label="After this run" :options="directionOptions" :disabled="Boolean(run)" /><SystemFormControl v-model="plannedOutput" type="number" label="Target for this run (kg)" min="0.1" step="0.1" :disabled="Boolean(run)" /></div>
+        <div class="direction-note"><strong v-if="directionAction === 'Repeat Meal'">This planned meal will stay next after posting.</strong><strong v-else-if="directionAction === 'Off Plan'">This run will post actual stock and labour but will not move the meal direction.</strong><strong v-else>The direction will advance after this run, even if actual output is below the target.</strong></div>
         <div class="production-topline"><div class="field-grid"><SystemDatePicker v-model="productionDate" label="Production date" format="YYYY-MM-DD" :disabled="Boolean(run)" :clearable="false" /><SystemFormControl v-model="actualOutput" type="number" label="Food made (kg)" min="0" step="0.1" size="lg" /></div><div class="button-row"><SystemOperationalButton v-if="!run || !run.docstatus" variant="outline" size="lg" :loading="busy" @click="saveRun">Save draft</SystemOperationalButton><SystemOperationalButton v-if="run && !run.docstatus" variant="ghost" size="lg" :disabled="busy" @click="discardRun">Discard draft</SystemOperationalButton><SystemOperationalButton v-if="run && !run.docstatus" variant="solid" size="lg" :loading="busy" :disabled="dirtySinceSave" @click="postRun">Post production</SystemOperationalButton></div></div>
       </section>
       <section class="data-section">
@@ -157,7 +186,8 @@ function applyTeamTemplate() {
 </template>
 
 <style scoped>
+.production-direction-grid{display:grid;grid-template-columns:minmax(16rem,1fr) minmax(16rem,1fr) minmax(10rem,.5fr);align-items:end;gap:var(--spacing-s);margin-bottom:var(--spacing-s)}.direction-note{margin-bottom:var(--spacing-s);padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-field);background:var(--theme-secondary);color:var(--theme-text-muted)}
 .team-template-row{display:grid;grid-template-columns:minmax(14rem,1fr) auto minmax(12rem,.7fr);align-items:end;gap:var(--spacing-s);margin-bottom:var(--spacing-s)}.run-performance-card{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);margin-bottom:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card)}.run-performance-card.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 10%,var(--theme-surface-raised))}.run-performance-card.is-ready{border-color:color-mix(in oklch,var(--theme-success) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 10%,var(--theme-surface-raised))}.run-performance-card span,.run-performance-card p,.run-performance-card small{color:var(--theme-text-muted)}.run-performance-card strong{display:block;margin-top:var(--spacing-3xs);font-size:var(--font-size-2)}.run-performance-card p{margin:var(--spacing-3xs) 0 0}.run-performance-card>div:last-child{display:grid;justify-items:end;gap:var(--spacing-3xs)}.calculated-hours{display:grid;align-content:center;gap:var(--spacing-3xs);min-height:2.75rem}.calculated-hours span{color:var(--theme-text-muted);font-size:var(--font-size--2)}
 .production-topline{display:flex;align-items:end;justify-content:space-between;gap:var(--spacing-s);flex-wrap:wrap}.production-topline>.field-grid{flex:1 1 34rem}.production-topline>.button-row{justify-content:flex-end}.run-capacity-card{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);margin-bottom:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card)}.run-capacity-card.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 10%,var(--theme-surface-raised))}.run-capacity-card.is-ready{border-color:color-mix(in oklch,var(--theme-success) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 10%,var(--theme-surface-raised))}.run-capacity-card span,.run-capacity-card p,.run-capacity-card small{color:var(--theme-text-muted)}.run-capacity-card strong{display:block;margin-top:var(--spacing-3xs);font-size:var(--font-size-2)}.run-capacity-card p{margin:var(--spacing-3xs) 0 0}.run-capacity-card>div:last-child{display:grid;justify-items:end;gap:var(--spacing-3xs)}.employee-assignment-list{display:grid;gap:var(--spacing-xs)}.employee-assignment-list article{display:grid;grid-template-columns:1fr .65fr .75fr .75fr 1fr auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-secondary)}.employee-assignment-list article>small{grid-column:1/-1;color:var(--theme-text-muted)}@media(max-width:70rem){.employee-assignment-list article{grid-template-columns:repeat(3,minmax(0,1fr))}.employee-assignment-list article>*:last-of-type{justify-self:start}}@media(max-width:52rem){.production-topline,.production-topline>.field-grid{display:grid;grid-template-columns:1fr;width:100%}.production-topline>.button-row{justify-content:stretch}.production-topline>.button-row>*{flex:1 1 auto}.employee-assignment-list article{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:44rem){.employee-assignment-list article{grid-template-columns:1fr}.run-capacity-card{align-items:flex-start;flex-direction:column}.run-capacity-card>div:last-child{justify-items:start}}
-@media(max-width:52rem){.team-template-row{grid-template-columns:1fr 1fr}.team-template-row>*:first-child{grid-column:1/-1}}@media(max-width:44rem){.team-template-row{grid-template-columns:1fr}.team-template-row>*:first-child{grid-column:auto}.run-performance-card{align-items:flex-start;flex-direction:column}.run-performance-card>div:last-child{justify-items:start}}
+@media(max-width:70rem){.production-direction-grid{grid-template-columns:1fr 1fr}.production-direction-grid>*:last-child{grid-column:1/-1}}@media(max-width:52rem){.team-template-row{grid-template-columns:1fr 1fr}.team-template-row>*:first-child{grid-column:1/-1}}@media(max-width:44rem){.production-direction-grid,.team-template-row{grid-template-columns:1fr}.production-direction-grid>*:last-child,.team-template-row>*:first-child{grid-column:auto}.run-performance-card{align-items:flex-start;flex-direction:column}.run-performance-card>div:last-child{justify-items:start}}
 </style>

@@ -42,6 +42,7 @@ export const getWorkspaceSnapshot = () => call("bulkbite.api.get_workspace_snaps
 export const logOut = () => call("logout")
 export const getInventorySnapshot = (location) => call("bulkbite.api.get_inventory_snapshot", { location }, "GET")
 export const getProductionPlanSnapshot = (planName, location) => call("bulkbite.api.get_production_plan_snapshot", { plan_name: planName, location }, "GET")
+export const calculateCapacityScenario = (payload) => call("bulkbite.api.calculate_capacity_scenario", { payload })
 export const saveMonthlyProductionPlan = (payload) => call("bulkbite.api.save_monthly_production_plan", { payload })
 export const cancelProductionPlan = (name) => call("bulkbite.api.cancel_production_plan", { name })
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")
@@ -50,13 +51,17 @@ export const getAuxiliaryCatalogue = () => call("bulkbite.api.get_auxiliary_form
 export const getAuxiliaryRecordList = (doctype) => call("bulkbite.api.get_auxiliary_record_list", { doctype }, "GET")
 export const getAuxiliaryRecord = (doctype, name) => call("bulkbite.api.get_auxiliary_record", { doctype, name }, "GET")
 export const saveAuxiliaryRecord = (doctype, name, values, tables) => call("bulkbite.api.save_auxiliary_record", { doctype, name, values, tables })
-export const createRunFromPlan = (planName, planRowName, productionDate, sourceLocation, targetLocation) =>
+export const getRecipeExpectation = (recipe, plannedOutputQty, sourceLocation) => call("bulkbite.api.get_recipe_expectation", { recipe, planned_output_qty: plannedOutputQty, source_location: sourceLocation }, "GET")
+export const createRunFromPlan = (planName, planRowName, productionDate, sourceLocation, targetLocation, recipe, plannedOutputQty, directionAction) =>
   call("bulkbite.api.create_run_from_plan", {
     plan_name: planName,
     plan_row_name: planRowName,
     production_date: productionDate,
     source_location: sourceLocation,
     target_location: targetLocation,
+    recipe,
+    planned_output_qty: plannedOutputQty,
+    direction_action: directionAction,
   })
 export const updateProductionActuals = (name, actualOutputQty, ingredients, notes) =>
   call("bulkbite.api.update_production_actuals", { name, actual_output_qty: actualOutputQty, ingredients, notes })

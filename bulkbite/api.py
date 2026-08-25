@@ -834,7 +834,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	runs = frappe.get_all(
 		"BulkBite Production Run",
 		filters={"production_plan": plan.name},
-		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
+		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
 		order_by="production_date, creation",
 	)
 	result = {
@@ -892,10 +892,22 @@ def _build_capacity_plan(plan, current_mix, workforce):
 		}
 		for row in current_mix
 	]
+	capacity_runs = [
+		{
+			"week_number": int(row.week_number or 1),
+			"run_number": int(row.run_number or 1),
+			"day_of_week": row.day_of_week,
+			"scheduled_elapsed_hours": flt(row.scheduled_elapsed_hours),
+			"team_template": row.team_template,
+			"planned_people": int(row.planned_people or 0),
+		}
+		for row in plan.capacity_runs or []
+	]
 	return {
 		"forecast_weeks": int(plan.forecast_weeks or 4),
 		"default_team_template": plan.default_team_template,
 		"windows": windows,
+		"runs": capacity_runs,
 		"target_customer_mix": target_mix,
 		"forecast": calculate_capacity_forecast(
 			current_mix,
@@ -903,7 +915,25 @@ def _build_capacity_plan(plan, current_mix, workforce):
 			plan.forecast_weeks or 4,
 			windows,
 			workforce.get("planning_labour_minutes_per_kg"),
+			capacity_runs,
 		),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def calculate_capacity_scenario(payload=None):
+	"""Calculate one unsaved production-capacity scenario without changing the active direction."""
+	_require_roles("BulkBite Manager")
+	data = _as_dict(payload)
+	return {
+		"forecast": calculate_capacity_forecast(
+			_as_list(data.get("current_mix")),
+			_as_list(data.get("target_mix")),
+			data.get("forecast_weeks") or 4,
+			_as_list(data.get("capacity_windows")),
+			flt(data.get("labour_minutes_per_kg")),
+			_as_list(data.get("capacity_runs")),
+		)
 	}
 
 
@@ -980,6 +1010,21 @@ def save_monthly_production_plan(payload=None):
 			for row in _as_list(data.get("forecast_customer_mix")) if row.get("plan_type")
 		],
 	)
+	plan.set(
+		"capacity_runs",
+		[
+			{
+				"week_number": max(min(int(row.get("week_number") or 1), 4), 1),
+				"run_number": max(int(row.get("run_number") or 1), 1),
+				"day_of_week": row.get("day_of_week") or "Monday",
+				"scheduled_elapsed_hours": max(flt(row.get("scheduled_elapsed_hours")), 0),
+				"team_template": row.get("team_template") or plan.default_team_template,
+				"planned_people": max(int(row.get("planned_people") or 0), 0),
+			}
+			for row in _as_list(data.get("capacity_runs"))
+			if flt(row.get("scheduled_elapsed_hours")) > 0
+		],
+	)
 	plan.save()
 	frappe.db.set_value(
 		"BulkBite Production Plan",
@@ -993,7 +1038,7 @@ def save_monthly_production_plan(payload=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def create_run_from_plan(plan_name, plan_row_name, production_date, source_location, target_location):
+def create_run_from_plan(plan_name, plan_row_name, production_date, source_location, target_location, recipe=None, planned_output_qty=None, direction_action=None):
 	"""Turn one planned recipe row into a measurable production draft."""
 	_require_roles("BulkBite Worker", "BulkBite Manager")
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
@@ -1004,6 +1049,11 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 	cycle_number = int(station.get("cycle_number") or 1)
 	if station.get("row") and station["row"].get("name") != plan_row.name:
 		frappe.throw(_("This meal slot is not the next production in the current direction."))
+	direction_action = direction_action or "Advance Direction"
+	if direction_action not in {"Advance Direction", "Repeat Meal", "Off Plan"}:
+		frappe.throw(_("Choose whether this run advances, repeats, or sits outside the meal direction."))
+	recipe = recipe or plan_row.recipe
+	planned_output_qty = round_operational_quantity(planned_output_qty or plan_row.planned_output_qty)
 	existing = frappe.db.get_value(
 		"BulkBite Production Run",
 		{
@@ -1031,15 +1081,16 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 			"production_plan_row": plan_row.name,
 			"plan_week_number": plan_row.week_number,
 			"cycle_number": cycle_number,
-			"recipe": plan_row.recipe,
-			"planned_output_qty": plan_row.planned_output_qty,
-			"actual_output_qty": plan_row.planned_output_qty,
+			"direction_action": direction_action,
+			"recipe": recipe,
+			"planned_output_qty": planned_output_qty,
+			"actual_output_qty": planned_output_qty,
 			"team_template": capacity_window.get("team_template") or plan.default_team_template,
 			"scheduled_elapsed_hours": capacity_window.get("scheduled_elapsed_hours"),
 			"planned_takt_minutes_per_kg": workforce.get("planning_labour_minutes_per_kg"),
 			"source_location": source_location,
 			"target_location": target_location,
-			"notes": _("Created from production plan {0}, week {1}.").format(plan.name, plan_row.week_number),
+			"notes": _("Created from production plan {0}, meal {1}. Direction action: {2}.").format(plan.name, plan_row.week_number, direction_action),
 		}
 	)
 
@@ -1067,7 +1118,7 @@ def _next_production_station(rows, runs):
 				"cycle_number": int(draft.cycle_number or 1),
 			}
 	posted = sorted(
-		(row for row in runs if row.docstatus),
+		(row for row in runs if row.docstatus and (row.direction_action or "Advance Direction") != "Off Plan"),
 		key=lambda value: (int(value.cycle_number or 1), int(value.plan_week_number or 0), value.production_date, value.creation),
 	)
 	if not posted:
@@ -1077,6 +1128,8 @@ def _next_production_station(rows, runs):
 	if not latest_week and latest.production_plan_row in row_by_name:
 		latest_week = int(row_by_name[latest.production_plan_row]["week_number"])
 	latest_week = latest_week or 1
+	if (latest.direction_action or "Advance Direction") == "Repeat Meal":
+		return {"state": "ready", "row": row_by_number[latest_week], "run": None, "cycle_number": int(latest.cycle_number or 1)}
 	next_week = latest_week + 1 if latest_week < len(ordered_rows) else 1
 	next_cycle = int(latest.cycle_number or 1) + (1 if next_week == 1 else 0)
 	return {"state": "ready", "row": row_by_number[next_week], "run": None, "cycle_number": next_cycle}
@@ -1994,6 +2047,7 @@ def _serialize_run(run):
 		"production_plan_row": run.production_plan_row,
 		"plan_week_number": run.plan_week_number,
 		"cycle_number": run.cycle_number,
+		"direction_action": run.direction_action,
 		"recipe": run.recipe,
 		"finished_item": run.finished_item,
 		"planned_output_qty": round(flt(run.planned_output_qty), 3),
