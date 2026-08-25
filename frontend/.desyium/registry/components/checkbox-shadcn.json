@@ -1,0 +1,23 @@
+{
+  "id": "checkbox-shadcn",
+  "name": "Checkbox Shadcn",
+  "job": "Operational boolean or multiple selection using shadcn-vue",
+  "category": "Project",
+  "provider": "project",
+  "source": "@/components/checkbox-shadcn/CheckboxShadcn.vue",
+  "install": {
+    "type": "none"
+  },
+  "states": [
+    "default",
+    "focus",
+    "disabled"
+  ],
+  "exports": [
+    {
+      "source": "default",
+      "public": "SystemCheckboxShadcn",
+      "class": "system-checkbox-shadcn"
+    }
+  ]
+}
