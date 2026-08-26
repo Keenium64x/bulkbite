@@ -8,12 +8,15 @@ import { getInventorySnapshot, getWorkspaceSnapshot, logOut } from "@/resources/
 // =============================================================================
 
 const sections = [
-  { id: "overview", number: "01", label: "Stock" },
-  { id: "receipts", number: "02", label: "Receipts" },
-  { id: "production", number: "03", label: "Production" },
-  { id: "documents", number: "04", label: "Worker sheets" },
-  { id: "counts", number: "05", label: "Stock count" },
-  { id: "prices", label: "Price history" },
+  { id: "overview", label: "Dashboard" },
+  { id: "receipts", label: "Receipts" },
+  { id: "production", label: "Production" },
+  { id: "planning", label: "Planning", group: "theoretical" },
+  { id: "forecasting", label: "Forecasting", group: "theoretical" },
+  { id: "buying", label: "Buying", group: "theoretical" },
+  { id: "finance", label: "Finance", group: "theoretical" },
+  { id: "export", label: "Reports", group: "theoretical" },
+  { id: "stock", label: "Stock", group: "theoretical" },
 ]
 const snapshot = ref(null)
 const inventory = ref(null)
@@ -37,6 +40,12 @@ async function loadPage() {
 }
 
 function navigate(id) {
+  if (typeof id === "object") {
+    if (id.mode === "workflow") return window.location.assign(id.id === "overview" ? "/bulkbite" : `/bulkbite?work=${encodeURIComponent(id.id)}`)
+    if (id.mode === "route") return window.location.assign(id.href)
+    if (id.mode === "catalogue") return window.location.assign("/bulkbite/setup")
+    if (id.mode === "list") return window.location.assign(`/bulkbite/setup/${encodeURIComponent(id.doctype)}`)
+  }
   if (id === "prices") return
   window.location.assign(id === "overview" ? "/bulkbite" : `/bulkbite?work=${encodeURIComponent(id)}`)
 }

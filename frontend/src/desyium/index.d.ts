@@ -32,6 +32,14 @@ export declare const SystemListView: Component
 export declare const SystemMonthPicker: Component
 export declare const SystemMultiFileUploader: Component
 export declare const SystemMultiSelect: Component
+export declare const SystemNavigationMenu: Component
+export declare const SystemNavigationMenuContent: Component
+export declare const SystemNavigationMenuIndicator: Component
+export declare const SystemNavigationMenuItem: Component
+export declare const SystemNavigationMenuLink: Component
+export declare const SystemNavigationMenuList: Component
+export declare const SystemNavigationMenuTrigger: Component
+export declare const SystemNavigationMenuViewport: Component
 export declare const SystemOperationalButton: Component
 export declare const SystemOperationalProgress: Component
 export declare const SystemProgress: Component

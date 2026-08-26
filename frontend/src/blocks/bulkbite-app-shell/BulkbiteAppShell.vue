@@ -1,40 +1,52 @@
 <script setup>
-import { ref } from "vue"
+import { computed, ref } from "vue"
 import {
-  CalendarDays,
+  BadgeDollarSign,
+  ClipboardCheck,
   ChevronRight,
   CookingPot,
+  FileText,
   LogIn,
   LogOut,
-  MapPin,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
-  ReceiptText,
-  Tags,
   Settings,
   Truck,
   UsersRound,
   UserRound,
 } from "lucide-vue-next"
-import { SystemLink, SystemOperationalButton } from "@/desyium"
+import {
+  SystemLink,
+  SystemNavigationMenu,
+  SystemNavigationMenuContent,
+  SystemNavigationMenuItem,
+  SystemNavigationMenuLink,
+  SystemNavigationMenuList,
+  SystemNavigationMenuTrigger,
+  SystemOperationalButton,
+} from "@/desyium"
 
 // =============================================================================
 // region SHELL CONTRACT
 // =============================================================================
 
-defineProps({
+const props = defineProps({
   sections: { type: Array, required: true },
-  setupLinks: { type: Array, default: () => [
-    { label: "Items", icon: Package, doctype: "BulkBite Item", href: "/bulkbite/setup/BulkBite%20Item" },
-    { label: "Food categories", icon: Tags, doctype: "BulkBite Item Category", href: "/bulkbite/setup/BulkBite%20Item%20Category" },
-    { label: "Recipes", icon: CookingPot, doctype: "BulkBite Recipe", href: "/bulkbite/setup/BulkBite%20Recipe" },
-    { label: "Suppliers", icon: Truck, doctype: "BulkBite Supplier", href: "/bulkbite/setup/BulkBite%20Supplier" },
-    { label: "Supplier offers", icon: ReceiptText, doctype: "BulkBite Supplier Offer", href: "/bulkbite/setup/BulkBite%20Supplier%20Offer" },
-    { label: "Locations", icon: MapPin, doctype: "BulkBite Location", href: "/bulkbite/setup/BulkBite%20Location" },
-    { label: "Meal plans", icon: CalendarDays, doctype: "BulkBite Production Plan", href: "/bulkbite/setup/BulkBite%20Production%20Plan" },
-    { label: "Customer plans", icon: UserRound, doctype: "BulkBite Customer Plan Type", href: "/bulkbite/setup/BulkBite%20Customer%20Plan%20Type" },
-    { label: "Team templates", icon: UsersRound, doctype: "BulkBite Team Template", href: "/bulkbite/setup/BulkBite%20Team%20Template" },
+  theoreticalContextSections: { type: Array, default: () => ["prices"] },
+  sidebarGroups: { type: Array, default: () => [
+    { label: "Daily tools", links: [
+      { label: "Employees", icon: UsersRound, href: "/bulkbite?work=employees", target: { mode: "workflow", id: "employees" } },
+      { label: "Worker sheets", icon: FileText, href: "/bulkbite?work=documents", target: { mode: "workflow", id: "documents" } },
+      { label: "Price catalogue", icon: BadgeDollarSign, href: "/bulkbite/prices", target: { mode: "route", href: "/bulkbite/prices" } },
+      { label: "Stock count", icon: ClipboardCheck, href: "/bulkbite?work=stock", target: { mode: "workflow", id: "stock" } },
+    ] },
+    { label: "Manage", links: [
+      { label: "Items", icon: Package, href: "/bulkbite/setup/BulkBite%20Item", target: { mode: "list", doctype: "BulkBite Item" } },
+      { label: "Recipes", icon: CookingPot, href: "/bulkbite/setup/BulkBite%20Recipe", target: { mode: "list", doctype: "BulkBite Recipe" } },
+      { label: "Suppliers", icon: Truck, href: "/bulkbite/setup/BulkBite%20Supplier", target: { mode: "list", doctype: "BulkBite Supplier" } },
+      { label: "Teams", icon: UsersRound, href: "/bulkbite/setup/BulkBite%20Team%20Template", target: { mode: "list", doctype: "BulkBite Team Template" } },
+    ] },
   ] },
   activeSection: { type: String, required: true },
   user: { type: String, default: "" },
@@ -42,7 +54,7 @@ defineProps({
   sessionBusy: { type: Boolean, default: false },
 })
 
-defineEmits(["navigate", "refresh", "logout"])
+const emit = defineEmits(["navigate", "refresh", "logout"])
 
 // endregion SHELL CONTRACT
 
@@ -51,10 +63,29 @@ defineEmits(["navigate", "refresh", "logout"])
 // =============================================================================
 
 const sidebarCollapsed = ref(window.localStorage.getItem("bulkbite-sidebar") === "collapsed")
+const theoreticalMenu = ref("")
+const primarySections = computed(() => props.sections.filter(section => section.group !== "theoretical"))
+const theoreticalSections = computed(() => props.sections.filter(section => section.group === "theoretical"))
+const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
   window.localStorage.setItem("bulkbite-sidebar", sidebarCollapsed.value ? "collapsed" : "expanded")
+}
+
+function navigateTheoretical(sectionId) {
+  theoreticalMenu.value = ""
+  emit("navigate", sectionId)
+}
+
+function navigateSidebar(target) {
+  emit("navigate", target)
+}
+
+function sidebarLinkIsActive(link) {
+  if (link.target.mode === "workflow") return props.activeSection === link.target.id
+  if (link.target.mode === "route") return window.location.pathname === link.target.href
+  return false
 }
 
 // endregion SIDEBAR STATE
@@ -74,14 +105,23 @@ function toggleSidebar() {
         </SystemOperationalButton>
       </header>
 
-      <nav class="app-shell__utility-nav" aria-label="Setup records">
-        <p class="app-shell__nav-label">Setup</p>
-        <SystemLink v-for="link in setupLinks" :key="link.href" :href="link.href" class="app-shell__utility-link" :title="sidebarCollapsed ? link.label : undefined" :aria-label="sidebarCollapsed ? link.label : undefined" @click.prevent="$emit('navigate', { mode: 'list', doctype: link.doctype })">
-          <span class="app-shell__sidebar-icon" aria-hidden="true"><component :is="link.icon || Settings" /></span>
-          <span class="app-shell__utility-label">{{ link.label }}</span>
-          <ChevronRight class="app-shell__utility-arrow" aria-hidden="true" />
-        </SystemLink>
-      </nav>
+      <div class="app-shell__sidebar-navigation">
+        <nav v-for="group in sidebarGroups" :key="group.label" class="app-shell__utility-nav" :aria-label="group.label">
+          <p class="app-shell__nav-label">{{ group.label }}</p>
+          <SystemLink v-for="link in group.links" :key="link.href" :href="link.href" class="app-shell__utility-link" :class="{ 'is-active': sidebarLinkIsActive(link) }" :title="sidebarCollapsed ? link.label : undefined" :aria-label="sidebarCollapsed ? link.label : undefined" @click.prevent="navigateSidebar(link.target)">
+            <span class="app-shell__sidebar-icon" aria-hidden="true"><component :is="link.icon || Settings" /></span>
+            <span class="app-shell__utility-label">{{ link.label }}</span>
+            <ChevronRight class="app-shell__utility-arrow" aria-hidden="true" />
+          </SystemLink>
+        </nav>
+        <nav class="app-shell__utility-nav app-shell__utility-nav--all" aria-label="All setup records">
+          <SystemLink href="/bulkbite/setup" class="app-shell__utility-link" :title="sidebarCollapsed ? 'All setup' : undefined" :aria-label="sidebarCollapsed ? 'All setup' : undefined" @click.prevent="navigateSidebar({ mode: 'catalogue' })">
+            <span class="app-shell__sidebar-icon" aria-hidden="true"><Settings /></span>
+            <span class="app-shell__utility-label">All setup</span>
+            <ChevronRight class="app-shell__utility-arrow" aria-hidden="true" />
+          </SystemLink>
+        </nav>
+      </div>
 
       <footer class="app-shell__sidebar-footer">
         <section class="app-shell__account" aria-label="Account">
@@ -121,9 +161,26 @@ function toggleSidebar() {
 
         <nav class="app-shell__nav" aria-label="Main stock flow">
           <div class="app-shell__nav-inner">
-            <SystemOperationalButton v-for="section in sections" :key="section.id" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
+            <SystemOperationalButton v-for="section in primarySections" :key="section.id" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
               <span>{{ section.label }}</span>
             </SystemOperationalButton>
+            <SystemNavigationMenu v-if="theoreticalSections.length" v-model="theoreticalMenu" class="app-shell__theoretical" :disable-hover-trigger="true">
+              <SystemNavigationMenuList>
+                <SystemNavigationMenuItem value="theoretical">
+                  <SystemNavigationMenuTrigger class="app-shell__nav-button app-shell__theoretical-trigger" :class="{ 'is-active': theoreticalActive }" :aria-current="theoreticalActive ? 'page' : undefined">Theoretical</SystemNavigationMenuTrigger>
+                  <SystemNavigationMenuContent class="app-shell__theoretical-content">
+                    <div class="app-shell__theoretical-list" aria-label="Theoretical workflows">
+                      <SystemNavigationMenuLink v-for="section in theoreticalSections" :key="section.id" as-child :active="activeSection === section.id">
+                        <SystemLink :href="`/bulkbite?work=${encodeURIComponent(section.id)}`" class="app-shell__theoretical-link" :class="{ 'is-active': activeSection === section.id }" @click.prevent="navigateTheoretical(section.id)">
+                          <span>{{ section.label }}</span>
+                          <ChevronRight aria-hidden="true" />
+                        </SystemLink>
+                      </SystemNavigationMenuLink>
+                    </div>
+                  </SystemNavigationMenuContent>
+                </SystemNavigationMenuItem>
+              </SystemNavigationMenuList>
+            </SystemNavigationMenu>
           </div>
         </nav>
       </div>
@@ -136,11 +193,29 @@ function toggleSidebar() {
 <style scoped>
 .app-shell{display:grid;grid-template-columns:16rem minmax(0,1fr);min-height:100vh;background:var(--theme-canvas);color:var(--theme-text);transition:grid-template-columns .18s ease}.app-shell--collapsed{grid-template-columns:4.75rem minmax(0,1fr)}.app-shell__sidebar{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;width:100%;min-width:0;max-width:100%;height:100vh;overflow:hidden;padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-navigation-sidebar-border);background:var(--theme-navigation-sidebar);color:var(--theme-navigation-sidebar-text)}.app-shell__brand{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-xs);min-height:4rem;padding:var(--spacing-xs) var(--spacing-2xs) var(--spacing-s);border-bottom:var(--border-width-1) solid var(--theme-navigation-sidebar-border)}.app-shell__brand-copy,.app-shell__header-copy,.app-shell__account-copy{min-width:0}.app-shell__kicker,.app-shell__descriptor,.app-shell__sidebar p,.app-shell__header p{margin:0}.app-shell__kicker{color:var(--theme-navigation-sidebar-text);font-size:var(--font-size-0);font-weight:var(--font-weight-700)}.app-shell__descriptor{margin-top:var(--spacing-3xs)!important;color:var(--theme-navigation-sidebar-muted);font-size:var(--font-size--2)}.app-shell__collapse{flex:0 0 2.5rem!important;width:2.5rem!important;height:2.5rem!important;min-height:2.5rem!important;padding:0!important;border:var(--border-width-1) solid var(--theme-navigation-sidebar-border)!important;background:var(--theme-navigation-sidebar-control)!important;color:var(--theme-navigation-sidebar-text)!important;box-shadow:none!important}.app-shell__collapse:hover{background:var(--theme-navigation-sidebar-hover)!important}.app-shell__collapse :deep(svg){width:1rem!important;height:1rem!important}.app-shell__utility-nav{display:grid;gap:var(--spacing-3xs);padding-top:var(--spacing-s)}.app-shell__nav-label{padding:0 var(--spacing-xs) var(--spacing-2xs);color:var(--theme-navigation-sidebar-muted);font-size:var(--font-size--2);font-weight:var(--font-weight-600)}.app-shell__utility-link{display:grid;grid-template-columns:2.25rem minmax(0,1fr) 1rem;align-items:center;gap:var(--spacing-2xs);min-height:2.75rem;padding:0 var(--spacing-2xs);border-radius:var(--component-radius-button);color:var(--theme-navigation-sidebar-muted);font-size:var(--font-size--1);line-height:1;text-decoration:none;text-decoration-color:transparent}.app-shell__utility-link:hover{background:var(--theme-navigation-sidebar-hover);color:var(--theme-navigation-sidebar-text);text-decoration:none}.app-shell__utility-link:focus-visible,.app-shell__session-link:focus-visible{outline:2px solid var(--theme-navigation-sidebar-text);outline-offset:2px}.app-shell__sidebar-icon,.app-shell__account-avatar{display:grid;place-items:center;width:2.25rem;height:2.25rem;border-radius:var(--component-radius-button);background:var(--theme-navigation-sidebar-control);color:var(--theme-navigation-sidebar-text)}.app-shell__sidebar-icon svg,.app-shell__account-avatar svg{width:1.05rem;height:1.05rem;stroke-width:1.8}.app-shell__utility-arrow{width:.9rem;height:.9rem}.app-shell__sidebar-footer{display:grid;gap:var(--spacing-xs);margin-top:auto}.app-shell__sidebar-action{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:var(--spacing-xs)!important;width:100%;height:2.75rem!important;min-height:2.75rem!important;padding:0 var(--spacing-xs)!important;border:0!important;border-radius:var(--component-radius-button)!important;background:transparent!important;color:var(--theme-navigation-sidebar-muted)!important;font-size:var(--font-size--1)!important;line-height:1!important;box-shadow:none!important}.app-shell__sidebar-action:hover,.app-shell__export-button.is-active{background:var(--theme-navigation-sidebar-hover)!important;color:var(--theme-navigation-sidebar-text)!important}.app-shell__sidebar-action :is(svg){flex:0 0 1.05rem!important;width:1.05rem!important;height:1.05rem!important;max-width:1.05rem!important;max-height:1.05rem!important}.app-shell__account{display:grid;gap:var(--spacing-2xs);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-navigation-sidebar-border);border-radius:var(--component-radius-card);background:var(--theme-navigation-sidebar-panel)}.app-shell__account-user{display:grid;grid-template-columns:2.25rem minmax(0,1fr);align-items:center;gap:var(--spacing-xs);min-width:0}.app-shell__account-copy{display:grid;gap:var(--spacing-3xs);color:var(--theme-navigation-sidebar-muted);font-size:var(--font-size--2)}.app-shell__account-copy p{overflow:hidden;color:var(--theme-navigation-sidebar-text);text-overflow:ellipsis;white-space:nowrap}.app-shell__account-status{width:max-content;background:var(--theme-navigation-sidebar-control)!important;color:var(--theme-navigation-sidebar-muted)!important}.app-shell__session-link{text-decoration:none}.app-shell--collapsed :is(.app-shell__brand-copy,.app-shell__nav-label,.app-shell__utility-label,.app-shell__utility-arrow,.app-shell__account-copy){display:none}.app-shell--collapsed .app-shell__brand{justify-content:center;padding-inline:0}.app-shell--collapsed .app-shell__utility-link{grid-template-columns:1fr;justify-items:center;padding:0}.app-shell--collapsed .app-shell__sidebar-action{justify-content:center!important;padding-inline:0!important}.app-shell--collapsed .app-shell__account{justify-items:center;padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account-user{grid-template-columns:1fr}.app-shell__main{min-width:0}.app-shell__top-area{position:sticky;top:0;z-index:10;background:var(--theme-navigation-header)}.app-shell__header{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-m);height:4.25rem;padding:0 var(--spacing-m);border-bottom:var(--border-width-1) solid var(--theme-navigation-header-border);background:var(--theme-navigation-header);color:var(--theme-navigation-header-text)}.app-shell__header-label{color:var(--theme-navigation-header-text);font-weight:var(--font-weight-700)}.app-shell__header-note{margin-top:var(--spacing-3xs)!important;color:var(--theme-navigation-header-muted);font-size:var(--font-size--2)}.app-shell__refresh{flex:0 0 8.75rem!important;width:8.75rem!important;min-width:8.75rem!important;max-width:8.75rem!important;height:2.75rem!important;min-height:2.75rem!important;max-height:2.75rem!important;overflow:hidden!important;padding:0 var(--spacing-xs)!important;border:var(--border-width-1) solid var(--theme-navigation-header-border)!important;border-radius:var(--component-radius-button)!important;background:var(--theme-navigation-header-control)!important;color:var(--theme-navigation-header-text)!important;line-height:1!important;white-space:nowrap!important;box-shadow:none!important}.app-shell__refresh:hover{background:var(--theme-navigation-header-hover)!important}.app-shell__refresh :deep(svg){display:block!important;flex:0 0 1rem!important;width:1rem!important;height:1rem!important;min-width:1rem!important;min-height:1rem!important;max-width:1rem!important;max-height:1rem!important;scale:1!important}.app-shell__nav{overflow-x:auto;border-bottom:var(--border-width-1) solid var(--theme-navigation-header-border);background:var(--theme-navigation-tabs)}.app-shell__nav-inner{display:flex;gap:var(--spacing-2xs);width:min(100%,90rem);margin-inline:auto;padding:var(--spacing-xs) var(--spacing-m)}.app-shell__nav :deep(.app-shell__nav-button){position:relative;flex:0 0 auto;gap:var(--spacing-2xs)!important;height:2.75rem!important;min-height:2.75rem!important;padding-inline:var(--spacing-s)!important;border:var(--border-width-1) solid transparent!important;border-radius:var(--component-radius-button)!important;background:var(--theme-navigation-tab)!important;color:var(--theme-navigation-header-muted)!important;box-shadow:none!important}.app-shell__nav :deep(.app-shell__nav-button:hover){border-color:var(--theme-navigation-header-border)!important;background:var(--theme-navigation-tab-hover)!important;color:var(--theme-navigation-header-text)!important}.app-shell__nav :deep(.app-shell__nav-button:focus-visible){outline:2px solid var(--theme-navigation-header-text)!important;outline-offset:2px!important;box-shadow:none!important}.app-shell__nav :deep(.app-shell__nav-button.is-active){border-color:var(--theme-navigation-active-border)!important;background:var(--theme-navigation-active)!important;color:var(--theme-navigation-active-text)!important}.app-shell__nav :deep(.app-shell__nav-button.is-active)::after{position:absolute;right:var(--spacing-s);bottom:-.45rem;left:var(--spacing-s);height:2px;border-radius:999px;background:var(--theme-navigation-active-accent);content:""}.app-shell__nav-number{font-size:var(--font-size--2);font-variant-numeric:tabular-nums;opacity:.74}.app-shell__work{min-width:0;min-height:calc(100vh - 7.75rem);background:var(--theme-canvas)}
 @media(max-width:64rem){.app-shell,.app-shell--collapsed{grid-template-columns:1fr;width:100%;max-width:100vw;overflow-x:clip}.app-shell__sidebar{position:static;width:100%;min-width:0;max-width:100vw;height:auto;padding:var(--spacing-xs) var(--spacing-s);border-right:0;border-bottom:var(--border-width-1) solid var(--theme-navigation-sidebar-border)}.app-shell__brand{align-items:center;min-height:3.25rem;padding:0}.app-shell__brand-copy,.app-shell--collapsed .app-shell__brand-copy{display:block}.app-shell__utility-nav{display:flex;overflow-x:auto;gap:var(--spacing-3xs);padding-top:var(--spacing-xs)}.app-shell__nav-label{display:none}.app-shell__utility-link,.app-shell--collapsed .app-shell__utility-link{flex:0 0 auto;grid-template-columns:2.25rem auto;padding-inline:var(--spacing-2xs)}.app-shell__utility-arrow{display:none}.app-shell__sidebar-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--spacing-xs);margin-top:var(--spacing-xs)}.app-shell__account{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:var(--spacing-2xs)}.app-shell__account-user,.app-shell--collapsed .app-shell__account-user{grid-template-columns:2.25rem minmax(0,1fr)}.app-shell--collapsed .app-shell__account-copy{display:grid}.app-shell--collapsed .app-shell__sidebar-action{justify-content:flex-start!important;padding-inline:var(--spacing-xs)!important}.app-shell--collapsed .app-shell__utility-label{display:inline}.app-shell__session-action,.app-shell__session-link{width:auto}.app-shell__top-area{position:static}.app-shell__header{height:4rem;padding-inline:var(--spacing-s)}.app-shell__nav-inner{width:max-content;min-width:100%;padding-inline:var(--spacing-s)}}
-@media(max-width:44rem){.app-shell__sidebar-footer{grid-template-columns:1fr}.app-shell__account{grid-template-columns:minmax(0,1fr) auto}.app-shell__export-button{width:100%}.app-shell__header-note{display:none}.app-shell__refresh{flex-basis:7.75rem!important;width:7.75rem!important;min-width:7.75rem!important;max-width:7.75rem!important}.app-shell__nav :deep(.app-shell__nav-button){min-width:max-content}}
+@media(max-width:44rem){.app-shell__sidebar-footer{grid-template-columns:1fr}.app-shell__account{grid-template-columns:minmax(0,1fr) auto}.app-shell__export-button{width:100%}.app-shell__header-note{display:none}.app-shell__refresh{flex-basis:7.75rem!important;width:7.75rem!important;min-width:7.75rem!important;max-width:7.75rem!important}.app-shell__nav-inner{gap:var(--spacing-3xs);width:100%;min-width:0;padding-inline:var(--spacing-xs)}.app-shell__nav :deep(.app-shell__nav-button){min-width:max-content;padding-inline:var(--spacing-3xs)!important;font-size:var(--font-size--2)!important}}
 .app-shell__refresh :deep(svg){display:inline-block!important;flex:0 0 .875rem!important;width:.875rem!important;height:.875rem!important;min-width:.875rem!important;min-height:.875rem!important;max-width:.875rem!important;max-height:.875rem!important;scale:1!important;transform-origin:center!important}
 .app-shell__refresh-loader{display:block;flex:0 0 .75rem;width:.75rem;height:.75rem;border:1.5px solid currentColor;border-right-color:transparent;border-radius:999px;animation:app-shell-spin .7s linear infinite}@keyframes app-shell-spin{to{transform:rotate(360deg)}}
 :deep(.app-shell__collapse){border:var(--border-width-1) solid var(--theme-navigation-sidebar-border)!important;background:var(--theme-navigation-sidebar-control)!important;color:var(--theme-navigation-sidebar-text)!important}:deep(.app-shell__collapse svg){width:1rem!important;height:1rem!important;stroke:currentColor!important}:deep(.app-shell__sidebar-action){color:var(--theme-navigation-sidebar-muted)!important}:deep(.app-shell__sidebar-action > span.truncate){display:flex!important;align-items:center!important;gap:var(--spacing-xs)!important;width:100%;height:auto!important;overflow:visible!important}:deep(.app-shell__sidebar-action > span.truncate svg),:deep(.app-shell__session-link svg){flex:0 0 1.05rem!important;width:1.05rem!important;height:1.05rem!important;stroke:currentColor!important}:deep(.app-shell__export-button:hover),:deep(.app-shell__export-button.is-active),:deep(.app-shell__session-action:hover){background:var(--theme-navigation-sidebar-hover)!important;color:var(--theme-navigation-sidebar-text)!important}:deep(.app-shell__refresh){flex:0 0 8.75rem!important;width:8.75rem!important;min-width:8.75rem!important;max-width:8.75rem!important;height:2.75rem!important;min-height:2.75rem!important;max-height:2.75rem!important;border-color:var(--theme-navigation-header-border)!important;background:var(--theme-navigation-header-control)!important;color:var(--theme-navigation-header-text)!important}.app-shell__refresh :deep(> span.truncate){display:flex;align-items:center;justify-content:center;gap:var(--spacing-2xs);width:100%;overflow:visible;color:inherit!important}.app-shell__refresh :deep(> span.truncate > span:last-child){min-width:5.25rem;text-align:left}.app-shell__account-copy{display:block}.app-shell__account-copy p{font-size:var(--font-size--2);font-weight:var(--font-weight-600)}
 @media(min-width:64.0625rem){.app-shell__account{grid-template-columns:minmax(0,1fr) 2.25rem;align-items:center;padding:var(--spacing-2xs)}:deep(.app-shell__session-action),:deep(.app-shell__session-link){display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 2.25rem!important;width:2.25rem!important;min-width:2.25rem!important;height:2.25rem!important;min-height:2.25rem!important;padding:0!important;white-space:nowrap}:deep(.app-shell__session-action > span.truncate){justify-content:center!important;gap:0!important}:deep(.app-shell__session-action > span.truncate svg){flex:0 0 1rem!important;width:1rem!important;height:1rem!important}.app-shell__session-label{display:none!important}}
 .app-shell__session-loader{display:block;flex:0 0 .8rem;width:.8rem;height:.8rem;border:1.5px solid currentColor;border-right-color:transparent;border-radius:999px;animation:app-shell-spin .7s linear infinite}
 @media(min-width:64.0625rem){.app-shell--collapsed .app-shell__sidebar{padding-inline:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account{display:grid;grid-template-columns:2.5rem;justify-content:center;justify-items:center;gap:var(--spacing-2xs);padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account-user{display:grid;grid-template-columns:2.5rem;width:2.5rem;height:2.5rem}.app-shell--collapsed .app-shell__account-avatar{width:2.5rem;height:2.5rem}.app-shell--collapsed :deep(.app-shell__session-action),.app-shell--collapsed .app-shell__session-link{display:flex!important;flex:0 0 2.5rem!important;width:2.5rem!important;min-width:2.5rem!important;max-width:2.5rem!important;height:2.5rem!important;min-height:2.5rem!important;max-height:2.5rem!important;padding:0!important;overflow:hidden!important}}
+
+.app-shell__sidebar-navigation{min-height:0;overflow-y:auto;padding-bottom:var(--spacing-s)}
+.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{margin-top:var(--spacing-s);padding-top:var(--spacing-s);border-top:var(--border-width-1) solid var(--theme-navigation-sidebar-border)}
+.app-shell__utility-nav--all{margin-top:var(--spacing-xs)!important;padding-top:var(--spacing-xs)!important}
+.app-shell__utility-link.is-active{background:var(--theme-navigation-sidebar-hover);color:var(--theme-navigation-sidebar-text)}
+.app-shell__theoretical :deep(.app-shell__theoretical-trigger){position:relative;gap:var(--spacing-2xs)!important;height:2.75rem!important;min-height:2.75rem!important;padding-inline:var(--spacing-s)!important;border:var(--border-width-1) solid transparent!important;border-radius:var(--component-radius-button)!important;background:var(--theme-navigation-tab)!important;color:var(--theme-navigation-header-muted)!important;font-size:var(--font-size--1);font-weight:var(--font-weight-500);line-height:1;box-shadow:none!important}
+.app-shell__theoretical :deep(.app-shell__theoretical-trigger:hover),.app-shell__theoretical :deep(.app-shell__theoretical-trigger[data-state="open"]){border-color:var(--theme-navigation-header-border)!important;background:var(--theme-navigation-tab-hover)!important;color:var(--theme-navigation-header-text)!important}
+.app-shell__theoretical :deep(.app-shell__theoretical-trigger:focus-visible){outline:2px solid var(--theme-navigation-header-text)!important;outline-offset:2px!important;box-shadow:none!important}
+.app-shell__theoretical :deep(.app-shell__theoretical-trigger.is-active){border-color:var(--theme-navigation-active-border)!important;background:var(--theme-navigation-active)!important;color:var(--theme-navigation-active-text)!important}
+.app-shell__theoretical :deep(.app-shell__theoretical-trigger.is-active)::after{position:absolute;right:var(--spacing-s);bottom:-.45rem;left:var(--spacing-s);height:2px;border-radius:999px;background:var(--theme-navigation-active-accent);content:""}
+.app-shell__theoretical :deep([data-reka-navigation-menu-viewport]){margin-top:var(--spacing-2xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised);color:var(--theme-text);box-shadow:var(--shadow-m)}
+.app-shell__theoretical-list{display:grid;grid-template-columns:repeat(2,minmax(9.5rem,1fr));gap:var(--spacing-3xs);width:22rem;padding:var(--spacing-xs)}
+.app-shell__theoretical-link{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-xs);min-height:2.75rem;padding:0 var(--spacing-xs);border-radius:var(--component-radius-button);color:var(--theme-text-muted);font-size:var(--font-size--1);font-weight:var(--font-weight-500);text-decoration:none}
+.app-shell__theoretical-link:hover,.app-shell__theoretical-link.is-active{background:var(--theme-surface);color:var(--theme-text);text-decoration:none}
+.app-shell__theoretical-link:focus-visible{outline:2px solid var(--theme-text);outline-offset:2px}
+.app-shell__theoretical-link svg{width:.9rem;height:.9rem}
+@media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;overflow-x:auto;gap:var(--spacing-xs);padding-bottom:0}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__utility-nav--all{padding-top:var(--spacing-xs)!important}.app-shell__theoretical-list{width:min(22rem,calc(100vw - 2rem))}}
+@media(max-width:32rem){.app-shell__theoretical :deep(> div.absolute){right:0!important;left:auto!important}.app-shell__theoretical-list{grid-template-columns:1fr}.app-shell__theoretical :deep(.app-shell__theoretical-trigger){padding-inline:var(--spacing-3xs)!important;font-size:var(--font-size--2)!important}}
 </style>

@@ -19,14 +19,14 @@ import { assignScanCode, getInventorySnapshot, getProductionPlanSnapshot, getWor
 
 const sections = [
   { id: "overview", label: "Dashboard" },
-  { id: "planning", label: "Planning" },
-  { id: "forecasting", label: "Forecasting" },
-  { id: "buying", label: "Buying" },
   { id: "receipts", label: "Receipts" },
   { id: "production", label: "Production" },
-  { id: "finance", label: "Finance" },
-  { id: "export", label: "Reports" },
-  { id: "stock", label: "Stock" },
+  { id: "planning", label: "Planning", group: "theoretical" },
+  { id: "forecasting", label: "Forecasting", group: "theoretical" },
+  { id: "buying", label: "Buying", group: "theoretical" },
+  { id: "finance", label: "Finance", group: "theoretical" },
+  { id: "export", label: "Reports", group: "theoretical" },
+  { id: "stock", label: "Stock", group: "theoretical" },
 ]
 const auxiliarySections = ["employees", "documents"]
 const activeSectionStorageKey = "bulkbite-active-section"
@@ -74,6 +74,8 @@ function resolveInitialSection() {
 }
 
 function navigateAuxiliary(target) {
+  if (target.mode === "workflow") return navigate(target.id)
+  if (target.mode === "route") return router.push(target.href)
   if (target.mode === "catalogue") return router.push({ name: "BulkBiteSetup" })
   if (target.mode === "list") return router.push({ name: "BulkBiteSetupList", params: { doctype: target.doctype } })
   if (target.mode === "create") return router.push({ name: "AuxiliaryRecordCreate", params: { doctype: target.doctype } })

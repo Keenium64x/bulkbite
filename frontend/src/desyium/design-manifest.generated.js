@@ -24,6 +24,7 @@ export const designManifest = Object.freeze({
     "month-picker",
     "multi-file-uploader",
     "multi-select",
+    "navigation-menu",
     "operational-button",
     "operational-progress",
     "progress",
