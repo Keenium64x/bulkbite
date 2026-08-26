@@ -333,15 +333,19 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			mix.append({**current, "customer_count": round(current_customers + (target_customers - current_customers) * progress)})
 		demand = _forecast_demand(mix)
 		cycle_week = ((week - 1) % 4) + 1
-		schedule = runs_by_week.get(cycle_week) or _expand_capacity_window(windows.get(cycle_week) or {})
+		available_schedule = runs_by_week.get(cycle_week) or _expand_capacity_window(windows.get(cycle_week) or {})
+		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
+		net_required_hours = max(required_hours - carried_team_hours, 0)
+		schedule = _select_required_capacity_runs(available_schedule, carried_team_hours, required_hours)
 		elapsed_hours = sum(flt(run.get("scheduled_elapsed_hours")) for run in schedule)
 		team_hours = sum(flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0) for run in schedule)
 		team_size = round(team_hours / elapsed_hours, 1) if elapsed_hours else 0
-		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
-		required_average_crew = required_hours / elapsed_hours if required_hours and elapsed_hours else 0
-		required_people = math.ceil(required_hours / elapsed_hours) if required_hours and elapsed_hours else 0
+		required_average_crew = net_required_hours / elapsed_hours if net_required_hours and elapsed_hours else 0
+		required_people = math.ceil(net_required_hours / elapsed_hours) if net_required_hours and elapsed_hours else 0
 		balance = calculate_capacity_balance(carried_team_hours, team_hours, required_hours)
 		carried_team_hours = balance["closing_team_hour_balance"]
+		idle_week = not schedule and balance["opening_team_hour_balance"] >= required_hours
+		capacity_state = "idle" if idle_week else "under" if carried_team_hours < 0 else "ready"
 		additional_people = math.ceil(abs(carried_team_hours) / elapsed_hours) if carried_team_hours < 0 and elapsed_hours else 0
 		people_above = math.floor(carried_team_hours / elapsed_hours) if carried_team_hours > 0 and elapsed_hours else 0
 		people_difference = people_above if carried_team_hours >= 0 else -additional_people
@@ -355,7 +359,7 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			"planned_takt_minutes_per_kg": round(team_hours * 60 / demand["weekly_output_qty"], 2) if demand["weekly_output_qty"] else 0,
 			"current_labour_minutes_per_kg": round(flt(labour_minutes_per_kg), 2),
 			"required_team_hours": round(required_hours, 2),
-			"expected_elapsed_hours": round(required_hours / team_size, 2) if team_size else 0,
+			"expected_elapsed_hours": round(net_required_hours / team_size, 2) if team_size else 0,
 			"team_size": team_size,
 			"required_average_crew": round(required_average_crew, 2),
 			"required_people": required_people,
@@ -363,11 +367,31 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			"additional_people_needed": additional_people,
 			"people_above_requirement": people_above,
 			**balance,
+			"status": "Covered by earlier production" if idle_week else balance["status"],
+			"capacity_state": capacity_state,
+			"available_run_count": len(available_schedule),
 			"team_hour_difference": balance["week_team_hour_difference"],
 			"run_count": len(schedule),
 			"schedule": schedule,
 		})
 	return rows
+
+
+def _select_required_capacity_runs(schedule, opening_team_hours, required_team_hours):
+	"""Use ordered production slots only until carried and scheduled effort cover the period."""
+	remaining_hours = max(flt(required_team_hours) - flt(opening_team_hours), 0)
+	if remaining_hours <= 0:
+		return []
+	selected = []
+	for run in schedule or []:
+		run_team_hours = flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0)
+		if run_team_hours <= 0:
+			continue
+		selected.append(run)
+		remaining_hours -= run_team_hours
+		if remaining_hours <= 0:
+			break
+	return selected
 
 
 def _group_capacity_runs(capacity_runs):
