@@ -68,9 +68,11 @@ def load_full_demo_data():
 @frappe.whitelist()
 def get_demo_data_summary():
 	"""Return the visible demo coverage and immutable-ledger checks without changing data."""
-	plan_name = frappe.db.get_value(
-		"BulkBite Production Plan", {"notes": ["like", f"%{DEMO_MARKER}%"]}, "name", order_by="modified desc"
-	)
+	plan_name = frappe.db.get_value("BulkBite Production Plan", {"status": "Active"}, "name", order_by="modified desc")
+	if not plan_name:
+		plan_name = frappe.db.get_value(
+			"BulkBite Production Plan", {"notes": ["like", f"%{DEMO_MARKER}%"]}, "name", order_by="modified desc"
+		)
 	requirements = []
 	if plan_name:
 		_plan_rows, requirements = build_plan_snapshot(frappe.get_doc("BulkBite Production Plan", plan_name), "Ingredients")

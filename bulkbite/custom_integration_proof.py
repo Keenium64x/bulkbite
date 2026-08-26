@@ -61,6 +61,8 @@ def run_planned_production_draft_proof():
 	frappe.db.savepoint("bulkbite_planned_production_draft_proof")
 	try:
 		snapshot = get_production_plan_snapshot(location="Ingredients")
+		preserved_notes = f"Direction notes proof {frappe.generate_hash(length=8)}"
+		frappe.db.set_value("BulkBite Production Plan", snapshot["name"], "notes", preserved_notes)
 		station = snapshot["next_production"]
 		assert station["state"] in {"ready", "draft"}
 		row = station["row"]
@@ -97,13 +99,29 @@ def run_planned_production_draft_proof():
 		frozen_draft = frappe.get_doc("BulkBite Production Run", first["name"])
 		assert [round(flt(item.expected_qty), 3) for item in frozen_draft.ingredients] == original_expected
 		assert updated["customer_demand"]["total_customers"] == snapshot["customer_demand"]["total_customers"] + 1
+		assert frappe.db.get_value("BulkBite Production Plan", snapshot["name"], "notes") == preserved_notes
 
 		discarded = discard_production_run(first["name"])
 		assert discarded["discarded"]
 		assert not frappe.db.exists("BulkBite Production Run", first["name"])
+		unused_plan = frappe.copy_doc(frappe.get_doc("BulkBite Production Plan", snapshot["name"]))
+		unused_plan.plan_title = f"Unused direction proof {frappe.generate_hash(length=6)}"
+		unused_plan.status = "Active"
+		unused_plan.notes = "Rolled-back proof for unused direction deletion."
+		unused_plan.insert()
+		unused = cancel_production_plan(unused_plan.name)
+		assert unused["deleted"]
+		assert not frappe.db.exists("BulkBite Production Plan", unused_plan.name)
+
+		posted_count = frappe.db.count("BulkBite Production Run", {"production_plan": snapshot["name"], "docstatus": 1})
 		cancelled = cancel_production_plan(snapshot["name"])
-		assert cancelled["deleted"]
-		assert not frappe.db.exists("BulkBite Production Plan", snapshot["name"])
+		assert cancelled["cancelled"] == bool(posted_count)
+		assert cancelled["deleted"] != bool(posted_count)
+		if posted_count:
+			assert frappe.db.get_value("BulkBite Production Plan", snapshot["name"], "status") == "Cancelled"
+			assert frappe.db.count("BulkBite Production Run", {"production_plan": snapshot["name"], "docstatus": 1}) == posted_count
+		else:
+			assert not frappe.db.exists("BulkBite Production Plan", snapshot["name"])
 
 		cycle = _next_production_station(
 			snapshot["rows"],
@@ -130,7 +148,10 @@ def run_planned_production_draft_proof():
 			"resumed_run": second["name"],
 			"discarded": discarded["discarded"],
 			"direction_update_kept_draft_theory": True,
-			"unused_direction_deleted": cancelled["deleted"],
+			"direction_update_preserved_omitted_notes": True,
+			"unused_direction_deleted": unused["deleted"],
+			"posted_direction_cancelled": cancelled["cancelled"],
+			"posted_history_preserved": bool(posted_count),
 			"wrapped_to_week": cycle["row"]["week_number"],
 			"next_cycle": cycle["cycle_number"],
 			"available_items": sum(1 for item in row["ingredients"] if item["available_qty"] > 0),
@@ -228,7 +249,8 @@ def run_custom_stock_proof():
 				"source_location": "Ingredients",
 				"target_location": "Finished Meals",
 			}
-		).insert(ignore_permissions=True)
+			).insert(ignore_permissions=True)
+		opening_output_balance = get_stock_balance(run.finished_item, "Finished Meals")
 		first_row = run.ingredients[0]
 		remaining = max(flt(first_row.available_before_measurement) - 0.06, 0)
 		measurements = [
@@ -268,7 +290,7 @@ def run_custom_stock_proof():
 		assert proof["receipt_price_history"]["stock_unit_price"] == 70
 		assert first_production["output_stock_event"] == second_production["output_stock_event"]
 		assert proof["production_stock_event_count"] == len(run.ingredients) + 1
-		assert output_balance == 1
+		assert round(output_balance - opening_output_balance, 3) == 1
 		assert proof["truth_hash_length"] == 64
 		assert proof["first_measurement_method"] == "Remaining"
 		return proof
@@ -378,7 +400,7 @@ def run_receipt_extraction_proof():
 			is_private=1,
 		)
 		physical_file = Path(frappe.get_site_path("private", "files", file_doc.file_name))
-		result = process_receipt_extraction_job(file_doc.file_url)
+		result = process_receipt_extraction_job([file_doc.file_url])
 		proof = {
 			"private_file": file_doc.file_url.startswith("/private/files/"),
 			"parser_mode": result["parser_mode"],
@@ -391,7 +413,7 @@ def run_receipt_extraction_proof():
 			],
 			"items": [row["item_code"] for row in result["lines"]],
 			"confidence_present": all(row["confidence"] > 0 for row in result["lines"]),
-			"ocr_text_present": result["ocr_text"] == ocr_text,
+			"ocr_text_present": ocr_text in result["ocr_text"],
 			"stock_event_count": frappe.db.count("BulkBite Stock Event"),
 		}
 		assert proof["private_file"]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import frappe
 
 from bulkbite.api import get_employee_workspace, save_employee, save_employee_type, save_production_employees
@@ -56,6 +58,9 @@ def run():
 	frappe.set_user("Administrator")
 	frappe.db.savepoint("workforce_proof")
 	try:
+		# Keep the proof deterministic on populated sites. Existing operational roles
+		# and posted-run evidence belong to live capacity, not this isolated station.
+		frappe.db.set_value("BulkBite Employee Type", {"enabled": 1}, "enabled", 0, update_modified=False)
 		type_name = _unique("Proof kitchen team")
 		type_result = save_employee_type({
 			"employee_type_name": type_name, "capacity_basis": "Kg per Production Run",
@@ -73,21 +78,22 @@ def run():
 		assert any(row.name == type_result["name"] for row in workspace["employee_types"])
 		assert all(any(row.name == result["name"] for row in workspace["employees"]) for result in employee_results)
 
-		theory = get_employee_capacity_snapshot({"weekly_output_qty": 120})
-		assert theory["required_workers"] == 4
-		assert theory["active_workers"] == 2
-		assert theory["required_team_hours"] == 12
-		assert theory["available_worker_hours"] == 7
-		assert theory["hour_difference"] == -5
-		assert theory["takt_minutes_per_kg"] == 3.5
-		assert theory["status"] == "Under capacity"
+		with patch("bulkbite.workforce._recent_actual_capacity", return_value={"labour_minutes_per_kg": 0}):
+			theory = get_employee_capacity_snapshot({"weekly_output_qty": 120})
+			assert theory["required_workers"] == 4
+			assert theory["active_workers"] == 2
+			assert theory["required_team_hours"] == 12
+			assert theory["available_worker_hours"] == 7
+			assert theory["hour_difference"] == -5
+			assert theory["takt_minutes_per_kg"] == 3.5
+			assert theory["status"] == "Under capacity"
 
-		frappe.db.set_value("BulkBite Employee", employee_results[1]["name"], "available_hours_per_run", 8)
-		buffer = get_employee_capacity_snapshot({"weekly_output_qty": 120})
-		assert buffer["available_worker_hours"] == 13
-		assert buffer["hour_difference"] == 1
-		assert buffer["takt_minutes_per_kg"] == 6.5
-		assert buffer["status"] == "Over capacity"
+			frappe.db.set_value("BulkBite Employee", employee_results[1]["name"], "available_hours_per_run", 8)
+			buffer = get_employee_capacity_snapshot({"weekly_output_qty": 120})
+			assert buffer["available_worker_hours"] == 13
+			assert buffer["hour_difference"] == 1
+			assert buffer["takt_minutes_per_kg"] == 6.5
+			assert buffer["status"] == "Over capacity"
 
 		draft_name = frappe.db.get_value("BulkBite Production Run", {"docstatus": 0}, "name", order_by="modified desc")
 		if not draft_name:
@@ -95,7 +101,7 @@ def run():
 		run = save_production_employees(draft_name, [
 			{"employee": employee_results[0]["name"], "completion_status": "Completed", "hours_worked": 4},
 			{"employee": employee_results[1]["name"], "completion_status": "Completed", "hours_worked": 4},
-		])
+		], actual_elapsed_hours=4)
 		assert len(run["employees"]) == 2
 		run_doc = frappe.get_doc("BulkBite Production Run", draft_name)
 		before_stock = frappe.db.count("BulkBite Stock Event")

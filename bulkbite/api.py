@@ -950,7 +950,8 @@ def save_monthly_production_plan(payload=None):
 	plan.business_name = "BulkBite"
 	plan.period_start = getdate(data.get("period_start") or plan.period_start or nowdate())
 	plan.period_end = getdate(data.get("period_end") or plan.period_end or add_days(plan.period_start, 27))
-	plan.notes = data.get("notes")
+	if "notes" in data:
+		plan.notes = data.get("notes")
 	plan.forecast_weeks = max(int(data.get("forecast_weeks") or 4), 1)
 	plan.default_team_template = data.get("default_team_template")
 	plan.set(
