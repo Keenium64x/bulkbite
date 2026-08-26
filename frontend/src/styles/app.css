@@ -71,6 +71,144 @@ body>[data-reka-popper-content-wrapper]{z-index:80!important}body>[data-reka-pop
 
 /* endregion FRAPPE UI CONTROL ADAPTERS */
 
+/* =============================================================================
+/* region OPERATIONAL MICROINTERACTIONS
+/* ============================================================================= */
+
+/* Shared controls acknowledge hover and press without changing their measured
+ * footprint. Provider-owned loading and disabled states remain authoritative. */
+.app-shell :is(.system-component--operational-button,.app-shell__utility-link,.app-shell__session-link),
+.workflow-block :is(.system-component--operational-button,.system-link,[role="tab"]),
+.system-popup :is(button,.system-component--operational-button){
+	transition:border-color 140ms cubic-bezier(.2,.8,.2,1),background-color 140ms cubic-bezier(.2,.8,.2,1),color 140ms cubic-bezier(.2,.8,.2,1),box-shadow 140ms cubic-bezier(.2,.8,.2,1),opacity 140ms cubic-bezier(.2,.8,.2,1),transform 100ms cubic-bezier(.2,.8,.2,1)
+}
+.app-shell :is(.system-component--operational-button,.app-shell__utility-link,.app-shell__session-link):active:not(:disabled),
+.workflow-block :is(.system-component--operational-button,.system-link,[role="tab"]):active:not(:disabled),
+.system-popup :is(button,.system-component--operational-button):active:not(:disabled){transform:translateY(1px)}
+.app-shell :is(.system-component--operational-button,.app-shell__utility-link,.app-shell__session-link) :is(svg,[data-icon]),
+.workflow-block :is(.system-component--operational-button,.system-link,[role="tab"]) :is(svg,[data-icon]){
+	transition:transform 160ms cubic-bezier(.2,.8,.2,1),opacity 140ms cubic-bezier(.2,.8,.2,1)
+}
+.app-shell :is(.system-component--operational-button,.app-shell__utility-link,.app-shell__session-link):disabled,
+.workflow-block :is(.system-component--operational-button,[role="tab"]):disabled{transform:none!important}
+
+/* Fields respond as one family even when Frappe UI, Reka, or a project owner
+ * supplies the internal control. Focus remains neutral and high contrast. */
+.workflow-block :is(
+	.system-component--form-control,
+	.system-component--text-input,
+	.system-component--textarea,
+	.system-component--select,
+	.system-component--combobox,
+	.system-component--date-picker,
+	.system-component--file-uploader,
+	.system-component--multi-file-uploader,
+	.system-linked-record-field,
+	.system-scan-code-field
+) :is(input,textarea,button,[data-slot="trigger"]),
+.system-date-picker__popover :is(button,[role="gridcell"]),
+body>[data-reka-popper-content-wrapper] :is([data-slot="item"],[role="option"]){
+	transition:border-color 150ms cubic-bezier(.2,.8,.2,1),background-color 150ms cubic-bezier(.2,.8,.2,1),color 150ms cubic-bezier(.2,.8,.2,1),box-shadow 150ms cubic-bezier(.2,.8,.2,1),opacity 150ms cubic-bezier(.2,.8,.2,1),transform 100ms cubic-bezier(.2,.8,.2,1)
+}
+.workflow-block :is(
+	.system-component--form-control,
+	.system-component--text-input,
+	.system-component--textarea,
+	.system-component--select,
+	.system-component--combobox,
+	.system-component--date-picker,
+	.system-linked-record-field
+) :is(input,textarea,[data-slot="trigger"]):hover:not(:disabled):not(:focus-visible){border-color:color-mix(in oklch,var(--theme-text-muted) 52%,var(--theme-border))!important}
+.workflow-block :is(
+	.system-component--form-control,
+	.system-component--text-input,
+	.system-component--textarea,
+	.system-component--select,
+	.system-component--combobox,
+	.system-component--date-picker,
+	.system-linked-record-field
+):focus-within{position:relative;z-index:1}
+body>[data-reka-popper-content-wrapper] :is([data-slot="item"],[role="option"]):active{transform:scale(.985)}
+
+/* Boolean and immediate-setting controls keep their native state semantics
+ * while making the state change feel direct. */
+.workflow-block :is(.system-checkbox__control,[role="switch"]){
+	transition:border-color 140ms cubic-bezier(.2,.8,.2,1),background-color 140ms cubic-bezier(.2,.8,.2,1),box-shadow 140ms cubic-bezier(.2,.8,.2,1),transform 100ms cubic-bezier(.2,.8,.2,1)
+}
+.workflow-block :is(.system-checkbox__control,[role="switch"]):active:not(:disabled){transform:scale(.94)}
+.workflow-block .system-checkbox__indicator :is(svg,[data-icon]){animation:bulkbite-check-in 140ms cubic-bezier(.2,.8,.2,1) both}
+@keyframes bulkbite-check-in{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
+
+/* Interactive surfaces change tone rather than lifting. Editable and data rows
+ * stay in place, so dense workflows do not wobble under the pointer. */
+.workflow-block :is(
+	.entry-row,
+	.measurement-row,
+	.record-strip,
+	.mapping-list article,
+	.review-list article,
+	.history-list article,
+	.record-list article,
+	.category-list article,
+	.cost-line-list article,
+	.system-multi-file-uploader__list li
+),
+.workflow-block tbody tr{
+	transition:border-color 160ms cubic-bezier(.2,.8,.2,1),background-color 160ms cubic-bezier(.2,.8,.2,1),box-shadow 160ms cubic-bezier(.2,.8,.2,1)
+}
+@media(hover:hover){
+	.workflow-block :is(
+		.entry-row,
+		.measurement-row,
+		.record-strip,
+		.mapping-list article,
+		.review-list article,
+		.history-list article,
+		.record-list article,
+		.category-list article,
+		.cost-line-list article,
+		.system-multi-file-uploader__list li
+	):hover{border-color:color-mix(in oklch,var(--theme-text-muted) 42%,var(--theme-border));background-color:color-mix(in oklch,var(--theme-surface-raised) 72%,var(--theme-secondary))}
+	.workflow-block tbody tr:hover td{background-color:color-mix(in oklch,var(--theme-surface-raised) 68%,var(--theme-secondary))}
+	.workflow-block .system-card:is(a,button,[role="button"],[tabindex]:not([tabindex="-1"])):hover{border-color:color-mix(in oklch,var(--theme-text-muted) 42%,var(--theme-border));box-shadow:0 3px 10px color-mix(in oklch,var(--theme-text) 8%,transparent)}
+}
+.workflow-block .system-card:is(a,button,[role="button"],[tabindex]:not([tabindex="-1"])){
+	transition:border-color 160ms cubic-bezier(.2,.8,.2,1),background-color 160ms cubic-bezier(.2,.8,.2,1),box-shadow 160ms cubic-bezier(.2,.8,.2,1),transform 100ms cubic-bezier(.2,.8,.2,1)
+}
+.workflow-block .system-card:is(a,button,[role="button"],[tabindex]:not([tabindex="-1"])):active{transform:translateY(1px)}
+
+/* Progress and overlays settle quickly. No meaning depends on the transition. */
+.workflow-block :is(.system-component--progress,.system-component--operational-progress,.system-feedback) [role="progressbar"]>*,
+.workflow-block :is(.system-component--progress,.system-component--operational-progress,.system-feedback) [data-slot="indicator"]{
+	transition:transform 300ms cubic-bezier(.2,.8,.2,1),width 300ms cubic-bezier(.2,.8,.2,1),background-color 160ms cubic-bezier(.2,.8,.2,1)!important
+}
+body>[data-reka-popper-content-wrapper] [data-state="open"],
+.system-date-picker__popover[data-state="open"]{animation:bulkbite-popover-in 160ms cubic-bezier(.2,.8,.2,1) both;transform-origin:var(--reka-popper-content-transform-origin,center top)}
+@keyframes bulkbite-popover-in{from{opacity:0;transform:translateY(-3px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+.system-popup[data-state="open"]{animation-duration:180ms!important}
+.system-popup[data-state="closed"]{animation-duration:120ms!important}
+
+@media(prefers-reduced-motion:reduce){
+	.app-shell *,
+	.workflow-block *,
+	body>[data-reka-popper-content-wrapper] *,
+	.system-popup,
+	.system-date-picker__popover{
+		scroll-behavior:auto!important;
+		transition-delay:0s!important;
+		transition-duration:.01ms!important;
+		animation-delay:0s!important;
+		animation-duration:.01ms!important;
+		animation-iteration-count:1!important
+	}
+	.app-shell :is(.system-component--operational-button,.app-shell__utility-link,.app-shell__session-link):active:not(:disabled),
+	.workflow-block :is(.system-component--operational-button,.system-link,[role="tab"],.system-checkbox__control,[role="switch"]):active:not(:disabled),
+	.workflow-block .system-card:is(a,button,[role="button"],[tabindex]:not([tabindex="-1"])):active,
+	body>[data-reka-popper-content-wrapper] :is([data-slot="item"],[role="option"]):active{transform:none!important}
+}
+
+/* endregion OPERATIONAL MICROINTERACTIONS */
+
 @media(max-width:64rem){.workflow-header{align-items:stretch;flex-direction:column}.metric-board{width:100%;min-width:0}.flow-guide{grid-template-columns:1fr}.workflow-grid{grid-template-columns:repeat(8,minmax(0,1fr))}.work-panel--scan,.work-panel--shortage{grid-column:span 4}.field-grid>*{grid-column:span 4}.field-grid>.field-shell--wide{grid-column:span 8}.entry-row{grid-template-columns:auto minmax(12rem,1fr) minmax(8rem,.5fr) minmax(8rem,.5fr)}.line-total{grid-column:2/-1;text-align:right}.record-strip{grid-template-columns:6rem minmax(0,1fr) auto}.record-strip small{grid-column:2/4}}
 @media(max-width:44rem){.workflow-block{padding:var(--spacing-m) var(--spacing-s) var(--spacing-xl)}.workflow-steps{grid-template-columns:1fr}.workflow-steps li{padding:var(--spacing-xs)}.metric-board{grid-template-columns:1fr 1fr}.metric-board>div:nth-child(2n){border-right:0}.metric-board>div:nth-child(-n+2){border-bottom:var(--border-width-1) solid var(--theme-border)}.flow-guide{padding:var(--spacing-s)}.flow-guide ol{grid-template-columns:1fr}.flow-guide li,.flow-guide li:first-child{padding:var(--spacing-xs) 0;border-left:0;border-top:var(--border-width-1) solid var(--theme-border)}.flow-guide li:first-child{border-top:0}.workflow-grid{grid-template-columns:1fr}.work-panel--scan,.work-panel--shortage{grid-column:auto}.inline-action{grid-template-columns:1fr}.form-section,.data-section{padding:var(--spacing-s)}.field-grid{grid-template-columns:1fr}.field-grid>*,.field-grid>.field-shell--wide{grid-column:auto}.entry-row,.measurement-row,.measurement-row--review,.measurement-row--count{grid-template-columns:1fr}.row-number{position:absolute}.entry-row>.field-shell:first-of-type{padding-left:var(--spacing-l)}.line-total{grid-column:auto;text-align:left}.posting-bar{align-items:stretch;flex-direction:column}.posting-bar>div{align-items:flex-start;flex-direction:column}.posting-bar button{width:100%}.record-strip{grid-template-columns:1fr}.record-strip small{grid-column:auto}.section-heading{align-items:flex-start;flex-direction:column}.receipt-total{justify-content:space-between}.metric-board--paper{grid-template-columns:1fr}.metric-board--paper>div{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.metric-board--paper>div:last-child{border-bottom:0}}
 
