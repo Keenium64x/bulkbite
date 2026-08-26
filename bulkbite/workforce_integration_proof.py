@@ -50,7 +50,18 @@ def run_capacity_carry_forward():
 	multi_run_weeks = calculate_capacity_forecast(mix, mix, 4, [], 60, multi_runs)
 	assert [row["run_count"] for row in multi_run_weeks] == [2, 2, 1, 2]
 	assert [row["closing_team_hour_balance"] for row in multi_run_weeks] == [2.0, 4.0, 0.0, 2.0]
-	return {"weeks": weeks, "multi_run_weeks": multi_run_weeks}
+	legacy_windows = [
+		{"week_number": week, "scheduled_elapsed_hours": 6, "runs_per_week": 1, "team_size": 1}
+		for week in range(1, 5)
+	]
+	explicit_runs = [
+		{"week_number": 1, "run_number": run, "scheduled_elapsed_hours": 6, "planned_people": 1}
+		for run in range(1, 3)
+	]
+	explicit_weeks = calculate_capacity_forecast(mix, mix, 4, legacy_windows, 60, explicit_runs)
+	assert [row["available_run_count"] for row in explicit_weeks] == [2, 0, 0, 0]
+	assert [row["run_count"] for row in explicit_weeks] == [2, 0, 0, 0]
+	return {"weeks": weeks, "multi_run_weeks": multi_run_weeks, "explicit_weeks": explicit_weeks}
 
 
 def run():

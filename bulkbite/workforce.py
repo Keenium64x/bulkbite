@@ -320,6 +320,7 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 	target_by_plan = {row.get("plan_type"): row for row in target_mix or []}
 	windows = {int(row.get("week_number") or 0): row for row in capacity_windows or []}
 	runs_by_week = _group_capacity_runs(capacity_runs)
+	has_explicit_run_schedule = bool(runs_by_week)
 	rows = []
 	carried_team_hours = 0
 	for week in range(1, forecast_weeks + 1):
@@ -333,7 +334,11 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			mix.append({**current, "customer_count": round(current_customers + (target_customers - current_customers) * progress)})
 		demand = _forecast_demand(mix)
 		cycle_week = ((week - 1) % 4) + 1
-		available_schedule = runs_by_week.get(cycle_week) or _expand_capacity_window(windows.get(cycle_week) or {})
+		available_schedule = (
+			runs_by_week.get(cycle_week, [])
+			if has_explicit_run_schedule
+			else _expand_capacity_window(windows.get(cycle_week) or {})
+		)
 		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
 		net_required_hours = max(required_hours - carried_team_hours, 0)
 		schedule = _select_required_capacity_runs(available_schedule, carried_team_hours, required_hours)
