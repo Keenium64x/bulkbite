@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
   BadgeDollarSign,
   ClipboardCheck,
+  ChevronLeft,
   ChevronRight,
   CookingPot,
   FileText,
@@ -230,6 +231,8 @@ onBeforeUnmount(() => {
                 <div class="app-shell__category-controls">
                   <SystemOperationalButton class="app-shell__nav-button app-shell__expand-button" :class="{ 'is-active': theoreticalActive }" :aria-expanded="theoreticalLinksVisible" aria-controls="theoretical-workflows" variant="subtle" size="lg" data-flip-id="theoretical-toggle" @click="toggleTheoretical">
                     <span>{{ theoreticalLinksVisible ? 'Collapse' : 'Expand' }}</span>
+                    <ChevronLeft v-if="theoreticalLinksVisible" class="app-shell__expand-icon" aria-hidden="true" />
+                    <ChevronRight v-else class="app-shell__expand-icon" aria-hidden="true" />
                   </SystemOperationalButton>
                   <div v-if="theoreticalLinksVisible" id="theoretical-workflows" class="app-shell__theoretical-controls" aria-label="Theoretical workflows">
                     <SystemOperationalButton v-for="section in theoreticalSections" :key="section.id" :data-flip-id="`theoretical-${section.id}`" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
@@ -274,19 +277,26 @@ onBeforeUnmount(() => {
 .app-shell__more-toggle[aria-expanded="true"] .app-shell__more-arrow{transform:rotate(90deg)}
 .app-shell__more-navigation{display:grid}
 .app-shell__fixed-setup{padding:var(--spacing-2xs);border:var(--border-width-1) solid var(--theme-navigation-sidebar-border);border-radius:var(--component-radius-card);background:var(--theme-navigation-sidebar-panel)}
+.app-shell__fixed-setup .app-shell__sidebar-icon{color:var(--theme-navigation-sidebar-text)}
+.app-shell__fixed-setup .app-shell__sidebar-icon svg{color:var(--theme-navigation-sidebar-text);stroke:var(--theme-navigation-sidebar-text)}
 .app-shell__utility-link.is-active{background:var(--theme-navigation-sidebar-hover);color:var(--theme-navigation-sidebar-text)}
 .app-shell__nav-groups{align-items:flex-end;gap:var(--spacing-s);width:max-content;min-width:min(100%,90rem)}
 .app-shell__nav-category{display:grid;flex:0 0 auto;gap:var(--spacing-3xs);min-width:0}
 .app-shell__category-label{margin:0;padding-left:var(--spacing-xs);color:var(--theme-navigation-header-muted);font-size:var(--font-size--2);font-weight:var(--font-weight-600);line-height:1.25}
 .app-shell__category-card{overflow:visible!important;padding:var(--spacing-2xs)!important;border:var(--border-width-1) solid var(--theme-navigation-header-border)!important;border-radius:var(--component-radius-card)!important;box-shadow:none!important}
-.app-shell__nav-category--actual .app-shell__category-label{color:color-mix(in oklch,var(--theme-success) 32%,var(--theme-navigation-header-text) 68%)}
-.app-shell__nav-category--theoretical .app-shell__category-label{color:color-mix(in oklch,var(--theme-info) 30%,var(--theme-navigation-header-text) 70%)}
-.app-shell__nav-category--actual .app-shell__category-card{border-color:color-mix(in oklch,var(--theme-success) 76%,var(--theme-navigation-header-border) 24%)!important;background:color-mix(in oklch,var(--theme-success) 58%,var(--theme-navigation-sidebar-control) 42%)!important;box-shadow:inset 0 1px 0 color-mix(in oklch,var(--theme-navigation-header-text) 13%,transparent),0 1px 2px color-mix(in oklch,var(--theme-navigation-sidebar) 24%,transparent)!important}
-.app-shell__nav-category--theoretical .app-shell__category-card{border-color:color-mix(in oklch,var(--theme-info) 72%,var(--theme-navigation-header-border) 28%)!important;background:color-mix(in oklch,var(--theme-info) 55%,var(--theme-navigation-sidebar-control) 45%)!important;box-shadow:inset 0 1px 0 color-mix(in oklch,var(--theme-navigation-header-text) 13%,transparent),0 1px 2px color-mix(in oklch,var(--theme-navigation-sidebar) 24%,transparent)!important}
+.app-shell__nav-category--actual .app-shell__category-label{color:color-mix(in oklch,var(--theme-warning) 24%,var(--theme-navigation-header-text) 76%)}
+.app-shell__nav-category--theoretical .app-shell__category-label{color:color-mix(in oklch,var(--theme-error) 18%,var(--theme-navigation-header-text) 82%)}
+.app-shell__nav-category--actual .app-shell__category-card{border-color:color-mix(in oklch,var(--theme-warning) 36%,var(--theme-navigation-sidebar-border) 64%)!important;background:color-mix(in oklch,var(--theme-warning) 23%,var(--theme-navigation-sidebar) 77%)!important;box-shadow:inset 0 1px 0 color-mix(in oklch,var(--theme-navigation-header-text) 12%,transparent),0 1px 2px color-mix(in oklch,var(--theme-navigation-sidebar) 24%,transparent)!important}
+.app-shell__nav-category--theoretical .app-shell__category-card{border-color:color-mix(in oklch,var(--theme-error) 30%,var(--theme-navigation-sidebar-border) 70%)!important;background:color-mix(in oklch,var(--theme-error) 20%,var(--theme-navigation-sidebar) 80%)!important;box-shadow:inset 0 1px 0 color-mix(in oklch,var(--theme-navigation-header-text) 12%,transparent),0 1px 2px color-mix(in oklch,var(--theme-navigation-sidebar) 24%,transparent)!important}
 .app-shell__category-controls,.app-shell__theoretical-controls{display:flex;align-items:center;gap:var(--spacing-3xs);min-width:0}
 .app-shell__theoretical-controls{transform-origin:left center}
-.app-shell__nav :deep(.app-shell__nav-category .app-shell__nav-button){padding-inline:var(--spacing-2xs)!important;font-size:var(--font-size--1)!important}
-.app-shell__expand-button{min-width:5.25rem!important}
+.app-shell__nav :deep(.app-shell__nav-category .app-shell__nav-button){padding-inline:var(--spacing-2xs)!important;font-size:var(--font-size--1)!important;line-height:1.25!important}
+.app-shell__nav :deep(.app-shell__nav-category .app-shell__nav-button > span.truncate){display:flex!important;align-items:center!important;height:100%!important;padding-block:1px!important;overflow:visible!important;line-height:1.25!important}
+.app-shell__nav :deep(.app-shell__nav-category .app-shell__nav-button:not(.is-active):not(.app-shell__expand-button):hover){border-color:color-mix(in oklch,var(--theme-navigation-header-text) 42%,var(--theme-navigation-header-border))!important;background:color-mix(in oklch,var(--theme-navigation-header-text) 18%,var(--theme-navigation-tab))!important;color:var(--theme-navigation-header-text)!important}
+.app-shell__nav :deep(.app-shell__expand-button){min-width:6.5rem!important;border-color:color-mix(in oklch,var(--theme-warning) 48%,var(--theme-navigation-header-border))!important;background:color-mix(in oklch,var(--theme-warning) 22%,var(--theme-navigation-header-control))!important;color:var(--theme-navigation-header-text)!important}
+.app-shell__nav :deep(.app-shell__expand-button:hover){border-color:color-mix(in oklch,var(--theme-warning) 64%,var(--theme-navigation-header-text))!important;background:color-mix(in oklch,var(--theme-warning) 34%,var(--theme-navigation-header-control))!important;color:var(--theme-navigation-header-text)!important}
+.app-shell__nav :deep(.app-shell__expand-button.is-active){border-color:color-mix(in oklch,var(--theme-warning) 52%,var(--theme-navigation-active-border))!important;background:color-mix(in oklch,var(--theme-warning) 14%,var(--theme-navigation-active))!important;color:var(--theme-navigation-active-text)!important}
+.app-shell__expand-icon{flex:0 0 .95rem!important;width:.95rem!important;height:.95rem!important;stroke:currentColor!important;stroke-width:2.2!important}
 @media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;align-items:flex-end;overflow-x:auto;overflow-y:hidden;gap:var(--spacing-xs);padding-bottom:var(--spacing-2xs)}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__more-toggle{flex:0 0 auto!important;width:auto!important;margin:0!important;border-top:0!important}.app-shell__more-navigation{display:flex;gap:var(--spacing-xs)}.app-shell__sidebar-footer{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.app-shell__fixed-setup{align-self:stretch}.app-shell__nav-groups{width:max-content;min-width:100%}}
 @media(min-width:64.0625rem){.app-shell--collapsed .app-shell__more-toggle :deep(> span.truncate){display:flex!important;justify-content:center}.app-shell--collapsed .app-shell__more-toggle :deep(> span.truncate > :not(:first-child)){display:none!important}.app-shell--collapsed .app-shell__fixed-setup{width:100%;padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__fixed-setup .app-shell__utility-link{width:100%}}
 @media(max-width:44rem){.app-shell__nav{overflow-x:hidden}.app-shell__nav-groups{display:grid;width:100%;min-width:0}.app-shell__nav-category{width:100%}.app-shell__category-controls,.app-shell__theoretical-controls{flex-wrap:wrap}.app-shell__theoretical-controls{display:contents}.app-shell__nav :deep(.app-shell__nav-button){flex:1 1 auto;min-width:5.5rem!important;padding-inline:var(--spacing-xs)!important}.app-shell__category-card{width:100%}}
