@@ -142,6 +142,21 @@ body>[data-reka-popper-content-wrapper] :is([data-slot="item"],[role="option"]):
 /* Interactive surfaces change tone rather than lifting. Editable and data rows
  * stay in place, so dense workflows do not wobble under the pointer. */
 .workflow-block :is(
+	.form-section,
+	.data-section,
+	.work-panel,
+	.finance-overview,
+	.financial-panel,
+	.operating-panel,
+	.readiness-panel,
+	.activity-panel,
+	.action-panel,
+	.dashboard-empty__card,
+	.posting-bar
+){
+	transition:border-color 160ms cubic-bezier(.2,.8,.2,1),box-shadow 160ms cubic-bezier(.2,.8,.2,1),transform 160ms cubic-bezier(.2,.8,.2,1)
+}
+.workflow-block :is(
 	.entry-row,
 	.measurement-row,
 	.record-strip,
@@ -156,7 +171,24 @@ body>[data-reka-popper-content-wrapper] :is([data-slot="item"],[role="option"]):
 .workflow-block tbody tr{
 	transition:border-color 160ms cubic-bezier(.2,.8,.2,1),background-color 160ms cubic-bezier(.2,.8,.2,1),box-shadow 160ms cubic-bezier(.2,.8,.2,1)
 }
-@media(hover:hover){
+@media(hover:hover) and (pointer:fine){
+	.workflow-block :is(
+		.form-section,
+		.data-section,
+		.work-panel,
+		.finance-overview,
+		.financial-panel,
+		.operating-panel,
+		.readiness-panel,
+		.activity-panel,
+		.action-panel,
+		.dashboard-empty__card,
+		.posting-bar
+	):hover{
+		border-color:color-mix(in oklch,var(--theme-text-muted) 34%,var(--theme-border))!important;
+		box-shadow:0 5px 14px color-mix(in oklch,var(--theme-text) 8%,transparent)!important;
+		transform:translateY(-2px)
+	}
 	.workflow-block :is(
 		.entry-row,
 		.measurement-row,
@@ -205,6 +237,19 @@ body>[data-reka-popper-content-wrapper] [data-state="open"],
 	.workflow-block :is(.system-component--operational-button,.system-link,[role="tab"],.system-checkbox__control,[role="switch"]):active:not(:disabled),
 	.workflow-block .system-card:is(a,button,[role="button"],[tabindex]:not([tabindex="-1"])):active,
 	body>[data-reka-popper-content-wrapper] :is([data-slot="item"],[role="option"]):active{transform:none!important}
+	.workflow-block :is(
+		.form-section,
+		.data-section,
+		.work-panel,
+		.finance-overview,
+		.financial-panel,
+		.operating-panel,
+		.readiness-panel,
+		.activity-panel,
+		.action-panel,
+		.dashboard-empty__card,
+		.posting-bar
+	):hover{transform:none!important}
 }
 
 /* endregion OPERATIONAL MICROINTERACTIONS */
