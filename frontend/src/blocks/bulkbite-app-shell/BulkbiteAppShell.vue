@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
   BadgeDollarSign,
   ClipboardCheck,
@@ -17,15 +17,11 @@ import {
   UserRound,
 } from "lucide-vue-next"
 import {
+  SystemCard,
   SystemLink,
-  SystemNavigationMenu,
-  SystemNavigationMenuContent,
-  SystemNavigationMenuItem,
-  SystemNavigationMenuLink,
-  SystemNavigationMenuList,
-  SystemNavigationMenuTrigger,
   SystemOperationalButton,
 } from "@/desyium"
+import { mountFlipLayoutTransition } from "@/experiences/bulkbite-nav-expand"
 
 // =============================================================================
 // region SHELL CONTRACT
@@ -63,19 +59,31 @@ const emit = defineEmits(["navigate", "refresh", "logout"])
 // =============================================================================
 
 const sidebarCollapsed = ref(window.localStorage.getItem("bulkbite-sidebar") === "collapsed")
-const theoreticalMenu = ref("")
+const navGroupsRoot = ref(null)
+const theoreticalExpanded = ref(false)
+let flipExperience = null
 const primarySections = computed(() => props.sections.filter(section => section.group !== "theoretical"))
 const theoreticalSections = computed(() => props.sections.filter(section => section.group === "theoretical"))
 const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
+const theoreticalLinksVisible = computed(() => theoreticalExpanded.value)
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
   window.localStorage.setItem("bulkbite-sidebar", sidebarCollapsed.value ? "collapsed" : "expanded")
 }
 
-function navigateTheoretical(sectionId) {
-  theoreticalMenu.value = ""
-  emit("navigate", sectionId)
+async function toggleTheoretical() {
+  const mutate = async () => {
+    theoreticalExpanded.value = !theoreticalLinksVisible.value
+    await nextTick()
+  }
+
+  if (flipExperience?.transition) {
+    await flipExperience.transition(mutate)
+    return
+  }
+
+  await mutate()
 }
 
 function navigateSidebar(target) {
@@ -87,6 +95,25 @@ function sidebarLinkIsActive(link) {
   if (link.target.mode === "route") return window.location.pathname === link.target.href
   return false
 }
+
+watch(theoreticalActive, (isActive) => {
+  if (isActive) theoreticalExpanded.value = true
+}, { immediate: true })
+
+onMounted(() => {
+  if (!navGroupsRoot.value) return
+  flipExperience = mountFlipLayoutTransition(navGroupsRoot.value, {
+    items: "[data-flip-id]",
+    duration: 0.32,
+    ease: "power2.out",
+    absolute: false,
+  })
+})
+
+onBeforeUnmount(() => {
+  flipExperience?.destroy()
+  flipExperience = null
+})
 
 // endregion SIDEBAR STATE
 </script>
@@ -160,27 +187,33 @@ function sidebarLinkIsActive(link) {
         </header>
 
         <nav class="app-shell__nav" aria-label="Main stock flow">
-          <div class="app-shell__nav-inner">
-            <SystemOperationalButton v-for="section in primarySections" :key="section.id" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
-              <span>{{ section.label }}</span>
-            </SystemOperationalButton>
-            <SystemNavigationMenu v-if="theoreticalSections.length" v-model="theoreticalMenu" class="app-shell__theoretical" :disable-hover-trigger="true">
-              <SystemNavigationMenuList>
-                <SystemNavigationMenuItem value="theoretical">
-                  <SystemNavigationMenuTrigger class="app-shell__nav-button app-shell__theoretical-trigger" :class="{ 'is-active': theoreticalActive }" :aria-current="theoreticalActive ? 'page' : undefined">Theoretical</SystemNavigationMenuTrigger>
-                  <SystemNavigationMenuContent class="app-shell__theoretical-content">
-                    <div class="app-shell__theoretical-list" aria-label="Theoretical workflows">
-                      <SystemNavigationMenuLink v-for="section in theoreticalSections" :key="section.id" as-child :active="activeSection === section.id">
-                        <SystemLink :href="`/bulkbite?work=${encodeURIComponent(section.id)}`" class="app-shell__theoretical-link" :class="{ 'is-active': activeSection === section.id }" @click.prevent="navigateTheoretical(section.id)">
-                          <span>{{ section.label }}</span>
-                          <ChevronRight aria-hidden="true" />
-                        </SystemLink>
-                      </SystemNavigationMenuLink>
-                    </div>
-                  </SystemNavigationMenuContent>
-                </SystemNavigationMenuItem>
-              </SystemNavigationMenuList>
-            </SystemNavigationMenu>
+          <div ref="navGroupsRoot" class="app-shell__nav-inner app-shell__nav-groups" data-nav-groups>
+            <section class="app-shell__nav-category app-shell__nav-category--actual" aria-labelledby="actual-nav-label" data-flip-id="actual-category">
+              <p id="actual-nav-label" class="app-shell__category-label">Actual</p>
+              <SystemCard class="app-shell__category-card">
+                <div class="app-shell__category-controls">
+                  <SystemOperationalButton v-for="section in primarySections" :key="section.id" :data-flip-id="`actual-${section.id}`" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
+                    <span>{{ section.label }}</span>
+                  </SystemOperationalButton>
+                </div>
+              </SystemCard>
+            </section>
+
+            <section v-if="theoreticalSections.length" class="app-shell__nav-category app-shell__nav-category--theoretical" aria-labelledby="theoretical-nav-label" data-flip-id="theoretical-category">
+              <p id="theoretical-nav-label" class="app-shell__category-label">Theoretical</p>
+              <SystemCard class="app-shell__category-card">
+                <div class="app-shell__category-controls">
+                  <SystemOperationalButton class="app-shell__nav-button app-shell__expand-button" :class="{ 'is-active': theoreticalActive }" :aria-expanded="theoreticalLinksVisible" aria-controls="theoretical-workflows" variant="subtle" size="lg" data-flip-id="theoretical-toggle" @click="toggleTheoretical">
+                    <span>{{ theoreticalLinksVisible ? 'Collapse' : 'Expand' }}</span>
+                  </SystemOperationalButton>
+                  <div v-if="theoreticalLinksVisible" id="theoretical-workflows" class="app-shell__theoretical-controls" aria-label="Theoretical workflows">
+                    <SystemOperationalButton v-for="section in theoreticalSections" :key="section.id" :data-flip-id="`theoretical-${section.id}`" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
+                      <span>{{ section.label }}</span>
+                    </SystemOperationalButton>
+                  </div>
+                </div>
+              </SystemCard>
+            </section>
           </div>
         </nav>
       </div>
@@ -202,20 +235,24 @@ function sidebarLinkIsActive(link) {
 @media(min-width:64.0625rem){.app-shell--collapsed .app-shell__sidebar{padding-inline:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account{display:grid;grid-template-columns:2.5rem;justify-content:center;justify-items:center;gap:var(--spacing-2xs);padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__account-user{display:grid;grid-template-columns:2.5rem;width:2.5rem;height:2.5rem}.app-shell--collapsed .app-shell__account-avatar{width:2.5rem;height:2.5rem}.app-shell--collapsed :deep(.app-shell__session-action),.app-shell--collapsed .app-shell__session-link{display:flex!important;flex:0 0 2.5rem!important;width:2.5rem!important;min-width:2.5rem!important;max-width:2.5rem!important;height:2.5rem!important;min-height:2.5rem!important;max-height:2.5rem!important;padding:0!important;overflow:hidden!important}}
 
 .app-shell__sidebar-navigation{min-height:0;overflow-y:auto;padding-bottom:var(--spacing-s)}
+.app-shell__sidebar-navigation{scrollbar-width:thin;scrollbar-color:var(--theme-navigation-sidebar-control) transparent}
+.app-shell__sidebar-navigation::-webkit-scrollbar{width:.5rem;height:.5rem}
+.app-shell__sidebar-navigation::-webkit-scrollbar-track{background:transparent}
+.app-shell__sidebar-navigation::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:999px;background:var(--theme-navigation-sidebar-control);background-clip:padding-box}
+.app-shell__sidebar-navigation::-webkit-scrollbar-thumb:hover{background:var(--theme-navigation-sidebar-hover);background-clip:padding-box}
 .app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{margin-top:var(--spacing-s);padding-top:var(--spacing-s);border-top:var(--border-width-1) solid var(--theme-navigation-sidebar-border)}
 .app-shell__utility-nav--all{margin-top:var(--spacing-xs)!important;padding-top:var(--spacing-xs)!important}
 .app-shell__utility-link.is-active{background:var(--theme-navigation-sidebar-hover);color:var(--theme-navigation-sidebar-text)}
-.app-shell__theoretical :deep(.app-shell__theoretical-trigger){position:relative;gap:var(--spacing-2xs)!important;height:2.75rem!important;min-height:2.75rem!important;padding-inline:var(--spacing-s)!important;border:var(--border-width-1) solid transparent!important;border-radius:var(--component-radius-button)!important;background:var(--theme-navigation-tab)!important;color:var(--theme-navigation-header-muted)!important;font-size:var(--font-size--1);font-weight:var(--font-weight-500);line-height:1;box-shadow:none!important}
-.app-shell__theoretical :deep(.app-shell__theoretical-trigger:hover),.app-shell__theoretical :deep(.app-shell__theoretical-trigger[data-state="open"]){border-color:var(--theme-navigation-header-border)!important;background:var(--theme-navigation-tab-hover)!important;color:var(--theme-navigation-header-text)!important}
-.app-shell__theoretical :deep(.app-shell__theoretical-trigger:focus-visible){outline:2px solid var(--theme-navigation-header-text)!important;outline-offset:2px!important;box-shadow:none!important}
-.app-shell__theoretical :deep(.app-shell__theoretical-trigger.is-active){border-color:var(--theme-navigation-active-border)!important;background:var(--theme-navigation-active)!important;color:var(--theme-navigation-active-text)!important}
-.app-shell__theoretical :deep(.app-shell__theoretical-trigger.is-active)::after{position:absolute;right:var(--spacing-s);bottom:-.45rem;left:var(--spacing-s);height:2px;border-radius:999px;background:var(--theme-navigation-active-accent);content:""}
-.app-shell__theoretical :deep([data-reka-navigation-menu-viewport]){margin-top:var(--spacing-2xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised);color:var(--theme-text);box-shadow:var(--shadow-m)}
-.app-shell__theoretical-list{display:grid;grid-template-columns:repeat(2,minmax(9.5rem,1fr));gap:var(--spacing-3xs);width:22rem;padding:var(--spacing-xs)}
-.app-shell__theoretical-link{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-xs);min-height:2.75rem;padding:0 var(--spacing-xs);border-radius:var(--component-radius-button);color:var(--theme-text-muted);font-size:var(--font-size--1);font-weight:var(--font-weight-500);text-decoration:none}
-.app-shell__theoretical-link:hover,.app-shell__theoretical-link.is-active{background:var(--theme-surface);color:var(--theme-text);text-decoration:none}
-.app-shell__theoretical-link:focus-visible{outline:2px solid var(--theme-text);outline-offset:2px}
-.app-shell__theoretical-link svg{width:.9rem;height:.9rem}
-@media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;overflow-x:auto;gap:var(--spacing-xs);padding-bottom:0}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__utility-nav--all{padding-top:var(--spacing-xs)!important}.app-shell__theoretical-list{width:min(22rem,calc(100vw - 2rem))}}
-@media(max-width:32rem){.app-shell__theoretical :deep(> div.absolute){right:0!important;left:auto!important}.app-shell__theoretical-list{grid-template-columns:1fr}.app-shell__theoretical :deep(.app-shell__theoretical-trigger){padding-inline:var(--spacing-3xs)!important;font-size:var(--font-size--2)!important}}
+.app-shell__nav-groups{align-items:flex-end;gap:var(--spacing-s);width:max-content;min-width:min(100%,90rem)}
+.app-shell__nav-category{display:grid;flex:0 0 auto;gap:var(--spacing-3xs);min-width:0}
+.app-shell__category-label{margin:0;padding-left:var(--spacing-xs);color:var(--theme-navigation-header-muted);font-size:var(--font-size--2);font-weight:var(--font-weight-600);line-height:1.25}
+.app-shell__category-card{overflow:visible!important;padding:var(--spacing-2xs)!important;border:var(--border-width-1) solid var(--theme-navigation-header-border)!important;border-radius:var(--component-radius-card)!important;box-shadow:none!important}
+.app-shell__nav-category--actual .app-shell__category-card{border-color:color-mix(in oklch,var(--theme-success) 30%,var(--theme-navigation-header-border))!important;background:color-mix(in oklch,var(--theme-success) 8%,var(--theme-navigation-tabs))!important}
+.app-shell__nav-category--theoretical .app-shell__category-card{border-color:color-mix(in oklch,var(--theme-info) 28%,var(--theme-navigation-header-border))!important;background:color-mix(in oklch,var(--theme-info) 9%,var(--theme-navigation-tabs))!important}
+.app-shell__category-controls,.app-shell__theoretical-controls{display:flex;align-items:center;gap:var(--spacing-3xs);min-width:0}
+.app-shell__theoretical-controls{transform-origin:left center}
+.app-shell__nav :deep(.app-shell__nav-category .app-shell__nav-button){padding-inline:var(--spacing-2xs)!important;font-size:var(--font-size--1)!important}
+.app-shell__expand-button{min-width:5.25rem!important}
+@media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;overflow-x:auto;overflow-y:hidden;gap:var(--spacing-xs);padding-bottom:var(--spacing-2xs)}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__utility-nav--all{padding-top:var(--spacing-xs)!important}.app-shell__nav-groups{width:max-content;min-width:100%}}
+@media(max-width:44rem){.app-shell__nav{overflow-x:hidden}.app-shell__nav-groups{display:grid;width:100%;min-width:0}.app-shell__nav-category{width:100%}.app-shell__category-controls,.app-shell__theoretical-controls{flex-wrap:wrap}.app-shell__theoretical-controls{display:contents}.app-shell__nav :deep(.app-shell__nav-button){flex:1 1 auto;min-width:5.5rem!important;padding-inline:var(--spacing-xs)!important}.app-shell__category-card{width:100%}}
 </style>

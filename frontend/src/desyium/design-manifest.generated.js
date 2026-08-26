@@ -72,6 +72,14 @@ export const designManifest = Object.freeze({
       "target": "[data-experience-root]",
       "status": "ready",
       "engine": "gsap"
+    },
+    {
+      "id": "flip-layout-transition",
+      "source": "src/experiences/bulkbite-nav-expand.js",
+      "target": "[data-nav-groups]",
+      "status": "ready",
+      "engine": "gsap",
+      "mountExport": "mountFlipLayoutTransition"
     }
   ]
 })
