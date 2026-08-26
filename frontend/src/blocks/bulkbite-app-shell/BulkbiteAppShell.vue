@@ -1,22 +1,23 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
-  BadgeDollarSign,
-  ClipboardCheck,
   ChevronLeft,
   ChevronRight,
   CookingPot,
-  FileText,
   Ellipsis,
+  LayoutDashboard,
   LogIn,
   LogOut,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
+  ReceiptText,
   Settings,
   Truck,
   UsersRound,
   UserRound,
+  WalletCards,
+  Warehouse,
 } from "lucide-vue-next"
 import {
   SystemCard,
@@ -33,11 +34,12 @@ const props = defineProps({
   sections: { type: Array, required: true },
   theoreticalContextSections: { type: Array, default: () => ["prices"] },
   sidebarGroups: { type: Array, default: () => [
-    { label: "Daily tools", links: [
-      { label: "Employees", icon: UsersRound, href: "/bulkbite?work=employees", target: { mode: "workflow", id: "employees" } },
-      { label: "Worker sheets", icon: FileText, href: "/bulkbite?work=documents", target: { mode: "workflow", id: "documents" } },
-      { label: "Price catalogue", icon: BadgeDollarSign, href: "/bulkbite/prices", target: { mode: "route", href: "/bulkbite/prices" } },
-      { label: "Stock count", icon: ClipboardCheck, href: "/bulkbite?work=stock", target: { mode: "workflow", id: "stock" } },
+    { label: "Daily operations", links: [
+      { label: "Dashboard", icon: LayoutDashboard, href: "/bulkbite?work=overview", target: { mode: "workflow", id: "overview" } },
+      { label: "Receipt", icon: ReceiptText, href: "/bulkbite?work=receipts", target: { mode: "workflow", id: "receipts" } },
+      { label: "Production", icon: CookingPot, href: "/bulkbite?work=production", target: { mode: "workflow", id: "production" } },
+      { label: "Stock", icon: Warehouse, href: "/bulkbite?work=stock", target: { mode: "workflow", id: "stock" } },
+      { label: "Finances", icon: WalletCards, href: "/bulkbite?work=finance", target: { mode: "workflow", id: "finance" } },
     ] },
     { label: "Manage", links: [
       { label: "Items", icon: Package, href: "/bulkbite/setup/BulkBite%20Item", target: { mode: "list", doctype: "BulkBite Item" } },
@@ -298,6 +300,6 @@ onBeforeUnmount(() => {
 .app-shell__nav :deep(.app-shell__expand-button.is-active){border-color:color-mix(in oklch,var(--theme-warning) 52%,var(--theme-navigation-active-border))!important;background:color-mix(in oklch,var(--theme-warning) 14%,var(--theme-navigation-active))!important;color:var(--theme-navigation-active-text)!important}
 .app-shell__expand-icon{flex:0 0 .95rem!important;width:.95rem!important;height:.95rem!important;stroke:currentColor!important;stroke-width:2.2!important}
 @media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;align-items:flex-end;overflow-x:auto;overflow-y:hidden;gap:var(--spacing-xs);padding-bottom:var(--spacing-2xs)}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__more-toggle{flex:0 0 auto!important;width:auto!important;margin:0!important;border-top:0!important}.app-shell__more-navigation{display:flex;gap:var(--spacing-xs)}.app-shell__sidebar-footer{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.app-shell__fixed-setup{align-self:stretch}.app-shell__nav-groups{width:max-content;min-width:100%}}
-@media(min-width:64.0625rem){.app-shell--collapsed .app-shell__more-toggle :deep(> span.truncate){display:flex!important;justify-content:center}.app-shell--collapsed .app-shell__more-toggle :deep(> span.truncate > :not(:first-child)){display:none!important}.app-shell--collapsed .app-shell__fixed-setup{width:100%;padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__fixed-setup .app-shell__utility-link{width:100%}}
+@media(min-width:64.0625rem){.app-shell--collapsed :deep(.app-shell__more-toggle){justify-content:center!important;padding-inline:0!important}.app-shell--collapsed :deep(.app-shell__more-toggle > span.truncate){display:flex!important;justify-content:center!important;width:100%!important;gap:0!important}.app-shell--collapsed :deep(.app-shell__more-toggle > span.truncate > :not(:first-child)){display:none!important;width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important}.app-shell--collapsed .app-shell__more-toggle .app-shell__more-arrow{display:none!important}.app-shell--collapsed .app-shell__fixed-setup{width:100%;padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__fixed-setup .app-shell__utility-link{width:100%}}
 @media(max-width:44rem){.app-shell__nav{overflow-x:hidden}.app-shell__nav-groups{display:grid;width:100%;min-width:0}.app-shell__nav-category{width:100%}.app-shell__category-controls,.app-shell__theoretical-controls{flex-wrap:wrap}.app-shell__theoretical-controls{display:contents}.app-shell__nav :deep(.app-shell__nav-button){flex:1 1 auto;min-width:5.5rem!important;padding-inline:var(--spacing-xs)!important}.app-shell__category-card{width:100%}}
 </style>
