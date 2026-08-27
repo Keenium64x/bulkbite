@@ -10,7 +10,7 @@ import {
   applyPriceWorkbook, createCostInvoice, getCostInvoiceExtractionStatus, getFinanceWorkspace,
   getPriceImportFields, getPurchasePriceHistory, inspectPriceFile, postCostInvoice,
   previewPriceWorkbook, priceWorkbookUrl, saveExpectedCostRule, saveMiscellaneousCost,
-  savePriceAdjustment, startCostInvoiceExtraction, financeLedgerWorkbookUrl,
+  savePriceAdjustment, startCostInvoiceExtraction, financeLedgerWorkbookUrl, downloadAuthenticatedFile,
 } from "@/resources/api"
 
 // =============================================================================
@@ -35,7 +35,11 @@ function money(value) { return value === null || value === undefined ? "Not avai
 function quantity(value) { return Number(value || 0).toLocaleString("en-ZA", { maximumFractionDigits: 2 }) }
 function statusTheme(status) { return status === "error" ? "red" : status === "unchanged" ? undefined : "green" }
 function confidenceTheme(value) { return Number(value || 0) >= 85 ? "green" : Number(value || 0) >= 60 ? "orange" : "red" }
-function downloadLedger() { if (finance.value?.period) window.location.assign(financeLedgerWorkbookUrl(finance.value.period.from_date, finance.value.period.to_date)) }
+async function downloadLedger() {
+  if (!finance.value?.period) return
+  try { await downloadAuthenticatedFile(financeLedgerWorkbookUrl(finance.value.period.from_date, finance.value.period.to_date), "bulkbite-finance-ledger.xlsx") }
+  catch (exception) { error.value = exception.message }
+}
 
 // endregion 1. SHARED STATE
 
@@ -53,7 +57,10 @@ const supplierOptions = computed(() => (props.snapshot?.options?.suppliers || []
 const targetFieldOptions = computed(() => [{ label: "Do not import", value: "" }, ...(importInspection.value?.target_fields || [])])
 
 function toggleField(field) { selectedFields.value = selectedFields.value.includes(field) ? selectedFields.value.filter(value => value !== field) : [...selectedFields.value, field] }
-function downloadWorkbook() { window.location.assign(priceWorkbookUrl(selectedFields.value)) }
+async function downloadWorkbook() {
+  try { await downloadAuthenticatedFile(priceWorkbookUrl(selectedFields.value), "bulkbite-prices.xlsx") }
+  catch (exception) { error.value = exception.message }
+}
 function uploadedFileUrl(file) { return file?.file_url || file?.message?.file_url || file?.data?.file_url || "" }
 function variance(row) { if (row.record_type !== "Actual" || row.variance === null || row.variance === undefined) return "No matching theory"; const sign = Number(row.variance) > 0 ? "+" : ""; return `${sign}${money(row.variance)} (${sign}${Number(row.variance_percent || 0).toFixed(1)}%)` }
 function rowLabel(row) { return row.item_name || row.record_name || `Spreadsheet row ${row.row_number}` }

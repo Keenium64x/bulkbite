@@ -16,6 +16,9 @@ import {
   SystemStockReconciliation,
 } from "@/desyium"
 import { assignScanCode, getInventorySnapshot, getProductionPlanSnapshot, getWorkspaceSnapshot, logOut, resolveScanCode } from "@/resources/api"
+import { runtimeConfig } from "@/config/runtime"
+import { getNativeAccessToken } from "@/native/auth"
+import NativeLoginPage from "@/pages/NativeLoginPage.vue"
 
 const sections = [
   { id: "overview", label: "Dashboard" },
@@ -48,6 +51,8 @@ const scanResult = ref(null)
 const loading = ref(false)
 const sessionBusy = ref(false)
 const error = ref("")
+const nativeAuthReady = ref(!runtimeConfig.isNative)
+const nativeAuthenticated = ref(!runtimeConfig.isNative)
 const currentUser = computed(() => snapshot.value?.user || window.boot?.user || "")
 
 function navigate(id) {
@@ -90,6 +95,20 @@ async function loadAll() {
   } catch (exception) { error.value = exception.message } finally { loading.value = false }
 }
 
+async function initialiseApplication() {
+  if (runtimeConfig.isNative) {
+    nativeAuthenticated.value = Boolean(await getNativeAccessToken().catch(() => null))
+    nativeAuthReady.value = true
+    if (!nativeAuthenticated.value) return
+  }
+  await loadAll()
+}
+
+async function handleNativeAuthenticated() {
+  nativeAuthenticated.value = true
+  await loadAll()
+}
+
 async function scan(code) { error.value = ""; try { scanResult.value = await resolveScanCode(code) } catch (exception) { error.value = exception.message } }
 async function mapScan(itemCode, code) { error.value = ""; try { scanResult.value = await assignScanCode(itemCode, code); await loadAll() } catch (exception) { error.value = exception.message } }
 async function handleLogout() {
@@ -97,17 +116,24 @@ async function handleLogout() {
   error.value = ""
   try {
     await logOut()
+    if (runtimeConfig.isNative) {
+      nativeAuthenticated.value = false
+      sessionBusy.value = false
+      return
+    }
     window.location.assign("/login?redirect-to=%2Fbulkbite")
   } catch (exception) {
     error.value = exception.message
     sessionBusy.value = false
   }
 }
-onMounted(loadAll)
+onMounted(initialiseApplication)
 </script>
 
 <template>
-  <SystemBulkbiteAppShell :sections="sections" :active-section="activeSection" :user="currentUser" :busy="loading" :session-busy="sessionBusy" @navigate="navigate" @refresh="loadAll" @logout="handleLogout">
+  <div v-if="!nativeAuthReady" class="native-login native-login--loading" role="status">Starting BulkBite</div>
+  <NativeLoginPage v-else-if="runtimeConfig.isNative && !nativeAuthenticated" @authenticated="handleNativeAuthenticated" />
+  <SystemBulkbiteAppShell v-else :sections="sections" :active-section="activeSection" :user="currentUser" :busy="loading" :session-busy="sessionBusy" @navigate="navigate" @refresh="loadAll" @logout="handleLogout">
     <SystemAuxiliaryRecords v-if="auxiliaryMode" :mode="auxiliaryMode" :doctype="String(route.params.doctype || '')" :record-name="String(route.params.name || '')" @navigate="navigateAuxiliary" />
     <SystemStockOverview v-else-if="activeSection === 'overview'" mode="dashboard" :snapshot="snapshot" :inventory="inventory" :plan="plan" :loading="loading" :error="error" @open-workflow="navigate" />
     <SystemReceiptIntake v-else-if="activeSection === 'receipts'" :snapshot="snapshot" :inventory="inventory" :plan="plan" @changed="loadAll" />

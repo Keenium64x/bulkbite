@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue"
 import { SystemBadge, SystemDatePicker, SystemOperationalButton, SystemSelect } from "@/desyium"
-import { accountantExportUrl, getAccountantExport, getSpendReport } from "@/resources/api"
+import { accountantExportUrl, downloadAuthenticatedFile, getAccountantExport, getSpendReport } from "@/resources/api"
 
 // =============================================================================
 // region REPORT PERIOD STATION
@@ -35,7 +35,11 @@ async function loadReport() {
   finally { busy.value = false }
 }
 
-function download() { if (validPeriod()) window.location.assign(accountantExportUrl(form.from_date, form.to_date, form.dataset)) }
+async function download() {
+  if (!validPeriod()) return
+  try { await downloadAuthenticatedFile(accountantExportUrl(form.from_date, form.to_date, form.dataset), `bulkbite-${form.dataset}.csv`) }
+  catch (exception) { error.value = exception.message }
+}
 function money(value) { return `R ${Number(value || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
 function variance(value) { return `${Number(value) > 0 ? "+" : ""}${money(value)}` }
 function percentage(value) { return `${Number(value || 0).toLocaleString("en-ZA", { maximumFractionDigits: 1 })}%` }

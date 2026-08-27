@@ -2,15 +2,14 @@
 // region FRAPPE TRANSPORT
 // =============================================================================
 
+import { clearNativeTokens } from "@/native/auth"
+import { runtimeConfig } from "@/config/runtime"
+import { authenticatedFetch, resolveRequestUrl } from "@/resources/transport"
+
 export async function call(method, args = {}, httpMethod = "POST") {
-  const headers = { "Content-Type": "application/json" }
-  const csrfToken = window.csrf_token || window.boot?.csrf_token
-  if (csrfToken) headers["X-Frappe-CSRF-Token"] = csrfToken
   const query = httpMethod === "GET" ? `?${new URLSearchParams(cleanArgs(args))}` : ""
-  const response = await fetch(`/api/method/${method}${query}`, {
+  const response = await authenticatedFetch(`/api/method/${method}${query}`, {
     method: httpMethod,
-    headers,
-    credentials: "same-origin",
     body: httpMethod === "GET" ? undefined : JSON.stringify(args),
   })
   const payload = await response.json().catch(() => ({}))
@@ -39,7 +38,13 @@ function readFrappeError(payload) {
 }
 
 export const getWorkspaceSnapshot = () => call("bulkbite.api.get_workspace_snapshot", {}, "GET")
-export const logOut = () => call("logout")
+export const logOut = async () => {
+  if (runtimeConfig.isNative) {
+    await clearNativeTokens({ revoke: true })
+    return { ok: true }
+  }
+  return call("logout")
+}
 export const getInventorySnapshot = (location) => call("bulkbite.api.get_inventory_snapshot", { location }, "GET")
 export const getProductionPlanSnapshot = (planName, location) => call("bulkbite.api.get_production_plan_snapshot", { plan_name: planName, location }, "GET")
 export const calculateCapacityScenario = (payload) => call("bulkbite.api.calculate_capacity_scenario", { payload })
@@ -104,19 +109,39 @@ export const saveProductionEmployees = (name, employees, teamTemplate, actualEla
 })
 
 export function priceWorkbookUrl(fields) {
-  return `/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`
+  return resolveRequestUrl(`/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`)
 }
 
 export function accountantExportUrl(fromDate, toDate, dataset) {
-  return `/api/method/bulkbite.api.download_accountant_export?${new URLSearchParams({
+  return resolveRequestUrl(`/api/method/bulkbite.api.download_accountant_export?${new URLSearchParams({
     from_date: fromDate,
     to_date: toDate,
     dataset,
-  })}`
+  })}`)
 }
 
 export function financeLedgerWorkbookUrl(fromDate, toDate) {
-  return `/api/method/bulkbite.api.download_finance_ledger_workbook?${new URLSearchParams({ from_date: fromDate, to_date: toDate })}`
+  return resolveRequestUrl(`/api/method/bulkbite.api.download_finance_ledger_workbook?${new URLSearchParams({ from_date: fromDate, to_date: toDate })}`)
+}
+
+export async function downloadAuthenticatedFile(url, fallbackName) {
+  if (!runtimeConfig.isNative) {
+    window.location.assign(url)
+    return
+  }
+  const response = await authenticatedFetch(url, { method: "GET" })
+  if (!response.ok) throw new Error(`Download failed with ${response.status}`)
+  const blob = await response.blob()
+  const disposition = response.headers.get("content-disposition") || ""
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const quotedName = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+  const filename = decodeURIComponent(encodedName || quotedName || fallbackName)
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = objectUrl
+  link.download = filename
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
 }
 
 // endregion FRAPPE TRANSPORT

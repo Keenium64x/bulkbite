@@ -2,6 +2,7 @@
 import { computed, ref } from "vue"
 import { FilePlus2, RotateCcw, Trash2 } from "lucide-vue-next"
 import { SystemOperationalButton } from "@/desyium"
+import { authenticatedFetch } from "@/resources/transport"
 
 // =============================================================================
 // region PRIVATE MULTI-FILE UPLOAD
@@ -40,44 +41,27 @@ async function addFiles(event) {
   if (uploadedFiles.length) emit("complete", [...accumulatedFiles])
 }
 
-function uploadFile(row) {
+async function uploadFile(row) {
   row.status = "uploading"
   row.error = ""
-  return new Promise((resolve) => {
-    const request = new XMLHttpRequest()
-    request.open("POST", "/api/method/upload_file")
-    request.setRequestHeader("X-Frappe-CSRF-Token", window.csrf_token || window.boot?.csrf_token || "")
-    request.upload.addEventListener("progress", (event) => {
-      row.progress = event.lengthComputable ? Math.round((event.loaded / event.total) * 100) : 0
-    })
-    request.addEventListener("load", () => {
-      try {
-        const payload = JSON.parse(request.responseText || "{}")
-        if (request.status < 200 || request.status >= 300 || !payload.message?.file_url) throw new Error(payload.exception || "The file could not be uploaded.")
-        const uploaded = { file_url: payload.message.file_url, file_name: payload.message.file_name || row.name }
-        row.status = "complete"
-        row.progress = 100
-        emit("uploaded", uploaded)
-        resolve(uploaded)
-        return
-      } catch (error) {
-        row.status = "error"
-        row.error = error.message
-        emit("error", error)
-      }
-      resolve(null)
-    })
-    request.addEventListener("error", () => {
-      row.status = "error"
-      row.error = "The upload connection failed."
-      emit("error", new Error(row.error))
-      resolve(null)
-    })
+  try {
     const body = new FormData()
     body.append("file", row.file)
     body.append("is_private", "1")
-    request.send(body)
-  })
+    const response = await authenticatedFetch("/api/method/upload_file", { method: "POST", body })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || !payload.message?.file_url) throw new Error(payload.exception || "The file could not be uploaded.")
+    const uploaded = { file_url: payload.message.file_url, file_name: payload.message.file_name || row.name }
+    row.status = "complete"
+    row.progress = 100
+    emit("uploaded", uploaded)
+    return uploaded
+  } catch (error) {
+    row.status = "error"
+    row.error = error.message || "The upload connection failed."
+    emit("error", error)
+    return null
+  }
 }
 
 async function retryFile(row) {

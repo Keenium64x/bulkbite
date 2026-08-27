@@ -1,5 +1,7 @@
 import frappe
 
+from bulkbite.mobile import setup_mobile_jwt_secret
+
 
 # =============================================================================
 # region BULKBITE ROLE SETUP
@@ -27,6 +29,7 @@ def ensure_bulkbite_roles():
 				"description": description,
 			}
 		).insert(ignore_permissions=True)
+	setup_mobile_jwt_secret()
 
 
 # endregion BULKBITE ROLE SETUP

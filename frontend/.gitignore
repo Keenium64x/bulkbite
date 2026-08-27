@@ -5,3 +5,9 @@ auto-imports.d.ts
 components.d.ts
 *.log
 .DS_Store
+dist-mobile/
+android/local.properties
+android/key.properties
+android/*.jks
+android/*.keystore
+ios/App/Pods/

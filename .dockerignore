@@ -1,0 +1,17 @@
+.git
+.github
+.serena
+.venv
+env
+node_modules
+frontend/node_modules
+frontend/dist-mobile
+frontend/android/.gradle
+frontend/android/app/build
+frontend/android/local.properties
+frontend/android/key.properties
+frontend/ios/App/Pods
+deploy/.env
+*.pyc
+__pycache__
+*.log
