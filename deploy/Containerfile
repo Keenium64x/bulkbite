@@ -20,7 +20,7 @@ RUN bench init \
     --skip-assets \
     /home/frappe/frappe-bench \
     && cd /home/frappe/frappe-bench/apps/frappe \
-    && git fetch --depth 1 origin "${FRAPPE_COMMIT}" \
+    && git fetch --depth 1 upstream "${FRAPPE_COMMIT}" \
     && git checkout --detach "${FRAPPE_COMMIT}" \
     && cd /home/frappe/frappe-bench \
     && ./env/bin/pip install --no-cache-dir -e apps/frappe \
