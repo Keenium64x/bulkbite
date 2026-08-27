@@ -72,6 +72,8 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
       - ./scripts:/workspace:ro
+    secrets:
+      - gemini_api_key
     depends_on:
       configurator:
         condition: service_completed_successfully
@@ -139,3 +141,7 @@ volumes:
   redis-queue-data:
   sites:
   logs:
+
+secrets:
+  gemini_api_key:
+    file: ./secrets/gemini_api_key.txt

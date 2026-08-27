@@ -12,6 +12,7 @@ frontend/android/local.properties
 frontend/android/key.properties
 frontend/ios/App/Pods
 deploy/.env
+deploy/secrets
 *.pyc
 __pycache__
 *.log

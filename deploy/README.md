@@ -13,6 +13,8 @@ chmod 600 deploy/.env
 
 Replace both password placeholders with independent random values. Keep the stack bound to `127.0.0.1:8088`; the server's existing reverse proxy should terminate TLS and forward `admin.bulkbite.co.za` to that address.
 
+Store the approved Gemini key in `deploy/secrets/gemini_api_key.txt` with mode `0600`. Compose mounts it only into the one-time site setup container, which writes the site configuration needed by the reviewed receipt and invoice workflow.
+
 Run the complete idempotent deployment:
 
 ```bash
@@ -20,6 +22,20 @@ Run the complete idempotent deployment:
 ```
 
 The first run builds the app image, creates `admin.bulkbite.co.za`, installs BulkBite, starts workers and the scheduler, and checks `/api/method/ping`. Later runs back up the live site first, rebuild the checked-out app commit, run migrations, restart services, and repeat the health check.
+
+## Shared production host activation
+
+The prepared DigitalOcean host already runs nginx plus OmniRoute, Trilium, OpenClaw, and a retired Frappe Compose project at `/opt/frappe`. Use the host activation stations from the staged release as root:
+
+```bash
+./deploy/scripts/activate-production-host.sh
+./deploy/scripts/enable-production-tls.sh
+./deploy/scripts/verify-production-host.sh
+```
+
+The activation station backs up `fcemanager.co.za` and `poloway.co.za`, stops only the `/opt/frappe` Compose project without deleting its volumes or workspace, deploys the isolated `bulkbite` project on `127.0.0.1:8088`, and adds a dedicated nginx HTTP route. It automatically restarts the legacy Frappe project if BulkBite fails before its first healthy response.
+
+The TLS station uses a dedicated ACME webroot, installs a certificate-renewal hook that validates and reloads nginx, and installs the final HTTPS nginx route only after DNS resolves to `188.166.144.156`. The proof station verifies the public app and confirms that ports `8080`, `18789`, and `20128` remain available for the preserved services.
 
 ## Proxy and DNS
 

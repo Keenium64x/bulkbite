@@ -26,6 +26,7 @@ MANIFEST
 # Environments
 .env
 deploy/.env
+deploy/secrets/
 .venv
 env/
 venv/
