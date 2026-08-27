@@ -35,6 +35,8 @@ The prepared DigitalOcean host already runs nginx plus OmniRoute, Trilium, OpenC
 
 The activation station backs up `fcemanager.co.za` and `poloway.co.za`, stops only the `/opt/frappe` Compose project without deleting its volumes or workspace, deploys the isolated `bulkbite` project on `127.0.0.1:8088`, and adds a dedicated nginx HTTP route. It automatically restarts the legacy Frappe project if BulkBite fails before its first healthy response.
 
+After the activation station has already created and verified the retired-site backups, use `resume-production-host.sh` for interrupted first deployments. It does not create another backup or restore the retired project. It stops that project when needed, builds the release image only when its exact tag is absent, then resumes the persistent BulkBite site and proxy stations. Re-running it after the image exists skips the image build.
+
 The TLS station uses a dedicated ACME webroot, installs a certificate-renewal hook that validates and reloads nginx, and installs the final HTTPS nginx route only after DNS resolves to `188.166.144.156`. The proof station verifies the public app and confirms that ports `8080`, `18789`, and `20128` remain available for the preserved services.
 
 ## Proxy and DNS
