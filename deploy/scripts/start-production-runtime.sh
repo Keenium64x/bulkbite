@@ -5,6 +5,13 @@ set -euo pipefail
 SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIRECTORY="$(cd "${SCRIPT_DIRECTORY}/.." && pwd)"
 
+set -a
+source "${DEPLOY_DIRECTORY}/.env"
+set +a
+
+: "${BULKBITE_IMAGE:?BULKBITE_IMAGE is required}"
+: "${BULKBITE_TAG:?BULKBITE_TAG is required}"
+
 COMPOSE=(
   docker compose
   --project-name bulkbite
@@ -15,6 +22,7 @@ COMPOSE=(
 
 [[ "${EUID}" -eq 0 ]] || { printf 'Run this script as root.\n' >&2; exit 1; }
 
+printf 'Using image %s:%s.\n' "${BULKBITE_IMAGE}" "${BULKBITE_TAG}"
 "${COMPOSE[@]}" config --quiet
 "${COMPOSE[@]}" up -d --no-deps --force-recreate backend frontend
 
