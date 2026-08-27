@@ -75,4 +75,4 @@ RUN printf '%s\n' \
 USER frappe
 
 ENTRYPOINT ["/usr/local/bin/bulkbite-entrypoint"]
-CMD ["start.sh"]
+CMD ["/home/frappe/frappe-bench/apps/bulkbite/deploy/scripts/start-backend.sh"]
