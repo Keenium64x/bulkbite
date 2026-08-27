@@ -23,8 +23,6 @@ export PATH="${JAVA_HOME}/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID
 
 ANDROID_APPLICATION_ID="za.co.bulkbite.admin"
 ANDROID_ACTIVITY="${ANDROID_APPLICATION_ID}/.MainActivity"
-DEVELOPMENT_API_URL="${BULKBITE_DEVELOPMENT_API_URL:-}"
-PRODUCTION_SERVER_URL="${BULKBITE_PRODUCTION_SERVER_URL:-https://admin.bulkbite.co.za}"
 DEBUG_APK="${FRONTEND_DIRECTORY}/android/app/build/outputs/apk/debug/app-debug.apk"
 RELEASE_BUNDLE="${FRONTEND_DIRECTORY}/android/app/build/outputs/bundle/release/app-release.aab"
 GRADLE_WRAPPER="${FRONTEND_DIRECTORY}/android/gradlew"
@@ -45,17 +43,7 @@ run_gradle() {
   (cd "${FRONTEND_DIRECTORY}/android" && printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties && ./gradlew "$@")
 }
 
-sync_with_server() {
-  local api_url="$1"
-  (cd "${FRONTEND_DIRECTORY}" && VITE_BULKBITE_API_URL="${api_url}" VITE_BULKBITE_WEB_URL="${api_url}" VITE_BULKBITE_ALLOW_HTTP=false npm run mobile:sync)
-}
-
-sync_development() {
-  [[ "${DEVELOPMENT_API_URL}" == https://* ]] || fail "set BULKBITE_DEVELOPMENT_API_URL to an HTTPS tunnel for the local Vite server"
-  sync_with_server "${DEVELOPMENT_API_URL}"
-}
-
-sync_production() { sync_with_server "${PRODUCTION_SERVER_URL}"; }
+sync_production() { (cd "${FRONTEND_DIRECTORY}" && npm run mobile:sync); }
 
 doctor() {
   local status=0
@@ -75,7 +63,7 @@ require_release_signing() {
   done
 }
 
-build_debug() { sync_development; run_gradle assembleDebug; require_file "${DEBUG_APK}"; printf 'Debug APK: %s\n' "${DEBUG_APK}"; }
+build_debug() { sync_production; run_gradle assembleDebug; require_file "${DEBUG_APK}"; printf 'Debug APK: %s\n' "${DEBUG_APK}"; }
 build_bundle() { require_release_signing; sync_production; run_gradle bundleRelease; require_file "${RELEASE_BUNDLE}"; printf 'Release bundle: %s\n' "${RELEASE_BUNDLE}"; }
 require_device() { require_command adb; adb get-state >/dev/null 2>&1 || fail "no authorized Android device is connected"; }
 install_debug() { require_device; require_file "${DEBUG_APK}"; adb install -r "${DEBUG_APK}"; }
@@ -90,9 +78,9 @@ launch() { require_device; adb shell am start -n "${ANDROID_ACTIVITY}"; }
 
 case "${1:-doctor}" in
   doctor) doctor ;;
-  sync) sync_development ;;
+  sync) sync_production ;;
   sync-production) sync_production ;;
-  native-debug) run_gradle assembleDebug ;;
+  native-debug) sync_production; run_gradle assembleDebug ;;
   build-debug) build_debug ;;
   build-bundle) build_bundle ;;
   install-debug) install_debug ;;

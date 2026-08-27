@@ -4,12 +4,13 @@ app_publisher = "BulkBite"
 app_description = "Kitchen production truth, inventory, and variance control for BulkBite."
 app_email = "admin@bulkbite.co.za"
 app_license = "agpl-3.0"
+app_logo_url = "/assets/bulkbite/images/bulkbite-logo-wordmark.svg"
 
 required_apps = []
 home_page = "bulkbite"
 website_route_rules = [{"from_route": "/bulkbite/<path:app_path>", "to_route": "bulkbite"}]
-after_install = "bulkbite.roles.ensure_bulkbite_roles"
-after_migrate = "bulkbite.roles.ensure_bulkbite_roles"
+after_install = "bulkbite.roles.ensure_bulkbite_setup"
+after_migrate = "bulkbite.roles.ensure_bulkbite_setup"
 auth_hooks = ["bulkbite.mobile.validate_mobile_jwt"]
 
 # Apps

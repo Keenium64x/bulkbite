@@ -28,34 +28,35 @@ import { FormControl as Provider12_0 } from "frappe-ui"
 import Provider13_0 from "../components/desyium/link/SystemLink.vue"
 import Provider14_0 from "../components/linked-record-field/LinkedRecordField.vue"
 import { ListView as Provider15_0 } from "frappe-ui"
-import { MonthPicker as Provider16_0 } from "frappe-ui"
-import Provider17_0 from "../components/multi-file-uploader/MultiFileUploader.vue"
-import { MultiSelect as Provider18_0 } from "frappe-ui"
-import { NavigationMenu as Provider19_0 } from "../components/ui/navigation-menu"
-import { NavigationMenuContent as Provider19_1 } from "../components/ui/navigation-menu"
-import { NavigationMenuIndicator as Provider19_2 } from "../components/ui/navigation-menu"
-import { NavigationMenuItem as Provider19_3 } from "../components/ui/navigation-menu"
-import { NavigationMenuLink as Provider19_4 } from "../components/ui/navigation-menu"
-import { NavigationMenuList as Provider19_5 } from "../components/ui/navigation-menu"
-import { NavigationMenuTrigger as Provider19_6 } from "../components/ui/navigation-menu"
-import { NavigationMenuViewport as Provider19_7 } from "../components/ui/navigation-menu"
-import { Button as Provider20_0 } from "frappe-ui"
-import { Progress as Provider21_0 } from "frappe-ui"
-import { Progress as Provider22_0 } from "../components/ui/progress"
-import { Rating as Provider23_0 } from "frappe-ui"
-import Provider24_0 from "../components/scan-code-field/ScanCodeField.vue"
-import { Select as Provider25_0 } from "frappe-ui"
-import { Slider as Provider26_0 } from "frappe-ui"
-import Provider27_0 from "../components/desyium/stat/SystemStat.vue"
-import { Switch as Provider28_0 } from "frappe-ui"
-import { Tabs as Provider29_0 } from "../components/ui/tabs"
-import { TabsList as Provider29_1 } from "../components/ui/tabs"
-import { TabsTrigger as Provider29_2 } from "../components/ui/tabs"
-import { TabsContent as Provider29_3 } from "../components/ui/tabs"
-import { TextInput as Provider30_0 } from "frappe-ui"
-import { Textarea as Provider31_0 } from "frappe-ui"
-import { TimePicker as Provider32_0 } from "frappe-ui"
-import { Tree as Provider33_0 } from "frappe-ui"
+import Provider16_0 from "../components/desyium/logo/SystemLogo.vue"
+import { MonthPicker as Provider17_0 } from "frappe-ui"
+import Provider18_0 from "../components/multi-file-uploader/MultiFileUploader.vue"
+import { MultiSelect as Provider19_0 } from "frappe-ui"
+import { NavigationMenu as Provider20_0 } from "../components/ui/navigation-menu"
+import { NavigationMenuContent as Provider20_1 } from "../components/ui/navigation-menu"
+import { NavigationMenuIndicator as Provider20_2 } from "../components/ui/navigation-menu"
+import { NavigationMenuItem as Provider20_3 } from "../components/ui/navigation-menu"
+import { NavigationMenuLink as Provider20_4 } from "../components/ui/navigation-menu"
+import { NavigationMenuList as Provider20_5 } from "../components/ui/navigation-menu"
+import { NavigationMenuTrigger as Provider20_6 } from "../components/ui/navigation-menu"
+import { NavigationMenuViewport as Provider20_7 } from "../components/ui/navigation-menu"
+import { Button as Provider21_0 } from "frappe-ui"
+import { Progress as Provider22_0 } from "frappe-ui"
+import { Progress as Provider23_0 } from "../components/ui/progress"
+import { Rating as Provider24_0 } from "frappe-ui"
+import Provider25_0 from "../components/scan-code-field/ScanCodeField.vue"
+import { Select as Provider26_0 } from "frappe-ui"
+import { Slider as Provider27_0 } from "frappe-ui"
+import Provider28_0 from "../components/desyium/stat/SystemStat.vue"
+import { Switch as Provider29_0 } from "frappe-ui"
+import { Tabs as Provider30_0 } from "../components/ui/tabs"
+import { TabsList as Provider30_1 } from "../components/ui/tabs"
+import { TabsTrigger as Provider30_2 } from "../components/ui/tabs"
+import { TabsContent as Provider30_3 } from "../components/ui/tabs"
+import { TextInput as Provider31_0 } from "frappe-ui"
+import { Textarea as Provider32_0 } from "frappe-ui"
+import { TimePicker as Provider33_0 } from "frappe-ui"
+import { Tree as Provider34_0 } from "frappe-ui"
 
 export const SystemBadge = createSystemComponent({
   name: "badge",
@@ -337,9 +338,19 @@ export const SystemListView = createSystemComponent({
   dataAttributes: true,
 })
 
+export const SystemLogo = createSystemComponent({
+  name: "logo",
+  component: Provider16_0,
+  baseClass: "system-logo",
+  providerClass: "",
+  treatments: ["default"],
+  effects: ["none"],
+  dataAttributes: true,
+})
+
 export const SystemMonthPicker = createSystemComponent({
   name: "month-picker",
-  component: Provider16_0,
+  component: Provider17_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -349,7 +360,7 @@ export const SystemMonthPicker = createSystemComponent({
 
 export const SystemMultiFileUploader = createSystemComponent({
   name: "multi-file-uploader",
-  component: Provider17_0,
+  component: Provider18_0,
   baseClass: "system-multi-file-uploader",
   providerClass: "",
   treatments: ["default"],
@@ -359,7 +370,7 @@ export const SystemMultiFileUploader = createSystemComponent({
 
 export const SystemMultiSelect = createSystemComponent({
   name: "multi-select",
-  component: Provider18_0,
+  component: Provider19_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -369,7 +380,7 @@ export const SystemMultiSelect = createSystemComponent({
 
 export const SystemNavigationMenu = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_0,
+  component: Provider20_0,
   baseClass: "system-navigation-menu",
   providerClass: "",
   treatments: ["default"],
@@ -379,7 +390,7 @@ export const SystemNavigationMenu = createSystemComponent({
 
 export const SystemNavigationMenuContent = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_1,
+  component: Provider20_1,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -389,7 +400,7 @@ export const SystemNavigationMenuContent = createSystemComponent({
 
 export const SystemNavigationMenuIndicator = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_2,
+  component: Provider20_2,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -399,7 +410,7 @@ export const SystemNavigationMenuIndicator = createSystemComponent({
 
 export const SystemNavigationMenuItem = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_3,
+  component: Provider20_3,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -409,7 +420,7 @@ export const SystemNavigationMenuItem = createSystemComponent({
 
 export const SystemNavigationMenuLink = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_4,
+  component: Provider20_4,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -419,7 +430,7 @@ export const SystemNavigationMenuLink = createSystemComponent({
 
 export const SystemNavigationMenuList = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_5,
+  component: Provider20_5,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -429,7 +440,7 @@ export const SystemNavigationMenuList = createSystemComponent({
 
 export const SystemNavigationMenuTrigger = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_6,
+  component: Provider20_6,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -439,7 +450,7 @@ export const SystemNavigationMenuTrigger = createSystemComponent({
 
 export const SystemNavigationMenuViewport = createSystemComponent({
   name: "navigation-menu",
-  component: Provider19_7,
+  component: Provider20_7,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -449,7 +460,7 @@ export const SystemNavigationMenuViewport = createSystemComponent({
 
 export const SystemOperationalButton = createSystemComponent({
   name: "operational-button",
-  component: Provider20_0,
+  component: Provider21_0,
   baseClass: "system-button",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -459,7 +470,7 @@ export const SystemOperationalButton = createSystemComponent({
 
 export const SystemOperationalProgress = createSystemComponent({
   name: "operational-progress",
-  component: Provider21_0,
+  component: Provider22_0,
   baseClass: "system-feedback",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -469,7 +480,7 @@ export const SystemOperationalProgress = createSystemComponent({
 
 export const SystemProgress = createSystemComponent({
   name: "progress",
-  component: Provider22_0,
+  component: Provider23_0,
   baseClass: "system-feedback",
   providerClass: "",
   treatments: ["default"],
@@ -479,7 +490,7 @@ export const SystemProgress = createSystemComponent({
 
 export const SystemRating = createSystemComponent({
   name: "rating",
-  component: Provider23_0,
+  component: Provider24_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -489,7 +500,7 @@ export const SystemRating = createSystemComponent({
 
 export const SystemScanCodeField = createSystemComponent({
   name: "scan-code-field",
-  component: Provider24_0,
+  component: Provider25_0,
   baseClass: "system-scan-code-field",
   providerClass: "",
   treatments: ["default"],
@@ -499,7 +510,7 @@ export const SystemScanCodeField = createSystemComponent({
 
 export const SystemSelect = createSystemComponent({
   name: "select",
-  component: Provider25_0,
+  component: Provider26_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -509,7 +520,7 @@ export const SystemSelect = createSystemComponent({
 
 export const SystemSlider = createSystemComponent({
   name: "slider",
-  component: Provider26_0,
+  component: Provider27_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -519,7 +530,7 @@ export const SystemSlider = createSystemComponent({
 
 export const SystemStat = createSystemComponent({
   name: "stat",
-  component: Provider27_0,
+  component: Provider28_0,
   baseClass: "system-stat",
   providerClass: "",
   treatments: ["default"],
@@ -529,7 +540,7 @@ export const SystemStat = createSystemComponent({
 
 export const SystemSwitch = createSystemComponent({
   name: "switch",
-  component: Provider28_0,
+  component: Provider29_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -539,7 +550,7 @@ export const SystemSwitch = createSystemComponent({
 
 export const SystemTabs = createSystemComponent({
   name: "tabs",
-  component: Provider29_0,
+  component: Provider30_0,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -549,7 +560,7 @@ export const SystemTabs = createSystemComponent({
 
 export const SystemTabsList = createSystemComponent({
   name: "tabs",
-  component: Provider29_1,
+  component: Provider30_1,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -559,7 +570,7 @@ export const SystemTabsList = createSystemComponent({
 
 export const SystemTabsTrigger = createSystemComponent({
   name: "tabs",
-  component: Provider29_2,
+  component: Provider30_2,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -569,7 +580,7 @@ export const SystemTabsTrigger = createSystemComponent({
 
 export const SystemTabsContent = createSystemComponent({
   name: "tabs",
-  component: Provider29_3,
+  component: Provider30_3,
   baseClass: "",
   providerClass: "",
   treatments: ["default"],
@@ -579,7 +590,7 @@ export const SystemTabsContent = createSystemComponent({
 
 export const SystemTextInput = createSystemComponent({
   name: "text-input",
-  component: Provider30_0,
+  component: Provider31_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -589,7 +600,7 @@ export const SystemTextInput = createSystemComponent({
 
 export const SystemTextarea = createSystemComponent({
   name: "textarea",
-  component: Provider31_0,
+  component: Provider32_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -599,7 +610,7 @@ export const SystemTextarea = createSystemComponent({
 
 export const SystemTimePicker = createSystemComponent({
   name: "time-picker",
-  component: Provider32_0,
+  component: Provider33_0,
   baseClass: "system-field",
   providerClass: "frappe-adapter",
   treatments: ["default"],
@@ -609,7 +620,7 @@ export const SystemTimePicker = createSystemComponent({
 
 export const SystemTree = createSystemComponent({
   name: "tree",
-  component: Provider33_0,
+  component: Provider34_0,
   baseClass: "frappe-tree-surface",
   providerClass: "frappe-adapter",
   treatments: ["default"],

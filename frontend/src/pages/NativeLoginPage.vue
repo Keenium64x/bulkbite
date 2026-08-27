@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from "vue"
-import { SystemFormControl, SystemOperationalButton } from "@/desyium"
+import { SystemFormControl, SystemLogo, SystemOperationalButton } from "@/desyium"
+import bulkbiteIcon from "@/assets/bulkbite-icon.svg"
 import { loginNative } from "@/native/auth"
 import { nativeState } from "@/native/lifecycle"
 
@@ -36,7 +37,7 @@ async function submit() {
 <template>
   <main class="native-login" aria-labelledby="native-login-title">
     <section class="native-login__card">
-      <p class="native-login__eyebrow">BulkBite operations</p>
+      <SystemLogo class="native-login__logo" name="BulkBite" :src="bulkbiteIcon" href="#/bulkbite" compact />
       <h1 id="native-login-title">Sign in</h1>
       <p>Use your BulkBite work account to access stock, receipts, and production.</p>
       <p v-if="!nativeState.connected" class="native-login__notice" role="status">You are offline. Connect to the internet before signing in.</p>
@@ -49,3 +50,8 @@ async function submit() {
     </section>
   </main>
 </template>
+
+<style scoped>
+.native-login__logo{width:4rem;min-height:0;margin-bottom:var(--spacing-s)}
+.native-login__logo :deep(.system-logo__mark){width:100%;height:auto}
+</style>

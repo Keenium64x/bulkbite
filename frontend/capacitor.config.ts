@@ -5,8 +5,12 @@ const config: CapacitorConfig = {
   appName: "BulkBite Admin",
   webDir: "dist-mobile",
   appendUserAgent: " BulkBiteNative/1",
-  backgroundColor: "#f3efe9",
-  server: { hostname: "localhost", androidScheme: "https" },
+  backgroundColor: "#F5F0E6",
+  server: {
+    url: "https://admin.bulkbite.co.za/bulkbite",
+    cleartext: false,
+    allowNavigation: ["admin.bulkbite.co.za"],
+  },
   plugins: {
     CapacitorHttp: { enabled: true },
     App: { disableBackButtonHandler: true },

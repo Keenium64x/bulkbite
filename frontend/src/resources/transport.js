@@ -1,4 +1,4 @@
-import { absoluteApiUrl, developmentTunnelHeaders, runtimeConfig } from "@/config/runtime"
+import { absoluteApiUrl, runtimeConfig } from "@/config/runtime"
 import { MOBILE_AUTH_SCHEME, getNativeAccessToken } from "@/native/auth"
 
 
@@ -15,7 +15,6 @@ export function resolveRequestUrl(url) {
 export async function buildRequestHeaders(headers = {}, { json = true } = {}) {
   const nextHeaders = { Accept: "application/json", ...(json ? { "Content-Type": "application/json; charset=utf-8" } : {}), ...headers }
   if (runtimeConfig.isNative) {
-    Object.assign(nextHeaders, developmentTunnelHeaders())
     const token = await getNativeAccessToken()
     if (token) nextHeaders.Authorization = `${MOBILE_AUTH_SCHEME} ${token}`
   } else {

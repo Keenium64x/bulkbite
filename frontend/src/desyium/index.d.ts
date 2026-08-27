@@ -29,6 +29,7 @@ export declare const SystemFormControl: Component
 export declare const SystemLink: Component
 export declare const SystemLinkedRecordField: Component
 export declare const SystemListView: Component
+export declare const SystemLogo: Component
 export declare const SystemMonthPicker: Component
 export declare const SystemMultiFileUploader: Component
 export declare const SystemMultiSelect: Component

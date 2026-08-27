@@ -1,4 +1,4 @@
-import { absoluteApiUrl, developmentTunnelHeaders, runtimeConfig } from "@/config/runtime"
+import { absoluteApiUrl, runtimeConfig } from "@/config/runtime"
 import { readSecureValue, removeSecureValue, writeSecureValue } from "@/native/secureStore"
 
 
@@ -18,7 +18,6 @@ async function postMobileAuth(method, values) {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
-      ...developmentTunnelHeaders(),
     },
     body: JSON.stringify(values),
   })

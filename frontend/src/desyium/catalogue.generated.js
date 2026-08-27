@@ -10899,7 +10899,7 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "bulkbite-app-shell",
       "name": "Bulkbite App Shell",
-      "job": "Keep Dashboard, Receipts, and Production immediately visible for daily work, group theoretical workflows behind one accessible navigation control, and expose frequent supporting destinations in the collapsible sidebar without removing the wider system.",
+      "job": "Keep Dashboard, Receipts, and Production immediately visible inside an Actual category surface, reveal theoretical workflows inline inside a second labelled category surface, and expose frequent supporting destinations in the collapsible sidebar without removing the wider system.",
       "category": "Application",
       "source": "@/blocks/bulkbite-app-shell/BulkbiteAppShell.vue",
       "public": "SystemBulkbiteAppShell",
@@ -10909,7 +10909,7 @@ export const systemCatalogue = Object.freeze({
         "operational-button",
         "badge",
         "link",
-        "navigation-menu"
+        "card"
       ],
       "iconProvider": {
         "package": "lucide-vue-next",
@@ -10918,13 +10918,13 @@ export const systemCatalogue = Object.freeze({
       "primitives": [],
       "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
       "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-      "responsiveBehaviour": "Use a collapsible utility sidebar for frequent supporting destinations, plus one muted top area containing the page header, three operational tabs, and one theoretical navigation control. On narrow screens recompose the sidebar into compact horizontal groups and keep every destination, account action, and authentication action reachable.",
+      "responsiveBehaviour": "Use a collapsible utility sidebar for frequent supporting destinations, plus one muted top area containing labelled Actual and Theoretical category surfaces. The Theoretical surface expands inline to reveal its destinations. On narrow screens stack the category surfaces, allow their controls to wrap, recompose the sidebar into compact horizontal groups, and keep every destination and account action reachable.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "0",
         "gap": "var(--spacing-m)",
-        "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled daily tools, core management links, the full setup handoff, and one compact avatar-name-action account row. A unified muted BulkBite-orange top area owns page identity, a fixed-footprint Refresh action, three operational tabs, and one grouped theoretical navigation control without competing with the work canvas."
+        "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled daily tools, core management links, the full setup handoff, and one compact avatar-name-action account row. A unified muted BulkBite-orange top area owns page identity and a fixed-footprint Refresh action. Below it, labels sit outside and above two bounded cards: Actual holds the three daily workflows, while Theoretical expands inline to hold the wider planning system."
       },
       "surfaceContract": {
         "placement": "none",
@@ -10940,8 +10940,13 @@ export const systemCatalogue = Object.freeze({
         "secondaryPreset": "quiet-action"
       },
       "motionContract": {
-        "mode": "still",
-        "justification": "Workflow switching is immediate and state-driven; no movement is required to understand it."
+        "mode": "experience",
+        "experienceId": "flip-layout-transition",
+        "justification": "A short horizontal layout transition preserves object continuity while the Theoretical category expands, without delaying route selection.",
+        "targets": [
+          "[data-nav-groups] [data-flip-id]"
+        ],
+        "reducedMotion": "Render the final expanded or collapsed state immediately without transforms."
       },
       "scope": "project"
     },
