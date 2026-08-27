@@ -29,16 +29,16 @@ RUN bench init \
 
 COPY --chown=frappe:frappe . /home/frappe/frappe-bench/apps/bulkbite
 
-RUN cd /home/frappe/frappe-bench \
-    && ./env/bin/pip install --no-cache-dir -e apps/bulkbite \
-    && cd apps/bulkbite/frontend \
-    && npm ci \
-    && npm run build:web \
+ENV NODE_OPTIONS=--max-old-space-size=1536
+
+RUN test -s /home/frappe/frappe-bench/apps/bulkbite/bulkbite/public/frontend/index.html \
+    && test -s /home/frappe/frappe-bench/apps/bulkbite/bulkbite/www/bulkbite.html \
     && cd /home/frappe/frappe-bench \
+    && ./env/bin/pip install --no-cache-dir -e apps/bulkbite \
     && bench build --app frappe --app bulkbite --production \
     && printf 'frappe\nbulkbite\n' > sites/apps.txt \
     && find apps -mindepth 1 -path '*/.git' -prune -exec rm -rf {} + \
-    && rm -rf apps/bulkbite/frontend/node_modules
+    && rm -rf apps/bulkbite/frontend
 
 FROM ${FRAPPE_BASE_IMAGE} AS runtime
 
