@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Menu,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
@@ -18,9 +19,17 @@ import {
   UserRound,
   WalletCards,
   Warehouse,
+  X,
 } from "lucide-vue-next"
 import {
   SystemCard,
+  SystemDrawer,
+  SystemDrawerClose,
+  SystemDrawerContent,
+  SystemDrawerDescription,
+  SystemDrawerHeader,
+  SystemDrawerTitle,
+  SystemDrawerTrigger,
   SystemLink,
   SystemLogo,
   SystemOperationalButton,
@@ -70,12 +79,22 @@ const sidebarMoreExpanded = ref(false)
 const navGroupsRoot = ref(null)
 const theoreticalExpanded = ref(false)
 let flipExperience = null
+let mobileShellQuery = null
 const primarySections = computed(() => props.sections.filter(section => section.group !== "theoretical"))
 const theoreticalSections = computed(() => props.sections.filter(section => section.group === "theoretical"))
 const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
 const theoreticalLinksVisible = computed(() => theoreticalExpanded.value)
 const primarySidebarGroup = computed(() => props.sidebarGroups[0] || null)
 const secondarySidebarGroups = computed(() => props.sidebarGroups.slice(1))
+const mobileDrawerOpen = ref(false)
+const mobileCloseButton = ref(null)
+const mobilePrimaryIds = ["overview", "receipts", "production"]
+const mobileSectionIcons = { overview: LayoutDashboard, receipts: ReceiptText, production: CookingPot }
+const mobilePrimarySections = computed(() => mobilePrimaryIds
+  .map(id => props.sections.find(section => section.id === id))
+  .filter(Boolean)
+  .map(section => ({ ...section, icon: mobileSectionIcons[section.id] })))
+const mobileSecondarySections = computed(() => props.sections.filter(section => !mobilePrimaryIds.includes(section.id)))
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
@@ -104,6 +123,21 @@ function navigateSidebar(target) {
   emit("navigate", target)
 }
 
+function navigateMobile(target) {
+  mobileDrawerOpen.value = false
+  emit("navigate", target)
+}
+
+function focusMobileDrawer(event) {
+  event?.preventDefault?.()
+  const target = document.querySelector(".app-shell__mobile-close") || mobileCloseButton.value?.$el || mobileCloseButton.value
+  target?.focus?.()
+}
+
+function resolveMobileShellMode(event) {
+  if (!event.matches) mobileDrawerOpen.value = false
+}
+
 function sidebarLinkIsActive(link) {
   if (link.target.mode === "workflow") return props.activeSection === link.target.id
   if (link.target.mode === "route") return window.location.pathname === link.target.href
@@ -114,7 +148,18 @@ watch(theoreticalActive, (isActive) => {
   if (isActive) theoreticalExpanded.value = true
 }, { immediate: true })
 
+watch(mobileDrawerOpen, async (isOpen) => {
+  if (!isOpen) return
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    const target = document.querySelector(".app-shell__mobile-close") || mobileCloseButton.value?.$el || mobileCloseButton.value
+    target?.focus?.()
+  })
+})
+
 onMounted(() => {
+  mobileShellQuery = window.matchMedia("(max-width: 64rem)")
+  mobileShellQuery.addEventListener("change", resolveMobileShellMode)
   if (!navGroupsRoot.value) return
   flipExperience = mountFlipLayoutTransition(navGroupsRoot.value, {
     items: "[data-flip-id]",
@@ -125,6 +170,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  mobileShellQuery?.removeEventListener("change", resolveMobileShellMode)
+  mobileShellQuery = null
   flipExperience?.destroy()
   flipExperience = null
 })
@@ -253,6 +300,82 @@ onBeforeUnmount(() => {
 
       <main class="app-shell__work" tabindex="-1"><slot /></main>
     </div>
+
+    <SystemDrawer v-model:open="mobileDrawerOpen" direction="bottom">
+      <nav class="app-shell__mobile-nav" aria-label="Primary mobile navigation">
+        <SystemOperationalButton
+          v-for="section in mobilePrimarySections"
+          :key="section.id"
+          class="app-shell__mobile-nav-action"
+          :class="{ 'is-active': activeSection === section.id }"
+          :aria-current="activeSection === section.id ? 'page' : undefined"
+          variant="ghost"
+          @click="navigateMobile(section.id)"
+        >
+          <component :is="section.icon" aria-hidden="true" />
+          <span>{{ section.label }}</span>
+        </SystemOperationalButton>
+
+        <SystemDrawerTrigger as-child>
+          <SystemOperationalButton class="app-shell__mobile-nav-action" :class="{ 'is-active': mobileDrawerOpen }" variant="ghost" aria-label="Open all navigation">
+            <Menu aria-hidden="true" />
+            <span>Menu</span>
+          </SystemOperationalButton>
+        </SystemDrawerTrigger>
+      </nav>
+
+      <SystemDrawerContent class="app-shell__mobile-drawer" @open-auto-focus="focusMobileDrawer">
+        <SystemDrawerHeader class="app-shell__mobile-drawer-header">
+          <div class="app-shell__mobile-drawer-heading">
+            <SystemLogo class="app-shell__mobile-logo" name="BulkBite" :src="bulkbiteWordmark" href="/bulkbite" compact @click.prevent="navigateMobile('overview')" />
+            <SystemDrawerClose as-child>
+              <SystemOperationalButton ref="mobileCloseButton" class="app-shell__mobile-close" variant="ghost"><X aria-hidden="true" /><span class="app-shell__visually-hidden">Close navigation</span></SystemOperationalButton>
+            </SystemDrawerClose>
+          </div>
+          <SystemDrawerTitle>All operations</SystemDrawerTitle>
+          <SystemDrawerDescription>Open planning, stock, finance, setup, or account actions.</SystemDrawerDescription>
+        </SystemDrawerHeader>
+
+        <div class="app-shell__mobile-drawer-scroll">
+          <nav class="app-shell__mobile-drawer-group" aria-label="Planning and control">
+            <p class="app-shell__mobile-group-label">Planning and control</p>
+            <SystemDrawerClose v-for="section in mobileSecondarySections" :key="section.id" as-child>
+              <SystemLink :href="`/bulkbite?work=${section.id}`" class="app-shell__mobile-drawer-link" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" @click.prevent="navigateMobile(section.id)">
+                <span>{{ section.label }}</span><ChevronRight aria-hidden="true" />
+              </SystemLink>
+            </SystemDrawerClose>
+          </nav>
+
+          <nav v-for="group in secondarySidebarGroups" :key="group.label" class="app-shell__mobile-drawer-group" :aria-label="group.label">
+            <p class="app-shell__mobile-group-label">{{ group.label }}</p>
+            <SystemDrawerClose v-for="link in group.links" :key="link.href" as-child>
+              <SystemLink :href="link.href" class="app-shell__mobile-drawer-link" @click.prevent="navigateMobile(link.target)">
+                <span class="app-shell__mobile-link-label"><component :is="link.icon || Settings" aria-hidden="true" /><span>{{ link.label }}</span></span>
+                <ChevronRight aria-hidden="true" />
+              </SystemLink>
+            </SystemDrawerClose>
+          </nav>
+
+          <nav class="app-shell__mobile-drawer-group" aria-label="Setup">
+            <p class="app-shell__mobile-group-label">Setup</p>
+            <SystemDrawerClose as-child>
+              <SystemLink href="/bulkbite/setup" class="app-shell__mobile-drawer-link" @click.prevent="navigateMobile({ mode: 'catalogue' })">
+                <span class="app-shell__mobile-link-label"><Settings aria-hidden="true" /><span>All setup</span></span><ChevronRight aria-hidden="true" />
+              </SystemLink>
+            </SystemDrawerClose>
+          </nav>
+        </div>
+
+        <footer class="app-shell__mobile-drawer-footer">
+          <div class="app-shell__mobile-account"><span class="app-shell__account-avatar" aria-hidden="true"><UserRound /></span><span>{{ user && user !== 'Guest' ? user : 'Guest' }}</span></div>
+          <div class="app-shell__mobile-footer-actions">
+            <SystemOperationalButton variant="subtle" :disabled="busy" :aria-busy="busy" @click="$emit('refresh')"><span v-if="busy" class="app-shell__refresh-loader" aria-hidden="true" /><span>{{ busy ? 'Refreshing' : 'Refresh' }}</span></SystemOperationalButton>
+            <SystemOperationalButton v-if="user && user !== 'Guest'" variant="subtle" :disabled="sessionBusy" @click="$emit('logout')"><LogOut aria-hidden="true" /><span>Log out</span></SystemOperationalButton>
+            <SystemLink v-else href="/login?redirect-to=%2Fbulkbite" class="app-shell__mobile-login"><LogIn aria-hidden="true" /><span>Log in</span></SystemLink>
+          </div>
+        </footer>
+      </SystemDrawerContent>
+    </SystemDrawer>
   </section>
 </template>
 
@@ -300,4 +423,38 @@ onBeforeUnmount(() => {
 @media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;align-items:flex-end;overflow-x:auto;overflow-y:hidden;gap:var(--spacing-xs);padding-bottom:var(--spacing-2xs)}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__more-toggle{flex:0 0 auto!important;width:auto!important;margin:0!important;border-top:0!important}.app-shell__more-navigation{display:flex;gap:var(--spacing-xs)}.app-shell__sidebar-footer{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.app-shell__fixed-setup{align-self:stretch}.app-shell__nav-groups{width:max-content;min-width:100%}}
 @media(min-width:64.0625rem){.app-shell--collapsed :deep(.app-shell__more-toggle){justify-content:center!important;padding-inline:0!important}.app-shell--collapsed :deep(.app-shell__more-toggle > span.truncate){display:flex!important;justify-content:center!important;width:100%!important;gap:0!important}.app-shell--collapsed :deep(.app-shell__more-toggle > span.truncate > :not(:first-child)){display:none!important;width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important}.app-shell--collapsed .app-shell__more-toggle .app-shell__more-arrow{display:none!important}.app-shell--collapsed .app-shell__fixed-setup,.app-shell--collapsed .app-shell__account{box-sizing:border-box;width:100%}.app-shell--collapsed .app-shell__fixed-setup{padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__fixed-setup .app-shell__utility-link{width:100%}}
 @media(max-width:44rem){.app-shell__nav{overflow-x:hidden}.app-shell__nav-groups{display:grid;width:100%;min-width:0}.app-shell__nav-category{width:100%}.app-shell__category-controls,.app-shell__theoretical-controls{flex-wrap:wrap}.app-shell__theoretical-controls{display:contents}.app-shell__nav :deep(.app-shell__nav-button){flex:1 1 auto;min-width:5.5rem!important;padding-inline:var(--spacing-xs)!important}.app-shell__category-card{width:100%}}
+.app-shell__mobile-nav,.app-shell__mobile-drawer{display:none}
+.app-shell__visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);white-space:nowrap}
+@media(max-width:64rem){
+  .app-shell,.app-shell--collapsed{display:block;min-height:100dvh;overflow-x:clip}
+  .app-shell__sidebar,.app-shell__top-area{display:none}
+  .app-shell__main{min-height:100dvh}
+  .app-shell__work{min-height:100dvh;padding-bottom:calc(5.25rem + env(safe-area-inset-bottom,0px))}
+  .app-shell__mobile-nav{position:fixed;right:0;bottom:0;left:0;z-index:40;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-3xs);min-height:4.75rem;padding:var(--spacing-2xs) max(var(--spacing-xs),env(safe-area-inset-right,0px)) calc(var(--spacing-2xs) + env(safe-area-inset-bottom,0px)) max(var(--spacing-xs),env(safe-area-inset-left,0px));border-top:var(--border-width-1) solid var(--theme-navigation-header-border);background:var(--theme-navigation-header);box-shadow:0 -.5rem 1.5rem rgb(37 37 34/.12)}
+  .app-shell__mobile-nav :deep(.app-shell__mobile-nav-action){position:relative;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:.3rem!important;width:100%!important;min-width:0!important;height:3.75rem!important;min-height:3.75rem!important;padding:.35rem .2rem!important;border:0!important;border-radius:var(--component-radius-button)!important;background:transparent!important;color:var(--theme-navigation-header-muted)!important;font-size:var(--font-size--2)!important;font-weight:var(--font-weight-600)!important;line-height:1!important;box-shadow:none!important}
+  .app-shell__mobile-nav :deep(.app-shell__mobile-nav-action:hover),.app-shell__mobile-nav :deep(.app-shell__mobile-nav-action.is-active){background:var(--theme-navigation-header-hover)!important;color:var(--theme-navigation-header-text)!important}
+  .app-shell__mobile-nav :deep(.app-shell__mobile-nav-action.is-active)::after{position:absolute;top:.2rem;left:50%;width:1.4rem;height:.18rem;border-radius:999px;background:var(--theme-navigation-active-accent);content:"";transform:translateX(-50%)}
+  .app-shell__mobile-nav :deep(.app-shell__mobile-nav-action svg){width:1.25rem!important;height:1.25rem!important;min-width:1.25rem!important;min-height:1.25rem!important}
+  :global(.app-shell__mobile-drawer){display:flex!important;max-height:min(88dvh,48rem)!important;overflow:hidden!important;padding-bottom:env(safe-area-inset-bottom,0px);border-color:var(--theme-border)!important;border-radius:var(--component-radius-card) var(--component-radius-card) 0 0!important;background:var(--theme-surface-raised)!important;color:var(--theme-text)!important;box-shadow:0 -1rem 3rem rgb(37 37 34/.2)}
+  :global(.app-shell__mobile-drawer-header){padding:var(--spacing-m) var(--spacing-m) var(--spacing-s)!important;text-align:left!important}
+  .app-shell__mobile-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);margin-bottom:var(--spacing-xs)}
+  .app-shell__mobile-logo{max-width:9rem}
+  :global(.app-shell__mobile-close){width:2.75rem!important;min-width:2.75rem!important;height:2.75rem!important;min-height:2.75rem!important;padding:0!important;border:var(--border-width-1) solid var(--theme-border)!important;background:var(--theme-surface)!important;color:var(--theme-text)!important}
+  :global(.app-shell__mobile-close svg){width:1.1rem!important;height:1.1rem!important}
+  .app-shell__mobile-drawer-scroll{display:grid;gap:var(--spacing-m);overflow-y:auto;padding:0 var(--spacing-m) var(--spacing-m);overscroll-behavior:contain;scrollbar-color:var(--theme-border) transparent;scrollbar-width:thin}
+  .app-shell__mobile-drawer-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-2xs)}
+  .app-shell__mobile-group-label{grid-column:1/-1;margin:0 0 var(--spacing-3xs);color:var(--theme-text-muted);font-size:var(--font-size--2);font-weight:var(--font-weight-700);letter-spacing:.04em;text-transform:uppercase}
+  .app-shell__mobile-drawer-link{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-xs);min-height:3.25rem;padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-button);background:var(--theme-surface);color:var(--theme-text);font-size:var(--font-size--1);font-weight:var(--font-weight-600);text-decoration:none}
+  .app-shell__mobile-drawer-link:hover,.app-shell__mobile-drawer-link.is-active{border-color:var(--theme-navigation-active-border);background:var(--theme-accent-soft);text-decoration:none}
+  .app-shell__mobile-drawer-link>svg{flex:0 0 .9rem;width:.9rem;height:.9rem;color:var(--theme-text-muted)}
+  .app-shell__mobile-link-label{display:flex;align-items:center;gap:var(--spacing-2xs);min-width:0}
+  .app-shell__mobile-link-label svg{flex:0 0 1.05rem;width:1.05rem;height:1.05rem;color:var(--theme-primary)}
+  .app-shell__mobile-drawer-footer{display:grid;gap:var(--spacing-xs);padding:var(--spacing-s) var(--spacing-m);border-top:var(--border-width-1) solid var(--theme-border);background:var(--theme-surface)}
+  .app-shell__mobile-account{display:flex;align-items:center;gap:var(--spacing-xs);min-width:0;font-size:var(--font-size--1);font-weight:var(--font-weight-600)}
+  .app-shell__mobile-footer-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-xs)}
+  .app-shell__mobile-footer-actions :deep(button),.app-shell__mobile-login{display:flex;align-items:center;justify-content:center;gap:var(--spacing-2xs);min-height:2.75rem;padding:0 var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-button);background:var(--theme-surface-raised);color:var(--theme-text);font-size:var(--font-size--1);text-decoration:none}
+  .app-shell__mobile-footer-actions :deep(svg),.app-shell__mobile-login svg{width:1rem!important;height:1rem!important}
+}
+@media(max-width:30rem){.app-shell__mobile-drawer-group{grid-template-columns:1fr}.app-shell__mobile-nav{padding-inline:var(--spacing-2xs)}.app-shell__mobile-nav :deep(.app-shell__mobile-nav-action){font-size:.68rem!important}}
+@media(prefers-reduced-motion:reduce){.app-shell,.app-shell__mobile-nav :deep(button){transition:none!important}}
 </style>

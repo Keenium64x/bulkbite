@@ -1,13 +1,13 @@
 {
   "id": "bulkbite-app-shell",
   "name": "Bulkbite App Shell",
-  "job": "Keep Dashboard, Receipts, and Production immediately visible inside an Actual category surface, reveal theoretical workflows inline inside a second labelled category surface, and expose frequent supporting destinations in the collapsible sidebar without removing the wider system.",
+  "job": "Keep Dashboard, Receipts, and Production immediately visible in the desktop Actual category and mobile bottom navigation, while keeping theoretical workflows, setup, account, and supporting destinations reachable through the desktop shell or accessible mobile drawer.",
   "category": "Application",
   "source": "@/blocks/bulkbite-app-shell/BulkbiteAppShell.vue",
   "public": "SystemBulkbiteAppShell",
   "registrySource": "sources/blocks/bulkbite-app-shell",
   "projectSource": "src/blocks/bulkbite-app-shell",
-  "components": ["operational-button", "badge", "link", "card"],
+  "components": ["operational-button", "badge", "link", "card", "drawer"],
   "iconProvider": {
     "package": "lucide-vue-next",
     "rule": "Use familiar line icons beside persistent labels. Collapsed destinations retain accessible names and tooltips."
@@ -15,13 +15,13 @@
   "primitives": [],
   "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
   "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-  "responsiveBehaviour": "Use a collapsible utility sidebar for frequent supporting destinations, plus one muted top area containing labelled Actual and Theoretical category surfaces. The Theoretical surface expands inline to reveal its destinations. On narrow screens stack the category surfaces, allow their controls to wrap, recompose the sidebar into compact horizontal groups, and keep every destination and account action reachable.",
+  "responsiveBehaviour": "Above 64rem use the accepted collapsible sidebar and labelled Actual and Theoretical top navigation. At 64rem and below remove both desktop navigation owners, reserve safe-area-aware content space, show fixed bottom navigation for Dashboard, Receipts, Production, and Menu, and place every secondary destination, setup link, refresh action, and account action in an accessible provider-owned drawer.",
   "layoutContract": {
     "strategy": "grid",
     "pageAlignment": "grid",
     "padding": "0",
     "gap": "var(--spacing-m)",
-    "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled daily tools, core management links, the full setup handoff, and one compact avatar-name-action account row. A unified muted BulkBite-orange top area owns page identity and a fixed-footprint Refresh action. Below it, labels sit outside and above two bounded cards: Actual holds the three daily workflows, while Theoretical expands inline to hold the wider planning system."
+    "containment": "Desktop retains the collapsible soft-charcoal sidebar and muted BulkBite-orange top area. Mobile and tablet use one fixed safe-area-aware bottom bar for the three daily workflows and Menu. Menu opens a provider-owned bottom drawer with secondary workflows, management, setup, refresh, and account actions."
   },
   "surfaceContract": {
     "placement": "none",

@@ -16,6 +16,7 @@ export const designManifest = Object.freeze({
     "date-range-picker",
     "date-time-picker",
     "dialog",
+    "drawer",
     "file-uploader",
     "form-control",
     "link",

@@ -24,6 +24,14 @@ export declare const SystemDialogTitle: Component
 export declare const SystemDialogDescription: Component
 export declare const SystemDialogFooter: Component
 export declare const SystemDialogClose: Component
+export declare const SystemDrawer: Component
+export declare const SystemDrawerClose: Component
+export declare const SystemDrawerContent: Component
+export declare const SystemDrawerDescription: Component
+export declare const SystemDrawerFooter: Component
+export declare const SystemDrawerHeader: Component
+export declare const SystemDrawerTitle: Component
+export declare const SystemDrawerTrigger: Component
 export declare const SystemFileUploader: Component
 export declare const SystemFormControl: Component
 export declare const SystemLink: Component
