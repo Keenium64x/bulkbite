@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
   SystemAccountantExport,
@@ -9,6 +9,7 @@ import {
   SystemDocumentReview,
   SystemEmployeeManagement,
   SystemMonthlyPlanning,
+  SystemNativeAvailabilityState,
   SystemProductionMeasurement,
   SystemPriceHistory,
   SystemReceiptIntake,
@@ -19,6 +20,7 @@ import { assignScanCode, getInventorySnapshot, getProductionPlanSnapshot, getWor
 import { runtimeConfig } from "@/config/runtime"
 import { getNativeAccessToken } from "@/native/auth"
 import NativeLoginPage from "@/pages/NativeLoginPage.vue"
+import { checkNativeProductionAvailability, nativeAvailability, productionHost } from "@/native/availability"
 
 const sections = [
   { id: "overview", label: "Dashboard" },
@@ -53,6 +55,7 @@ const sessionBusy = ref(false)
 const error = ref("")
 const nativeAuthReady = ref(!runtimeConfig.isNative)
 const nativeAuthenticated = ref(!runtimeConfig.isNative)
+const applicationInitialising = ref(false)
 const currentUser = computed(() => snapshot.value?.user || window.boot?.user || "")
 
 function navigate(id) {
@@ -96,12 +99,28 @@ async function loadAll() {
 }
 
 async function initialiseApplication() {
+  if (applicationInitialising.value) return
+  applicationInitialising.value = true
   if (runtimeConfig.isNative) {
+    const productionAvailable = await checkNativeProductionAvailability()
+    if (!productionAvailable) {
+      applicationInitialising.value = false
+      return
+    }
     nativeAuthenticated.value = Boolean(await getNativeAccessToken().catch(() => null))
     nativeAuthReady.value = true
-    if (!nativeAuthenticated.value) return
+    if (!nativeAuthenticated.value) {
+      applicationInitialising.value = false
+      return
+    }
   }
   await loadAll()
+  applicationInitialising.value = false
+}
+
+async function retryNativeAvailability() {
+  const available = await checkNativeProductionAvailability({ force: true })
+  if (available) await initialiseApplication()
 }
 
 async function handleNativeAuthenticated() {
@@ -128,10 +147,20 @@ async function handleLogout() {
   }
 }
 onMounted(initialiseApplication)
+watch(() => nativeAvailability.status, status => {
+  if (runtimeConfig.isNative && status === "available" && !nativeAuthReady.value) initialiseApplication()
+})
 </script>
 
 <template>
-  <div v-if="!nativeAuthReady" class="native-login native-login--loading" role="status">Starting BulkBite</div>
+  <SystemNativeAvailabilityState
+    v-if="runtimeConfig.isNative && nativeAvailability.status !== 'available'"
+    :status="nativeAvailability.status"
+    :checking="nativeAvailability.checking"
+    :production-host="productionHost"
+    @retry="retryNativeAvailability"
+  />
+  <div v-else-if="!nativeAuthReady" class="native-login native-login--loading" role="status">Starting BulkBite</div>
   <NativeLoginPage v-else-if="runtimeConfig.isNative && !nativeAuthenticated" @authenticated="handleNativeAuthenticated" />
   <SystemBulkbiteAppShell v-else :sections="sections" :active-section="activeSection" :user="currentUser" :busy="loading" :session-busy="sessionBusy" @navigate="navigate" @refresh="loadAll" @logout="handleLogout">
     <SystemAuxiliaryRecords v-if="auxiliaryMode" :mode="auxiliaryMode" :doctype="String(route.params.doctype || '')" :record-name="String(route.params.name || '')" @navigate="navigateAuxiliary" />

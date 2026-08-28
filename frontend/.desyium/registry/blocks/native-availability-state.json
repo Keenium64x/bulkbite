@@ -1,0 +1,43 @@
+{
+  "id": "native-availability-state",
+  "name": "Native Availability State",
+  "job": "Explain and recover when the native mobile app is offline or the production server is unavailable, with a retry action.",
+  "category": "Project",
+  "source": "@/blocks/native-availability-state/NativeAvailabilityState.vue",
+  "public": "SystemNativeAvailabilityState",
+  "registrySource": "sources/blocks/native-availability-state",
+  "projectSource": "src/blocks/native-availability-state",
+  "components": [
+    "card",
+    "logo",
+    "operational-button"
+  ],
+  "primitives": [],
+  "incomingHandoff": "The installed app cannot safely reach the locked BulkBite production origin because the device is offline or the server health check failed.",
+  "outgoingHandoff": "A successful retry returns the user to native authentication or the current operational workspace without changing data.",
+  "responsiveBehaviour": "Keep the identity, state explanation, production host, and retry action together inside the viewport and safe areas at every mobile and tablet width.",
+  "layoutContract": {
+    "strategy": "grid",
+    "pageAlignment": "grid",
+    "padding": "max(var(--spacing-l), env(safe-area-inset-top)) max(var(--spacing-l), env(safe-area-inset-right)) max(var(--spacing-l), env(safe-area-inset-bottom)) max(var(--spacing-l), env(safe-area-inset-left))",
+    "gap": "var(--spacing-m)",
+    "containment": "The state owns one viewport-contained card. Copy wraps, the action stays visible, and no child can cause page-level horizontal movement."
+  },
+  "surfaceContract": {
+    "placement": "none",
+    "semanticOwner": "[data-block='native-availability-state']",
+    "scope": "none",
+    "edgeTreatment": "none",
+    "boundaryReason": null,
+    "contentSeparation": "Content padding does not define primitive bounds.",
+    "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+  },
+  "actionContract": {
+    "primaryPreset": "operational-action",
+    "secondaryPreset": null
+  },
+  "motionContract": {
+    "mode": "still",
+    "justification": "Availability is communicated through text and provider-native loading feedback. No decorative movement delays recovery."
+  }
+}

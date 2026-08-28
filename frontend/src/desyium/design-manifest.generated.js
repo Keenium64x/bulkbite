@@ -56,6 +56,7 @@ export const designManifest = Object.freeze({
     "document-review",
     "employee-management",
     "monthly-planning",
+    "native-availability-state",
     "price-history",
     "production-measurement",
     "receipt-intake",

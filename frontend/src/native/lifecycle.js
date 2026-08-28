@@ -3,6 +3,7 @@ import { App as CapacitorApp } from "@capacitor/app"
 import { SystemBars, SystemBarsStyle } from "@capacitor/core"
 import { Network } from "@capacitor/network"
 import { reactive } from "vue"
+import { checkNativeProductionAvailability, markNativeOffline } from "@/native/availability"
 
 
 // =============================================================================
@@ -35,7 +36,11 @@ export async function initialiseNativeLifecycle(router) {
   const network = await Network.getStatus()
   nativeState.connected = network.connected
   nativeState.connectionType = network.connectionType
-  Network.addListener("networkStatusChange", status => Object.assign(nativeState, status))
+  Network.addListener("networkStatusChange", status => {
+    Object.assign(nativeState, status)
+    if (!status.connected) markNativeOffline()
+    else checkNativeProductionAvailability({ force: true })
+  })
   CapacitorApp.addListener("appUrlOpen", ({ url }) => handleAppUrl(url, router))
   CapacitorApp.addListener("backButton", async ({ canGoBack }) => {
     if (canGoBack && window.history.length > 1) router.back()

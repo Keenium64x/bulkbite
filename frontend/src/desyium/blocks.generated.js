@@ -6,11 +6,12 @@ import Block3 from "../blocks/buying-plan/BuyingPlan.vue"
 import Block4 from "../blocks/document-review/DocumentReview.vue"
 import Block5 from "../blocks/employee-management/EmployeeManagement.vue"
 import Block6 from "../blocks/monthly-planning/MonthlyPlanning.vue"
-import Block7 from "../blocks/price-history/PriceHistory.vue"
-import Block8 from "../blocks/production-measurement/ProductionMeasurement.vue"
-import Block9 from "../blocks/receipt-intake/ReceiptIntake.vue"
-import Block10 from "../blocks/stock-overview/StockOverview.vue"
-import Block11 from "../blocks/stock-reconciliation/StockReconciliation.vue"
+import Block7 from "../blocks/native-availability-state/NativeAvailabilityState.vue"
+import Block8 from "../blocks/price-history/PriceHistory.vue"
+import Block9 from "../blocks/production-measurement/ProductionMeasurement.vue"
+import Block10 from "../blocks/receipt-intake/ReceiptIntake.vue"
+import Block11 from "../blocks/stock-overview/StockOverview.vue"
+import Block12 from "../blocks/stock-reconciliation/StockReconciliation.vue"
 
 export const SystemAccountantExport = Block0
 export const SystemAuxiliaryRecords = Block1
@@ -19,11 +20,12 @@ export const SystemBuyingPlan = Block3
 export const SystemDocumentReview = Block4
 export const SystemEmployeeManagement = Block5
 export const SystemMonthlyPlanning = Block6
-export const SystemPriceHistory = Block7
-export const SystemProductionMeasurement = Block8
-export const SystemReceiptIntake = Block9
-export const SystemStockOverview = Block10
-export const SystemStockReconciliation = Block11
+export const SystemNativeAvailabilityState = Block7
+export const SystemPriceHistory = Block8
+export const SystemProductionMeasurement = Block9
+export const SystemReceiptIntake = Block10
+export const SystemStockOverview = Block11
+export const SystemStockReconciliation = Block12
 
 export const installedBlocks = Object.freeze([
   {
@@ -124,7 +126,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "bulkbite-app-shell",
     "name": "Bulkbite App Shell",
-    "job": "Keep Dashboard, Receipts, and Production immediately visible inside an Actual category surface, reveal theoretical workflows inline inside a second labelled category surface, and expose frequent supporting destinations in the collapsible sidebar without removing the wider system.",
+    "job": "Keep Dashboard, Receipts, and Production immediately visible in the desktop Actual category and mobile bottom navigation, while keeping theoretical workflows, setup, account, and supporting destinations reachable through the desktop shell or accessible mobile drawer.",
     "category": "Application",
     "source": "@/blocks/bulkbite-app-shell/BulkbiteAppShell.vue",
     "public": "SystemBulkbiteAppShell",
@@ -134,7 +136,8 @@ export const installedBlocks = Object.freeze([
       "operational-button",
       "badge",
       "link",
-      "card"
+      "card",
+      "drawer"
     ],
     "iconProvider": {
       "package": "lucide-vue-next",
@@ -143,13 +146,13 @@ export const installedBlocks = Object.freeze([
     "primitives": [],
     "incomingHandoff": "A signed-in staff member enters BulkBite operations and needs the current stock state or a specific stock task.",
     "outgoingHandoff": "The selected workflow receives the shared snapshot, stock data, and one clear operational focus.",
-    "responsiveBehaviour": "Use a collapsible utility sidebar for frequent supporting destinations, plus one muted top area containing labelled Actual and Theoretical category surfaces. The Theoretical surface expands inline to reveal its destinations. On narrow screens stack the category surfaces, allow their controls to wrap, recompose the sidebar into compact horizontal groups, and keep every destination and account action reachable.",
+    "responsiveBehaviour": "Above 64rem use the accepted collapsible sidebar and labelled Actual and Theoretical top navigation. At 64rem and below remove both desktop navigation owners, lock the page and work shell to the viewport, reserve safe-area-aware content space, show fixed bottom navigation for Dashboard, Receipts, Production, and Menu, and place every secondary destination, setup link, refresh action, and account action in an accessible provider-owned drawer. Wide operational data scrolls only inside its local table owner; it never creates page-level horizontal movement. Bottom-navigation icons, labels, and button loaders remain centred inside fixed control geometry.",
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
       "padding": "0",
       "gap": "var(--spacing-m)",
-      "containment": "A collapsible soft-charcoal sidebar owns identity, icon-labelled daily tools, core management links, the full setup handoff, and one compact avatar-name-action account row. A unified muted BulkBite-orange top area owns page identity and a fixed-footprint Refresh action. Below it, labels sit outside and above two bounded cards: Actual holds the three daily workflows, while Theoretical expands inline to hold the wider planning system."
+      "containment": "Desktop retains the collapsible soft-charcoal sidebar and muted BulkBite-orange top area. Mobile and tablet use one fixed safe-area-aware bottom bar for the three daily workflows and Menu. Menu opens a provider-owned bottom drawer with secondary workflows, management, setup, refresh, and account actions."
     },
     "surfaceContract": {
       "placement": "none",
@@ -361,6 +364,50 @@ export const installedBlocks = Object.freeze([
     "motionContract": {
       "mode": "still",
       "justification": "Choose and document a semantic experience before adding movement."
+    },
+    "scope": "project"
+  },
+  {
+    "id": "native-availability-state",
+    "name": "Native Availability State",
+    "job": "Explain and recover when the native mobile app is offline or the production server is unavailable, with a retry action.",
+    "category": "Project",
+    "source": "@/blocks/native-availability-state/NativeAvailabilityState.vue",
+    "public": "SystemNativeAvailabilityState",
+    "registrySource": "sources/blocks/native-availability-state",
+    "projectSource": "src/blocks/native-availability-state",
+    "components": [
+      "card",
+      "logo",
+      "operational-button"
+    ],
+    "primitives": [],
+    "incomingHandoff": "The installed app cannot safely reach the locked BulkBite production origin because the device is offline or the server health check failed.",
+    "outgoingHandoff": "A successful retry returns the user to native authentication or the current operational workspace without changing data.",
+    "responsiveBehaviour": "Keep the identity, state explanation, production host, and retry action together inside the viewport and safe areas at every mobile and tablet width.",
+    "layoutContract": {
+      "strategy": "grid",
+      "pageAlignment": "grid",
+      "padding": "max(var(--spacing-l), env(safe-area-inset-top)) max(var(--spacing-l), env(safe-area-inset-right)) max(var(--spacing-l), env(safe-area-inset-bottom)) max(var(--spacing-l), env(safe-area-inset-left))",
+      "gap": "var(--spacing-m)",
+      "containment": "The state owns one viewport-contained card. Copy wraps, the action stays visible, and no child can cause page-level horizontal movement."
+    },
+    "surfaceContract": {
+      "placement": "none",
+      "semanticOwner": "[data-block='native-availability-state']",
+      "scope": "none",
+      "edgeTreatment": "none",
+      "boundaryReason": null,
+      "contentSeparation": "Content padding does not define primitive bounds.",
+      "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+    },
+    "actionContract": {
+      "primaryPreset": "operational-action",
+      "secondaryPreset": null
+    },
+    "motionContract": {
+      "mode": "still",
+      "justification": "Availability is communicated through text and provider-native loading feedback. No decorative movement delays recovery."
     },
     "scope": "project"
   },

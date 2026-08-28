@@ -1,5 +1,6 @@
 import { absoluteApiUrl, runtimeConfig } from "@/config/runtime"
 import { MOBILE_AUTH_SCHEME, getNativeAccessToken } from "@/native/auth"
+import { isUnavailableHttpStatus, markNativeServerUnavailable, noteNativeResponse } from "@/native/availability"
 
 
 // =============================================================================
@@ -40,16 +41,18 @@ export async function authenticatedFetch(url, options = {}, retry = true) {
       await new Promise(resolve => window.setTimeout(resolve, 350))
       return authenticatedFetch(url, options, false)
     }
+    if (runtimeConfig.isNative) markNativeServerUnavailable()
     throw error
   }
   if (runtimeConfig.isNative && response.status === 401 && retry) {
     const token = await getNativeAccessToken({ forceRefresh: true })
     if (token) return authenticatedFetch(url, options, false)
   }
-  if (shouldRetryNativeRead(options, retry) && [408, 429, 502, 503, 504].includes(response.status)) {
+  if (shouldRetryNativeRead(options, retry) && isUnavailableHttpStatus(response.status)) {
     await new Promise(resolve => window.setTimeout(resolve, 350))
     return authenticatedFetch(url, options, false)
   }
+  if (runtimeConfig.isNative) noteNativeResponse(response)
   return response
 }
 
