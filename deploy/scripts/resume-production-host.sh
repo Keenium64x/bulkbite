@@ -61,9 +61,14 @@ validate_resume_preflight() {
 
   [[ -f "${DEPLOY_DIRECTORY}/compose.yaml" ]] || fail "missing BulkBite Compose file"
   [[ -f "${DEPLOY_DIRECTORY}/Containerfile" ]] || fail "missing BulkBite Containerfile"
-  [[ -f "${DEPLOY_DIRECTORY}/secrets/gemini_api_key.txt" ]] || fail "missing Gemini secret"
+  [[ -s "${DEPLOY_DIRECTORY}/secrets/gemini_api_key.txt" ]] || fail "missing or empty Gemini secret"
   [[ -f "${NGINX_SOURCE}" ]] || fail "missing BulkBite nginx source"
   [[ -f "${LEGACY_DIRECTORY}/.env" ]] || fail "missing retired Frappe environment"
+
+  # Compose exposes these host files inside containers running as `frappe`.
+  chmod 0755 "${DEPLOY_DIRECTORY}" "${DEPLOY_DIRECTORY}/scripts"
+  chmod 0755 "${DEPLOY_DIRECTORY}"/scripts/*.sh
+  chmod 0644 "${DEPLOY_DIRECTORY}/secrets/gemini_api_key.txt"
 
   find "${BACKUP_ROOT}" -mindepth 2 -maxdepth 3 -type d -name backups -print -quit |
     grep -q . || fail "no retired Frappe site backup directory was found"

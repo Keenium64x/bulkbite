@@ -15,6 +15,13 @@ set +a
 
 : "${SITE_NAME:?SITE_NAME is required}"
 
+# Docker Compose bind-mounts local secrets without translating the host mode.
+# The Frappe container runs as a non-root user and must be able to read this file.
+test -s "${DEPLOY_DIRECTORY}/secrets/gemini_api_key.txt"
+chmod 0755 "${DEPLOY_DIRECTORY}" "${DEPLOY_DIRECTORY}/scripts"
+chmod 0755 "${DEPLOY_DIRECTORY}"/scripts/*.sh
+chmod 0644 "${DEPLOY_DIRECTORY}/secrets/gemini_api_key.txt"
+
 if [[ -d "${PROJECT_DIRECTORY}/.git" ]]; then
   BULKBITE_TAG="$(git -C "${PROJECT_DIRECTORY}" rev-parse --short=12 HEAD)"
   export BULKBITE_TAG
