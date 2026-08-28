@@ -9,6 +9,8 @@ from frappe import _
 from frappe.utils import add_days, flt, getdate, nowdate
 from openpyxl import Workbook, load_workbook
 
+from bulkbite.price_import_ai import improve_price_proposal_with_gemini
+from bulkbite.price_import_schema import PriceImportProposal
 from bulkbite.pricing import supplier_offer_key
 
 
@@ -22,6 +24,7 @@ PRICE_FIELDS = [
 	{"fieldname": "offer_key", "label": "Offer Key", "aliases": ["key"], "identity": True},
 	{"fieldname": "item_code", "label": "Item Code", "aliases": ["item id", "product code"], "identity": True},
 	{"fieldname": "item_name", "label": "Item Name", "aliases": ["item", "product", "product name"], "identity": True},
+	{"fieldname": "item_category", "label": "Item Category", "aliases": ["category", "food category", "type"]},
 	{"fieldname": "supplier", "label": "Supplier", "aliases": ["shop", "store", "vendor"]},
 	{"fieldname": "supplier_item_code", "label": "Supplier Item Code", "aliases": ["supplier sku", "sku", "barcode"]},
 	{"fieldname": "units_per_pack", "label": "Units per Pack", "aliases": ["pack count", "inner units"]},
@@ -149,6 +152,8 @@ def inspect_price_import(file_url):
 		"target_fields": [{"label": field["label"], "value": field["fieldname"]} for field in PRICE_FIELDS],
 		"suggested_mapping": {header: _suggest_field(header) for header in headers},
 		"row_count": len(rows),
+		"ai_available": bool(frappe.conf.get("gemini_api_key") and frappe.conf.get("gemini_private_receipt_approved")),
+		"known_setup": _known_price_setup(),
 	}
 
 
@@ -164,14 +169,68 @@ def preview_price_import(file_url, mapping=None):
 		mapped = {target: source.get(column) for column, target in valid_mapping.items()}
 		if any(value not in (None, "") for value in mapped.values()):
 			rows.append(_preview_offer(mapped, index))
-	counts = {status: sum(1 for row in rows if row["status"] == status) for status in ("insert", "update", "unchanged", "error")}
+	proposal = _build_price_import_proposal(rows, valid_mapping)
+	counts = _proposal_counts(proposal)
 	batch = frappe.get_doc({
 		"doctype": "BulkBite Price Import Batch", "source_file": file_url, "status": "Previewed",
 		"total_rows": len(rows), "insert_count": counts["insert"], "update_count": counts["update"],
 		"unchanged_count": counts["unchanged"], "error_count": counts["error"],
-		"preview_json": frappe.as_json({"offers": rows, "mapping": valid_mapping}),
+		"preview_json": frappe.as_json(proposal),
 	}).insert()
 	return _batch_response(batch)
+
+
+def improve_price_import(batch_name, progress=None):
+	"""Improve one saved proposal with Gemini while preserving the reviewed-write boundary."""
+	_report_improvement_progress(progress, "loading saved review")
+	batch = frappe.get_doc("BulkBite Price Import Batch", batch_name)
+	batch.check_permission("write")
+	if batch.status == "Applied":
+		frappe.throw(_("An applied import cannot be changed."))
+	proposal = PriceImportProposal.model_validate(frappe.parse_json(batch.preview_json)).model_dump()
+	_report_improvement_progress(progress, "matching existing setup")
+	known_setup = _known_price_setup()
+	_report_improvement_progress(progress, "analysing ambiguous rows")
+	ai_result = improve_price_proposal_with_gemini(_ai_offer_rows(proposal), known_setup)
+	_report_improvement_progress(progress, "validating suggestions")
+	suggestions = {row.row_number: row for row in ai_result.rows}
+	for offer in proposal["offers"]:
+		suggestion = suggestions.get(offer["row_number"])
+		if not suggestion:
+			continue
+		for field in ("item_code", "item_name", "supplier", "item_category"):
+			if getattr(suggestion, field):
+				offer[field] = getattr(suggestion, field)
+		for field in ("units_per_pack", "unit_size", "purchase_uom"):
+			value = getattr(suggestion, field)
+			if value not in (None, ""):
+				offer["values"][field] = value
+		offer["confidence"] = suggestion.confidence
+		offer["reason"] = suggestion.reason
+	proposal = _review_price_proposal(proposal)
+	proposal["ai_used"] = True
+	proposal["ai_notes"] = ai_result.notes
+	_save_price_proposal(batch, proposal)
+	_report_improvement_progress(progress, "ready for review")
+	return _batch_response(frappe.get_doc(batch.doctype, batch.name))
+
+
+def _report_improvement_progress(progress, stage):
+	"""Report one optional background-job stage without coupling workbook logic to RQ."""
+	if progress:
+		progress(stage)
+
+
+def review_price_import(batch_name, proposal):
+	"""Validate and save the manager's editable proposal without writing setup or offers."""
+	batch = frappe.get_doc("BulkBite Price Import Batch", batch_name)
+	batch.check_permission("write")
+	if batch.status == "Applied":
+		frappe.throw(_("An applied import cannot be changed."))
+	proposal = frappe.parse_json(proposal) if isinstance(proposal, str) else proposal
+	reviewed = _review_price_proposal(PriceImportProposal.model_validate(proposal).model_dump())
+	_save_price_proposal(batch, reviewed)
+	return _batch_response(frappe.get_doc(batch.doctype, batch.name))
 
 
 def _suggest_field(header):
@@ -190,6 +249,7 @@ def _preview_offer(row, row_number):
 	item_code = _text(row.get("item_code")) or (existing.item_code if existing else "")
 	item_name = _text(row.get("item_name"))
 	supplier = _text(row.get("supplier")) or (existing.supplier if existing else "")
+	item_category = _text(row.get("item_category"))
 	supplier_item_code = _text(row.get("supplier_item_code")) or (existing.supplier_item_code if existing else "")
 	if not existing and item_code and supplier:
 		key = supplier_offer_key(item_code, supplier, supplier_item_code)
@@ -229,10 +289,164 @@ def _preview_offer(row, row_number):
 		setup_creations.append({"doctype": "BulkBite Supplier", "name": supplier, "label": supplier})
 	return {
 		"kind": "Supplier Offer", "row_number": row_number, "status": status, "record_name": offer_id,
-		"item_code": item_code, "item_name": exact_name or item_name, "supplier": supplier,
+		"item_code": item_code, "item_name": exact_name or item_name, "supplier": supplier, "item_category": item_category,
 		"changes": _changes(existing, values), "setup_creations": setup_creations,
+		"confidence": 1, "reason": "Values came directly from matched spreadsheet columns.",
 		"errors": errors, "values": values,
 	}
+
+
+def _build_price_import_proposal(offers, mapping):
+	return _review_price_proposal({"mapping": mapping, "suppliers": [], "categories": [], "items": [], "offers": offers})
+
+
+def _review_price_proposal(proposal):
+	"""Normalize editable setup proposals and recalculate every offer outcome."""
+	validated = PriceImportProposal.model_validate(proposal).model_dump()
+	supplier_edits = {row["source_key"]: row["name"] for row in validated.get("suppliers", []) if row.get("source_key") and row.get("name")}
+	category_edits = {row["source_key"]: row["name"] for row in validated.get("categories", []) if row.get("source_key") and row.get("name")}
+	item_edits = {row["source_key"]: row for row in validated.get("items", []) if row.get("source_key")}
+	suppliers, categories, items, offers = {}, {}, {}, []
+	for raw in validated["offers"]:
+		offer = dict(raw)
+		if offer.get("kind") == "Item Reference":
+			offer.update({"status": "unchanged", "confidence": 1, "reason": "Existing item reference has no supplier offer facts to import.", "errors": [], "changes": []})
+			offers.append(offer)
+			continue
+		original_item_code = _text(offer.get("item_code"))
+		item_edit = item_edits.get(original_item_code, {})
+		offer["item_code"] = _text(item_edit.get("item_code") or original_item_code)
+		offer["item_name"] = _text(item_edit.get("item_name") or offer.get("item_name"))
+		offer["supplier"] = _text(supplier_edits.get(_text(offer.get("supplier"))) or offer.get("supplier"))
+		offer["item_category"] = _text(item_edit.get("item_category") or category_edits.get(_text(offer.get("item_category"))) or offer.get("item_category"))
+		offer["values"] = {**offer.get("values", {}), "item_code": offer["item_code"], "supplier": offer["supplier"]}
+		_review_offer_errors(offer)
+		if offer["supplier"]:
+			suppliers.setdefault(offer["supplier"], _setup_proposal("supplier", offer["supplier"], offer["supplier"]))
+		if offer["item_category"]:
+			categories.setdefault(offer["item_category"], _setup_proposal("category", offer["item_category"], offer["item_category"], default_supplier=offer["supplier"]))
+		if offer["item_code"]:
+			items.setdefault(offer["item_code"], _setup_proposal(
+				"item", offer["item_code"], offer["item_name"] or offer["item_code"], item_code=offer["item_code"],
+				item_name=offer["item_name"], item_category=offer["item_category"], stock_uom=_stock_uom(offer["values"].get("purchase_uom")),
+			))
+		offers.append(offer)
+	for kind, generated, supplied in (
+		("supplier", suppliers, validated.get("suppliers", [])),
+		("category", categories, validated.get("categories", [])),
+		("item", items, validated.get("items", [])),
+	):
+		for setup in supplied:
+			key = _text(setup.get("source_key") or setup.get("name") or setup.get("item_code"))
+			if key in generated:
+				generated[key].update(setup)
+			elif key:
+				identity = _text(setup.get("item_code") if kind == "item" else setup.get("name"))
+				match_key = next((candidate_key for candidate_key, candidate in generated.items() if _text(candidate.get("item_code") if kind == "item" else candidate.get("name")) == identity), None)
+				if match_key:
+					generated[match_key].update(setup)
+				else:
+					generated[key] = setup
+		for setup in generated.values():
+			_validate_setup_proposal(kind, setup)
+	return PriceImportProposal.model_validate({
+		**validated, "suppliers": list(suppliers.values()), "categories": list(categories.values()),
+		"items": list(items.values()), "offers": offers,
+	}).model_dump()
+
+
+def _setup_proposal(kind, source_key, name, **values):
+	doctype = {"supplier": "BulkBite Supplier", "category": "BulkBite Item Category", "item": "BulkBite Item"}[kind]
+	record_name = values.get("item_code") if kind == "item" else name
+	exists = bool(record_name and frappe.db.exists(doctype, record_name))
+	return {
+		"kind": kind, "source_key": source_key, "name": name, "status": "unchanged" if exists else "insert",
+		"confidence": 1, "reason": "Matched an existing record." if exists else "Missing setup record proposed from the spreadsheet.",
+		"errors": [], **values,
+	}
+
+
+def _validate_setup_proposal(kind, setup):
+	setup["errors"] = []
+	if not _text(setup.get("name")):
+		setup["errors"].append(f"{kind.title()} name is required.")
+	if kind == "item":
+		if not _text(setup.get("item_code")):
+			setup["errors"].append("Item code is required.")
+		if not _text(setup.get("item_name")):
+			setup["errors"].append("Item name is required.")
+		if setup.get("stock_uom") not in {"Kg", "Litre", "Each"}:
+			setup["errors"].append("Stock unit must be Kg, Litre, or Each.")
+	identity = _text(setup.get("item_code") if kind == "item" else setup.get("name"))
+	setup["source_key"] = identity
+	doctype = {"supplier": "BulkBite Supplier", "category": "BulkBite Item Category", "item": "BulkBite Item"}[kind]
+	setup["status"] = "error" if setup["errors"] else ("unchanged" if identity and frappe.db.exists(doctype, identity) else "insert")
+
+
+def _review_offer_errors(offer):
+	errors = []
+	values = offer["values"]
+	if not offer["item_code"]:
+		errors.append("Item code is required.")
+	if not offer["item_name"]:
+		errors.append("Item name is required.")
+	if not offer["supplier"]:
+		errors.append("Supplier is required.")
+	existing_item_name = frappe.db.get_value("BulkBite Item", offer["item_code"], "item_name") if offer["item_code"] else None
+	if existing_item_name and offer["item_name"] != existing_item_name:
+		errors.append(f"Item code already belongs to {existing_item_name}.")
+	for field in ("units_per_pack", "unit_size", "normal_price"):
+		if flt(values.get(field)) <= 0:
+			errors.append(f"{field.replace('_', ' ').title()} must be greater than zero.")
+	if values.get("purchase_uom") not in {"g", "Kg", "ml", "Litre", "Each"}:
+		errors.append("Size unit must be g, Kg, ml, Litre, or Each.")
+	if flt(values.get("discounted_price")) and flt(values.get("discounted_price")) >= flt(values.get("normal_price")):
+		errors.append("Discounted price must be lower than normal price.")
+	if flt(values.get("discounted_price")) and not (values.get("discount_from") and values.get("discount_to")):
+		errors.append("A discounted price needs both discount dates.")
+	match_name = None
+	if offer["record_name"] and frappe.db.exists("BulkBite Supplier Offer", offer["record_name"]):
+		match_name = offer["record_name"]
+	elif offer["item_code"] and offer["supplier"]:
+		key = supplier_offer_key(offer["item_code"], offer["supplier"], values.get("supplier_item_code"))
+		match_name = frappe.db.get_value("BulkBite Supplier Offer", {"offer_key": key, "enabled": 1}, "name")
+	offer["record_name"] = match_name or ""
+	existing = frappe.get_doc("BulkBite Supplier Offer", match_name) if match_name else None
+	offer["changes"] = _changes(existing, values)
+	offer["errors"] = errors
+	offer["status"] = "error" if errors else ("insert" if not existing else ("update" if offer["changes"] else "unchanged"))
+
+
+def _proposal_counts(proposal):
+	entities = [*proposal.get("suppliers", []), *proposal.get("categories", []), *proposal.get("items", []), *proposal.get("offers", [])]
+	return {status: sum(1 for row in entities if row.get("status") == status) for status in ("insert", "update", "unchanged", "error")}
+
+
+def _save_price_proposal(batch, proposal):
+	counts = _proposal_counts(proposal)
+	batch.db_set({
+		"total_rows": len(proposal.get("offers", [])), "insert_count": counts["insert"],
+		"update_count": counts["update"], "unchanged_count": counts["unchanged"],
+		"error_count": counts["error"], "preview_json": frappe.as_json(proposal),
+	})
+
+
+def _known_price_setup():
+	return {
+		"suppliers": frappe.get_all("BulkBite Supplier", fields=["name"], order_by="name"),
+		"categories": frappe.get_all("BulkBite Item Category", fields=["name", "default_supplier"], order_by="name"),
+		"items": frappe.get_all("BulkBite Item", filters={"item_type": "Ingredient"}, fields=["item_code", "item_name", "item_category", "stock_uom"], order_by="item_name"),
+	}
+
+
+def _ai_offer_rows(proposal):
+	return [{
+		"row_number": row["row_number"], "item_code": row["item_code"], "item_name": row["item_name"],
+		"supplier": row["supplier"], "item_category": row.get("item_category"),
+		"supplier_item_code": row["values"].get("supplier_item_code"), "units_per_pack": row["values"].get("units_per_pack"),
+		"unit_size": row["values"].get("unit_size"), "purchase_uom": row["values"].get("purchase_uom"),
+		"normal_price": row["values"].get("normal_price"), "notes": row["values"].get("notes"),
+	} for row in proposal.get("offers", [])]
 
 
 def _is_item_reference_row(row):
@@ -261,8 +475,12 @@ def apply_price_import(batch_name):
 		return _batch_response(batch)
 	if batch.error_count:
 		frappe.throw(_("Fix import errors and create a new preview before applying."))
-	preview = frappe.parse_json(batch.preview_json)
-	result = {"inserted": [], "updated": [], "unchanged": []}
+	preview = _review_price_proposal(frappe.parse_json(batch.preview_json))
+	counts = _proposal_counts(preview)
+	if counts["error"]:
+		frappe.throw(_("The reviewed proposal no longer passes validation. Review it again before applying."))
+	result = {"inserted": [], "updated": [], "unchanged": [], "suppliers": [], "categories": [], "items": [], "offers": []}
+	_apply_reviewed_setup(preview, result)
 	for row in preview.get("offers") or []:
 		_apply_offer_row(row, result)
 	batch.db_set({"status": "Applied", "applied_on": frappe.utils.now_datetime(), "applied_by": frappe.session.user, "result_json": frappe.as_json(result)})
@@ -274,7 +492,6 @@ def _apply_offer_row(row, result):
 		result["unchanged"].append(row.get("record_name"))
 		return
 	values = row["values"]
-	_ensure_price_import_setup(row, values)
 	if row["status"] == "update":
 		old = frappe.get_doc("BulkBite Supplier Offer", row["record_name"])
 		material_fields = {"item_code", "supplier", "supplier_item_code", "effective_from", "effective_to", "units_per_pack", "unit_size", "purchase_uom", "normal_price", "discounted_price", "discount_from", "discount_to", "price_includes_vat", "vat_rate"}
@@ -289,28 +506,32 @@ def _apply_offer_row(row, result):
 		values["notes"] = "Imported replacement for " + old.name + (f". {values.get('notes')}" if values.get("notes") else "")
 	doc = frappe.get_doc({"doctype": "BulkBite Supplier Offer", **values}).insert()
 	result["updated" if row["status"] == "update" else "inserted"].append(doc.name)
+	result["offers"].append(doc.name)
 
 
-def _ensure_price_import_setup(row, values):
-	"""Create missing reviewed item and supplier setup without posting stock."""
-	supplier = values["supplier"]
-	if not frappe.db.exists("BulkBite Supplier", supplier):
+def _apply_reviewed_setup(proposal, result):
+	"""Create only the manager-approved missing setup records in dependency order."""
+	for row in proposal.get("suppliers", []):
+		if not frappe.db.exists("BulkBite Supplier", row["name"]):
+			frappe.get_doc({"doctype": "BulkBite Supplier", "supplier_name": row["name"], "enabled": 1, "notes": "Created from reviewed price catalogue evidence."}).insert()
+			result["suppliers"].append(row["name"])
+	for row in proposal.get("categories", []):
+		if not frappe.db.exists("BulkBite Item Category", row["name"]):
+			frappe.get_doc({"doctype": "BulkBite Item Category", "category_name": row["name"], "default_supplier": row.get("default_supplier") or None, "enabled": 1, "notes": "Created from reviewed price catalogue evidence."}).insert()
+			result["categories"].append(row["name"])
+	offers_by_item = {row["item_code"]: row for row in proposal.get("offers", [])}
+	for row in proposal.get("items", []):
+		if frappe.db.exists("BulkBite Item", row["item_code"]):
+			continue
+		offer = offers_by_item.get(row["item_code"], {})
 		frappe.get_doc({
-			"doctype": "BulkBite Supplier", "supplier_name": supplier, "enabled": 1,
-			"notes": "Created from a reviewed price catalogue import.",
+			"doctype": "BulkBite Item", "item_code": row["item_code"], "item_name": row["item_name"],
+			"item_type": "Ingredient", "item_category": row.get("item_category") or None,
+			"stock_uom": row["stock_uom"], "track_stock": 1, "purchasable": 1, "enabled": 1,
+			"theory_valuation_rate": _offer_stock_unit_rate(offer.get("values", {})),
+			"description": "Created from reviewed price catalogue evidence.",
 		}).insert()
-
-	item_code = values["item_code"]
-	if frappe.db.exists("BulkBite Item", item_code):
-		return
-	frappe.get_doc({
-		"doctype": "BulkBite Item", "item_code": item_code,
-		"item_name": row["item_name"], "item_type": "Ingredient",
-		"stock_uom": _stock_uom(values["purchase_uom"]), "track_stock": 1,
-		"purchasable": 1, "enabled": 1,
-		"theory_valuation_rate": _offer_stock_unit_rate(values),
-		"description": "Created from a reviewed price catalogue import.",
-	}).insert()
+		result["items"].append(row["item_code"])
 
 
 def _stock_uom(purchase_uom):
@@ -386,8 +607,15 @@ def _private_file_path(file_url):
 
 
 def _batch_response(batch):
-	preview = frappe.parse_json(batch.preview_json) if batch.preview_json else {"offers": [], "mapping": {}}
-	return {"name": batch.name, "status": batch.status, "counts": {"total": batch.total_rows, "insert": batch.insert_count, "update": batch.update_count, "unchanged": batch.unchanged_count, "error": batch.error_count}, "rows": preview.get("offers", []), "mapping": preview.get("mapping", {}), "result": frappe.parse_json(batch.result_json) if batch.result_json else None}
+	preview = frappe.parse_json(batch.preview_json) if batch.preview_json else {"offers": [], "mapping": {}, "suppliers": [], "categories": [], "items": []}
+	return {
+		"name": batch.name, "status": batch.status,
+		"counts": {"total": batch.total_rows, "insert": batch.insert_count, "update": batch.update_count, "unchanged": batch.unchanged_count, "error": batch.error_count},
+		"rows": preview.get("offers", []), "offers": preview.get("offers", []),
+		"suppliers": preview.get("suppliers", []), "categories": preview.get("categories", []), "items": preview.get("items", []),
+		"mapping": preview.get("mapping", {}), "ai_used": preview.get("ai_used", False), "ai_notes": preview.get("ai_notes", ""),
+		"result": frappe.parse_json(batch.result_json) if batch.result_json else None,
+	}
 
 
 def _changes(doc, values):

@@ -4,13 +4,13 @@ import { useRouter } from "vue-router"
 import {
   SystemBadge, SystemCheckboxShadcn, SystemDatePicker, SystemFileUploader, SystemFormControl,
   SystemLinkedRecordField, SystemMultiFileUploader, SystemOperationalButton, SystemSelect,
-  SystemTabs, SystemTabsContent, SystemTabsList, SystemTabsTrigger,
+  SystemTabs, SystemTabsContent, SystemTabsList, SystemTabsTrigger, SystemTextarea,
 } from "@/desyium"
 import {
   applyPriceWorkbook, createCostInvoice, getCostInvoiceExtractionStatus, getFinanceWorkspace,
-  getPriceImportFields, getPurchasePriceHistory, inspectPriceFile, postCostInvoice,
+  getPriceImportFields, getPriceImportImprovementStatus, getPurchasePriceHistory, inspectPriceFile, postCostInvoice,
   previewPriceWorkbook, priceWorkbookUrl, saveExpectedCostRule, saveMiscellaneousCost,
-  savePriceAdjustment, startCostInvoiceExtraction, financeLedgerWorkbookUrl, downloadAuthenticatedFile,
+  savePriceAdjustment, startCostInvoiceExtraction, startPriceImportImprovement, financeLedgerWorkbookUrl, downloadAuthenticatedFile, reviewPriceWorkbook,
 } from "@/resources/api"
 
 // =============================================================================
@@ -51,10 +51,19 @@ const selectedFields = ref([])
 const importInspection = ref(null)
 const importMapping = reactive({})
 const importBatch = ref(null)
+const importImprovementStage = ref("")
 const filters = reactive({ item_code: "", supplier: "", from_date: "", to_date: "" })
 const itemOptions = computed(() => (props.inventory?.items || []).map(item => ({ label: item.item_name, value: item.item_code })))
 const supplierOptions = computed(() => (props.snapshot?.options?.suppliers || []).map(value => ({ label: value, value })))
 const targetFieldOptions = computed(() => [{ label: "Do not import", value: "" }, ...(importInspection.value?.target_fields || [])])
+const importUnitOptions = ["g", "Kg", "ml", "Litre", "Each"].map(value => ({ label: value, value }))
+const stockUnitOptions = ["Kg", "Litre", "Each"].map(value => ({ label: value, value }))
+const importEntityGroups = computed(() => importBatch.value ? [
+  { key: "suppliers", label: "Suppliers", rows: importBatch.value.suppliers || [] },
+  { key: "categories", label: "Categories", rows: importBatch.value.categories || [] },
+  { key: "items", label: "Items", rows: importBatch.value.items || [] },
+] : [])
+const importHasChanges = computed(() => importBatch.value && (importBatch.value.counts.insert > 0 || importBatch.value.counts.update > 0))
 
 function toggleField(field) { selectedFields.value = selectedFields.value.includes(field) ? selectedFields.value.filter(value => value !== field) : [...selectedFields.value, field] }
 async function downloadWorkbook() {
@@ -92,9 +101,51 @@ async function previewImport() {
   catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
 
+async function improveImport() {
+  busy.value = true; clearMessages(); importImprovementStage.value = "saving your edits"
+  try {
+    importBatch.value = await reviewPriceWorkbook(importBatch.value.name, reviewedProposal())
+    const job = await startPriceImportImprovement(importBatch.value.name)
+    importBatch.value = await waitForPriceImprovement(job.job_id)
+    success.value = "AI suggestions are ready to review. Nothing has been applied to the catalogue."
+  }
+  catch (exception) { error.value = exception.message } finally { busy.value = false; importImprovementStage.value = "" }
+}
+
+async function waitForPriceImprovement(jobId) {
+  const deadline = Date.now() + 10 * 60 * 1000
+  while (Date.now() < deadline) {
+    const state = await getPriceImportImprovementStatus(jobId)
+    importImprovementStage.value = state.stage || state.status
+    if (state.status === "finished") return state.result
+    if (state.status === "failed") throw new Error(state.error || "AI catalogue improvement failed. Your saved review is unchanged.")
+    await new Promise(resolve => window.setTimeout(resolve, 1500))
+  }
+  throw new Error("AI catalogue improvement took too long. Your saved review is unchanged, so you can try again later.")
+}
+
+function reviewedProposal() {
+  return {
+    mapping: importBatch.value.mapping || {}, suppliers: importBatch.value.suppliers || [],
+    categories: importBatch.value.categories || [], items: importBatch.value.items || [],
+    offers: importBatch.value.offers || importBatch.value.rows || [],
+    ai_used: Boolean(importBatch.value.ai_used), ai_notes: importBatch.value.ai_notes || "",
+  }
+}
+
+async function saveImportReview() {
+  busy.value = true; clearMessages()
+  try { importBatch.value = await reviewPriceWorkbook(importBatch.value.name, reviewedProposal()); success.value = "Review saved and revalidated. Nothing has been applied yet." }
+  catch (exception) { error.value = exception.message } finally { busy.value = false }
+}
+
 async function applyImport() {
   busy.value = true; clearMessages()
-  try { importBatch.value = await applyPriceWorkbook(importBatch.value.name); success.value = "Catalogue prices updated. Stock was not changed."; await loadPriceHistory() }
+  try {
+    importBatch.value = await reviewPriceWorkbook(importBatch.value.name, reviewedProposal())
+    if (importBatch.value.counts.error > 0) throw new Error("Fix the highlighted review errors before applying.")
+    importBatch.value = await applyPriceWorkbook(importBatch.value.name); success.value = "Reviewed suppliers, items, categories, and prices were applied. Stock was not changed."; await loadPriceHistory()
+  }
   catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
 
@@ -287,7 +338,41 @@ onMounted(() => props.mode === "catalogue" ? loadCatalogue() : loadFinance())
     <template v-if="mode === 'catalogue'">
       <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Download</p><h2>Choose the columns</h2><p>The file contains one header row and the catalogue data. Nothing else.</p></div></div><div class="field-choice-grid"><label v-for="field in fieldContract.fields" :key="field.fieldname"><SystemCheckboxShadcn :model-value="selectedFields.includes(field.fieldname)" @update:model-value="toggleField(field.fieldname)" /><span>{{ field.label }}</span></label></div><div class="button-row"><SystemOperationalButton variant="solid" :disabled="!selectedFields.length" @click="downloadWorkbook">Download price catalogue</SystemOperationalButton></div></section>
       <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Upload</p><h2>Match the spreadsheet columns</h2><p>BulkBite suggests matches. Change any match before previewing the import.</p></div></div><SystemFileUploader :upload-args="{ private: true }" :file-types="['.xlsx', '.xlsm', '.csv']" @success="onImportUpload"><template #default="upload"><SystemOperationalButton variant="outline" :loading="upload.uploading || busy" @click="upload.openFileSelector">{{ importInspection ? "Replace spreadsheet" : "Upload spreadsheet" }}</SystemOperationalButton></template></SystemFileUploader><div v-if="importInspection" class="mapping-list"><article v-for="source in importInspection.source_columns" :key="source.column"><div><strong>{{ source.column }}</strong><small>{{ source.samples.join(" · ") || "No sample value" }}</small></div><SystemSelect :model-value="importMapping[source.column]" :options="targetFieldOptions" placeholder="Do not import" @update:model-value="importMapping[source.column] = $event" /></article></div><div v-if="importInspection" class="button-row"><SystemOperationalButton variant="solid" :loading="busy" @click="previewImport">Preview {{ importInspection.row_count }} rows</SystemOperationalButton></div></section>
-      <section v-if="importBatch" class="data-section"><div class="section-heading"><div><p class="eyebrow">Review</p><h2>Catalogue changes</h2><p>Nothing is applied until you confirm this preview.</p></div><SystemBadge :theme="importBatch.status === 'Applied' ? 'green' : undefined">{{ importBatch.status }}</SystemBadge></div><div class="metric-board metric-board--paper"><div><strong>{{ importBatch.counts.insert }}</strong><span>new</span></div><div><strong>{{ importBatch.counts.update }}</strong><span>updates</span></div><div><strong>{{ importBatch.counts.unchanged }}</strong><span>unchanged</span></div><div><strong>{{ importBatch.counts.error }}</strong><span>errors</span></div></div><div class="review-list"><article v-for="row in importBatch.rows" :key="row.row_number"><div><strong>{{ rowLabel(row) }}</strong><small>{{ row.supplier || `Row ${row.row_number}` }}</small></div><SystemBadge :theme="statusTheme(row.status)">{{ row.status }}</SystemBadge><p>{{ row.errors?.join(" ") || (row.changes?.length ? `${row.changes.length} fields will change.` : "No change.") }}</p></article></div><div class="button-row"><SystemOperationalButton v-if="importBatch.status !== 'Applied'" variant="solid" :disabled="importBatch.counts.error > 0" :loading="busy" @click="applyImport">Apply reviewed prices</SystemOperationalButton></div></section>
+      <section v-if="importBatch" class="data-section catalogue-review">
+        <div class="section-heading"><div><p class="eyebrow">Editable review</p><h2>Exactly what BulkBite will add or update</h2><p>Edit the proposed setup and offer values here. Saving the review still does not change the catalogue or stock.</p></div><SystemBadge :theme="importBatch.status === 'Applied' ? 'green' : undefined">{{ importBatch.status }}</SystemBadge></div>
+        <div class="metric-board metric-board--paper"><div><strong>{{ importBatch.counts.insert }}</strong><span>new records</span></div><div><strong>{{ importBatch.counts.update }}</strong><span>updates</span></div><div><strong>{{ importBatch.counts.unchanged }}</strong><span>unchanged</span></div><div><strong>{{ importBatch.counts.error }}</strong><span>errors</span></div></div>
+        <div v-if="importBatch.status !== 'Applied'" class="button-row"><SystemOperationalButton v-if="importInspection?.ai_available" variant="outline" :loading="busy" @click="improveImport">Improve suggestions with AI</SystemOperationalButton><SystemOperationalButton variant="outline" :loading="busy" @click="saveImportReview">Save and recheck review</SystemOperationalButton></div>
+        <p v-if="busy && importImprovementStage" class="field-note" role="status"><strong>AI review:</strong> {{ importImprovementStage }}</p>
+        <p v-if="importBatch.ai_used" class="field-note"><strong>AI suggestions used.</strong> {{ importBatch.ai_notes || 'Review every suggested identity and pack value before applying.' }}</p>
+
+        <section v-for="group in importEntityGroups" :key="group.key" class="review-group">
+          <div class="section-heading section-heading--compact"><div><h3>{{ group.label }}</h3><p>{{ group.rows.length }} proposed or matched records</p></div></div>
+          <div class="setup-review-list">
+            <article v-for="row in group.rows" :key="`${group.key}-${row.source_key}`" class="setup-review-card">
+              <div class="review-card-heading"><div><strong>{{ row.name || row.item_name || row.source_key }}</strong><small>{{ row.reason }}</small></div><SystemBadge :theme="statusTheme(row.status)">{{ row.status }}</SystemBadge></div>
+              <div v-if="group.key === 'suppliers'" class="review-field-grid"><SystemFormControl v-model="row.name" label="Supplier name" :disabled="importBatch.status === 'Applied'" /></div>
+              <div v-else-if="group.key === 'categories'" class="review-field-grid"><SystemFormControl v-model="row.name" label="Category name" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.default_supplier" label="Default supplier" :disabled="importBatch.status === 'Applied'" /></div>
+              <div v-else class="review-field-grid"><SystemFormControl v-model="row.item_code" label="Item code" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.item_name" label="Item name" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.item_category" label="Category" :disabled="importBatch.status === 'Applied'" /><SystemSelect v-model="row.stock_uom" label="Stock unit" :options="stockUnitOptions" :disabled="importBatch.status === 'Applied'" /></div>
+              <p v-if="row.errors?.length" class="review-errors">{{ row.errors.join(' ') }}</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="review-group"><div class="section-heading section-heading--compact"><div><h3>Supplier offers</h3><p>Each row becomes one supplier price or a versioned update to an existing price.</p></div></div>
+          <div class="offer-review-list">
+            <article v-for="row in importBatch.offers" :key="row.row_number" class="offer-review-card">
+              <div class="review-card-heading"><div><strong>{{ rowLabel(row) }}</strong><small>Spreadsheet row {{ row.row_number }} · {{ Math.round(Number(row.confidence || 0) * 100) }}% confidence</small></div><SystemBadge :theme="statusTheme(row.status)">{{ row.status }}</SystemBadge></div>
+              <p class="review-reason">{{ row.reason }}</p>
+              <div class="review-field-grid review-field-grid--offer"><SystemFormControl v-model="row.item_code" label="Item code" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.item_name" label="Item name" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.supplier" label="Supplier" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.item_category" label="Category" :disabled="importBatch.status === 'Applied'" /></div>
+              <div class="review-field-grid review-field-grid--offer"><SystemFormControl v-model="row.values.supplier_item_code" label="Supplier item code" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.values.units_per_pack" type="number" min="0.1" step="0.1" label="Units per pack" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.values.unit_size" type="number" min="0.1" step="0.1" label="Size per unit" :disabled="importBatch.status === 'Applied'" /><SystemSelect v-model="row.values.purchase_uom" label="Size unit" :options="importUnitOptions" :disabled="importBatch.status === 'Applied'" /></div>
+              <div class="review-field-grid review-field-grid--offer"><SystemFormControl v-model="row.values.normal_price" type="number" min="0" step="0.1" label="Normal pack price" :disabled="importBatch.status === 'Applied'" /><SystemFormControl v-model="row.values.discounted_price" type="number" min="0" step="0.1" label="Discounted pack price" :disabled="importBatch.status === 'Applied'" /><SystemDatePicker v-model="row.values.discount_from" label="Discount from" format="YYYY-MM-DD" :disabled="importBatch.status === 'Applied'" /><SystemDatePicker v-model="row.values.discount_to" label="Discount to" format="YYYY-MM-DD" :disabled="importBatch.status === 'Applied'" /></div>
+              <SystemTextarea v-model="row.values.notes" label="Notes" :disabled="importBatch.status === 'Applied'" />
+              <p v-if="row.errors?.length" class="review-errors">{{ row.errors.join(' ') }}</p><p v-else class="review-impact">{{ row.changes?.length ? `${row.changes.length} fields will change.` : 'No offer fields will change.' }}</p>
+            </article>
+          </div>
+        </section>
+        <div v-if="importBatch.status !== 'Applied'" class="apply-boundary"><div><strong>Final write boundary</strong><p>{{ importHasChanges ? 'This creates or updates only the records listed above. It never changes stock, receipts, or ledger entries.' : 'There are no catalogue changes to apply.' }}</p></div><SystemOperationalButton variant="solid" :disabled="importBatch.counts.error > 0 || !importHasChanges" :loading="busy" @click="applyImport">Apply reviewed catalogue</SystemOperationalButton></div>
+      </section>
       <section class="data-section"><div class="section-heading"><div><p class="eyebrow">Price history</p><h2>Theory versus receipt evidence</h2><p>Compare the expected stock-unit price with what reviewed receipts prove.</p></div></div><div class="field-grid"><SystemLinkedRecordField v-model="filters.item_code" label="Item" :options="itemOptions" placeholder="All items" /><SystemLinkedRecordField v-model="filters.supplier" label="Supplier" :options="supplierOptions" placeholder="All suppliers" /><SystemDatePicker v-model="filters.from_date" label="From date" format="YYYY-MM-DD" /><SystemDatePicker v-model="filters.to_date" label="To date" format="YYYY-MM-DD" /></div><div class="button-row"><SystemOperationalButton variant="outline" @click="loadPriceHistory">Update history</SystemOperationalButton></div><div v-if="result.rows.length" class="price-table-wrap"><table class="price-table"><thead><tr><th>Date</th><th>Basis</th><th>Item</th><th>Supplier</th><th>Pack</th><th>Pack price</th><th>Price per stock unit</th><th>Theory</th><th>Difference</th></tr></thead><tbody><tr v-for="row in result.rows" :key="`${row.record_type}-${row.record_name}`"><td>{{ row.date }}</td><td>{{ row.record_type }}</td><td>{{ row.item_name }}</td><td>{{ row.supplier }}</td><td>{{ quantity(row.packs) }} × {{ quantity(row.units_per_pack) }} × {{ quantity(row.unit_size) }} {{ row.purchase_uom }}</td><td>{{ money(row.pack_price) }}</td><td>{{ money(row.stock_unit_price) }} / {{ row.stock_uom }}</td><td>{{ money(row.theory_stock_unit_price) }}</td><td>{{ variance(row) }}</td></tr></tbody></table></div></section>
     </template>
 
@@ -346,7 +431,8 @@ onMounted(() => props.mode === "catalogue" ? loadCatalogue() : loadFinance())
 .finance-workforce{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-block);background:var(--theme-surface)}
 .invoice-workflow,.invoice-stage,.invoice-posting{display:grid;gap:var(--spacing-s)}.invoice-stage{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-secondary)}.invoice-stage small,.invoice-posting small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.invoice-posting{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding-top:var(--spacing-s);border-top:var(--border-width-1) solid var(--theme-border)}.invoice-posting>div:first-child{display:grid;gap:var(--spacing-3xs)}.invoice-posting strong{font-size:var(--font-size-2)}.cost-line-heading{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s)}.expense-type-proposal{grid-column:1/-1;padding:var(--spacing-xs) var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}
 .field-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--spacing-2xs) var(--spacing-m)}.field-choice-grid label,.check-field{display:flex;align-items:center;gap:var(--spacing-xs);min-height:2.75rem}.field-shell{display:grid;align-content:start;gap:var(--spacing-2xs);min-width:0;color:var(--theme-text);font-size:var(--font-size--1);font-weight:var(--font-weight-medium)}.mapping-list,.review-list,.history-list,.record-list,.category-list{display:grid;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);overflow:hidden}.mapping-list article,.review-list article,.history-list article,.record-list article,.category-list article{display:grid;grid-template-columns:minmax(0,1fr) minmax(12rem,auto);align-items:center;gap:var(--spacing-s);padding:var(--spacing-s);border-bottom:var(--border-width-1) solid var(--theme-border);background:var(--theme-surface-raised)}.mapping-list article:last-child,.review-list article:last-child,.history-list article:last-child,.record-list article:last-child,.category-list article:last-child{border-bottom:0}.mapping-list small,.review-list small,.history-list small,.record-list small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.review-list article{grid-template-columns:minmax(0,1fr) auto}.review-list p{grid-column:1/-1;margin:0;color:var(--theme-text-muted)}.finance-tabs{display:grid;gap:var(--spacing-xs)}.finance-tabs__list{justify-content:flex-start!important;width:fit-content;max-width:100%;overflow-x:auto}.finance-tabs__list :deep([role="tab"]){min-height:2.75rem}.finance-tabs__content{display:grid;gap:var(--spacing-xs);margin-top:0!important;outline:none}.finance-tabs__content>:first-child{margin-top:0}.finance-overview{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-block);background:var(--theme-surface-raised)}.finance-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-s)}.finance-metrics article{display:grid;align-content:start;gap:var(--spacing-2xs);min-width:0;padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-secondary)}.finance-metrics span,.finance-metrics small{color:var(--theme-text-muted)}.finance-metrics strong{font-size:var(--font-size-2);line-height:1.15;overflow-wrap:anywhere}.category-list article{grid-template-columns:minmax(10rem,1fr) repeat(2,minmax(9rem,.7fr)) auto}.record-list article>div:last-child,.history-list article>div:last-child{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:var(--spacing-xs)}.calculated-field{display:grid;align-content:center;gap:var(--spacing-3xs);min-height:4.75rem;padding:var(--spacing-xs) var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}.calculated-field span,.calculated-field small{color:var(--theme-text-muted)}.calculated-field strong{font-size:var(--font-size-1)}.check-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--spacing-s) var(--spacing-l)}.cost-line-list{display:grid;gap:var(--spacing-s)}.cost-line-list article{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.cost-line-review{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:var(--spacing-3xs) var(--spacing-xs);color:var(--theme-text-muted);font-size:var(--font-size--2)}.cost-line-review p{margin:0}.cost-line-review strong{color:var(--theme-text)}.extraction-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-s)}.extraction-summary p{margin:.25rem 0 0}.invoice-ocr{max-height:20rem;margin:var(--spacing-s) 0 0;padding:var(--spacing-s);overflow:auto;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-field);color:var(--theme-text);font-family:var(--font-family-c);font-size:var(--font-size--2);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}.price-table-wrap{max-width:100%;overflow-x:auto;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card)}.price-table{width:100%;min-width:72rem;border-collapse:collapse;background:var(--theme-surface-raised)}.price-table th,.price-table td{padding:var(--spacing-xs) var(--spacing-s);border-bottom:var(--border-width-1) solid var(--theme-border);text-align:left;vertical-align:top}.price-table th{background:var(--theme-secondary);color:var(--theme-text-muted);white-space:nowrap}.empty-state{margin:0;padding:var(--spacing-l);color:var(--theme-text-muted);text-align:center}.field-grid--wide{grid-template-columns:repeat(4,minmax(0,1fr))}
+.catalogue-review,.review-group,.setup-review-list,.offer-review-list{display:grid;gap:var(--spacing-s)}.review-group{padding-top:var(--spacing-xs);border-top:var(--border-width-1) solid var(--theme-border)}.section-heading--compact h3{margin:0}.setup-review-list{grid-template-columns:repeat(2,minmax(0,1fr))}.setup-review-card,.offer-review-card{display:grid;gap:var(--spacing-s);min-width:0;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.review-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-s)}.review-card-heading small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.review-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-xs)}.review-field-grid--offer{grid-template-columns:repeat(4,minmax(0,1fr))}.review-reason,.review-impact,.review-errors{margin:0;font-size:var(--font-size--1)}.review-reason,.review-impact{color:var(--theme-text-muted)}.review-errors{padding:var(--spacing-xs);border-radius:var(--component-radius-field);background:var(--theme-error-soft,var(--theme-secondary));color:var(--theme-error,var(--theme-text))}.apply-boundary{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-m);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-secondary)}.apply-boundary p{margin:var(--spacing-3xs) 0 0;color:var(--theme-text-muted)}
 .finance-tabs{grid-template-columns:minmax(0,1fr);min-width:0}.finance-tabs__content{grid-template-columns:minmax(0,1fr);width:100%;min-width:0}.finance-tabs__content>*{min-width:0}.finance-tabs__content[hidden]{display:none}
-@media(max-width:1100px){.finance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cost-line-list article,.field-grid--wide{grid-template-columns:repeat(2,minmax(0,1fr))}.category-list article{grid-template-columns:minmax(9rem,1fr) repeat(2,minmax(8rem,.7fr))}.category-list article>*:last-child{grid-column:1/-1;width:fit-content}}
-@media(max-width:700px){.field-choice-grid,.finance-metrics,.cost-line-list article,.field-grid--wide,.invoice-stage,.invoice-posting{grid-template-columns:1fr}.mapping-list article,.history-list article,.record-list article,.category-list article{grid-template-columns:1fr}.record-list article>div:last-child,.history-list article>div:last-child{justify-content:flex-start}.finance-overview{padding:var(--spacing-m)}.extraction-summary{align-items:stretch;flex-direction:column}.category-list article>*:last-child{grid-column:auto}}
+@media(max-width:1100px){.finance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cost-line-list article,.field-grid--wide,.review-field-grid--offer{grid-template-columns:repeat(2,minmax(0,1fr))}.category-list article{grid-template-columns:minmax(9rem,1fr) repeat(2,minmax(8rem,.7fr))}.category-list article>*:last-child{grid-column:1/-1;width:fit-content}}
+@media(max-width:700px){.field-choice-grid,.finance-metrics,.cost-line-list article,.field-grid--wide,.invoice-stage,.invoice-posting,.setup-review-list,.review-field-grid,.review-field-grid--offer{grid-template-columns:1fr}.mapping-list article,.history-list article,.record-list article,.category-list article{grid-template-columns:1fr}.record-list article>div:last-child,.history-list article>div:last-child{justify-content:flex-start}.finance-overview{padding:var(--spacing-m)}.extraction-summary,.apply-boundary{align-items:stretch;flex-direction:column}.category-list article>*:last-child{grid-column:auto}}
 </style>

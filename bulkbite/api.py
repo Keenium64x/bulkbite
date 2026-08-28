@@ -46,8 +46,10 @@ from bulkbite.price_workbook import (
 	apply_price_import,
 	build_price_workbook,
 	get_price_field_contract,
+	improve_price_import,
 	inspect_price_import,
 	preview_price_import,
+	review_price_import,
 )
 
 
@@ -2484,6 +2486,80 @@ def preview_catalogue_price_workbook(file_url, mapping=None):
 	"""Create a reviewed change batch from the confirmed field map."""
 	_require_roles("BulkBite Manager")
 	return preview_price_import(file_url, mapping)
+
+
+@frappe.whitelist(methods=["POST"])
+def improve_catalogue_price_workbook(batch_name):
+	"""Run AI improvement synchronously for backwards-compatible integrations."""
+	_require_roles("BulkBite Manager")
+	return improve_price_import(batch_name)
+
+
+@frappe.whitelist(methods=["POST"])
+def start_catalogue_price_improvement(batch_name):
+	"""Queue AI suggestions for one saved review without applying catalogue changes."""
+	_require_roles("BulkBite Manager")
+	batch = frappe.get_doc("BulkBite Price Import Batch", batch_name)
+	batch.check_permission("write")
+	if batch.status == "Applied":
+		frappe.throw(_("An applied import cannot be changed."))
+	proposal_hash = hashlib.sha256((batch.preview_json or batch.name).encode("utf-8")).hexdigest()[:16]
+	job_id = f"bulkbite-price-improvement-{batch.name}-{proposal_hash}"
+	job = frappe.enqueue(
+		"bulkbite.api.process_catalogue_price_improvement_job",
+		queue="long",
+		timeout=600,
+		job_id=job_id,
+		deduplicate=True,
+		batch_name=batch.name,
+		user=frappe.session.user,
+	)
+	return {"job_id": job.id if job else f"{frappe.local.site}||{job_id}", "status": "queued", "stage": "queued"}
+
+
+def process_catalogue_price_improvement_job(batch_name, user=None):
+	"""Improve the saved proposal in a worker and keep the initiating user's permissions."""
+	if user:
+		frappe.set_user(user)
+	_set_catalogue_price_job_stage("matching existing setup")
+	return improve_price_import(batch_name, progress=_set_catalogue_price_job_stage)
+
+
+def _set_catalogue_price_job_stage(stage):
+	"""Publish a safe progress label for the catalogue-review poller."""
+	from rq import get_current_job
+
+	job = get_current_job()
+	if job:
+		job.meta["stage"] = stage
+		job.save_meta()
+
+
+@frappe.whitelist(methods=["GET"])
+def get_catalogue_price_improvement_status(job_id):
+	"""Return AI progress only to the manager who started the job."""
+	_require_roles("BulkBite Manager")
+	job = get_job(str(job_id).removeprefix(f"{frappe.local.site}||"))
+	if not job or job.kwargs.get("user") != frappe.session.user:
+		frappe.throw(_("The catalogue improvement job could not be found."), frappe.PermissionError)
+	status = str(job.get_status(refresh=True))
+	if status == "JobStatus.FINISHED" or status == "finished":
+		return {"job_id": job.id, "status": "finished", "stage": "ready for review", "result": job.return_value(refresh=True)}
+	if status == "JobStatus.FAILED" or status == "failed":
+		return {
+			"job_id": job.id,
+			"status": "failed",
+			"stage": job.meta.get("stage") or "failed",
+			"error": _("AI catalogue improvement failed. Your saved review was not applied. Check the AI configuration and try again."),
+		}
+	return {"job_id": job.id, "status": status.rsplit(".", 1)[-1].lower(), "stage": job.meta.get("stage") or "queued"}
+
+
+@frappe.whitelist(methods=["POST"])
+def review_catalogue_price_workbook(batch_name, proposal):
+	"""Save and revalidate manager edits without changing setup, offers, stock, or ledgers."""
+	_require_roles("BulkBite Manager")
+	return review_price_import(batch_name, proposal)
 
 
 @frappe.whitelist(methods=["POST"])

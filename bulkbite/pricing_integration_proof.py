@@ -2,15 +2,23 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import frappe
 from openpyxl import load_workbook
 
-from bulkbite.api import post_cost_invoice, receive_stock_from_receipt
+from bulkbite.api import (
+	get_catalogue_price_improvement_status,
+	post_cost_invoice,
+	process_catalogue_price_improvement_job,
+	receive_stock_from_receipt,
+	start_catalogue_price_improvement,
+)
 from bulkbite.finance_ledger import verify_finance_event_chain
 from bulkbite.costing import calculate_operating_costs
 from bulkbite.planning import build_spend_report
-from bulkbite.price_workbook import apply_price_import, build_price_workbook, inspect_price_import, preview_price_import
+from bulkbite.price_workbook import apply_price_import, build_price_workbook, inspect_price_import, preview_price_import, review_price_import
 from bulkbite.pricing import calculate_offer_price_bridge
 
 
@@ -67,10 +75,28 @@ def run_pricing_integration_proof():
 		assert preview["counts"]["insert"] >= 1
 		if preview["counts"]["error"]:
 			raise AssertionError([row for row in preview["rows"] if row["status"] == "error"])
+		proposal = {
+			"mapping": preview["mapping"], "suppliers": preview["suppliers"], "categories": preview["categories"],
+			"items": preview["items"], "offers": preview["offers"], "ai_used": False, "ai_notes": "",
+		}
+		new_supplier = next(row for row in proposal["suppliers"] if row["name"] == "Proof Imported Supplier")
+		new_supplier["name"] = "Proof Reviewed Supplier"
+		new_item = next(row for row in proposal["items"] if row["item_code"] == "BB-PRICE-PROOF-NEW")
+		new_item["item_name"] = "Reviewed imported ingredient"
+		new_item["item_category"] = "Proof Dry Goods"
+		new_offer = next(row for row in proposal["offers"] if row["item_code"] == "BB-PRICE-PROOF-NEW")
+		new_offer["item_category"] = "Proof Dry Goods"
+		reviewed = review_price_import(preview["name"], proposal)
+		assert reviewed["counts"]["error"] == 0
+		assert any(row["name"] == "Proof Reviewed Supplier" for row in reviewed["suppliers"])
+		assert any(row["name"] == "Proof Dry Goods" for row in reviewed["categories"])
+		assert any(row["supplier"] == "Proof Reviewed Supplier" for row in reviewed["offers"] if row["item_code"] == "BB-PRICE-PROOF-NEW")
 		applied = apply_price_import(preview["name"])
 		assert applied["status"] == "Applied"
 		assert frappe.db.exists("BulkBite Item", "BB-PRICE-PROOF-NEW")
-		assert frappe.db.exists("BulkBite Supplier", "Proof Imported Supplier")
+		assert frappe.db.exists("BulkBite Supplier", "Proof Reviewed Supplier")
+		assert frappe.db.exists("BulkBite Item Category", "Proof Dry Goods")
+		assert frappe.db.get_value("BulkBite Item", "BB-PRICE-PROOF-NEW", "item_category") == "Proof Dry Goods"
 		assert frappe.db.count("BulkBite Stock Event") == stock_before
 		old = frappe.get_doc(offer.doctype, offer.name)
 		assert not old.enabled and str(old.effective_to) == "2026-08-24"
@@ -81,6 +107,48 @@ def run_pricing_integration_proof():
 		frappe.db.rollback(save_point="bulkbite_price_proof")
 		if file_path and file_path.exists():
 			file_path.unlink()
+
+
+def run_catalogue_job_boundary_proof():
+	"""Prove AI review is queued, private to its manager, and separate from catalogue writes."""
+	frappe.set_user("Administrator")
+	frappe.db.savepoint("bulkbite_catalogue_job_proof")
+	try:
+		batch = frappe.get_doc({
+			"doctype": "BulkBite Price Import Batch",
+			"source_file": "/private/files/catalogue-job-proof.xlsx",
+			"status": "Previewed",
+			"total_rows": 1,
+			"preview_json": frappe.as_json({"mapping": {}, "suppliers": [], "categories": [], "items": [], "offers": []}),
+		}).insert()
+		queued_job = SimpleNamespace(id="bulkbite.localhost||catalogue-job-proof")
+		with patch("bulkbite.api.frappe.enqueue", return_value=queued_job) as enqueue:
+			started = start_catalogue_price_improvement(batch.name)
+		queue_args = enqueue.call_args.kwargs
+		assert started["status"] == "queued" and started["job_id"] == queued_job.id
+		assert queue_args["queue"] == "long" and queue_args["deduplicate"] is True
+		assert queue_args["batch_name"] == batch.name and queue_args["user"] == "Administrator"
+
+		improved = {"name": batch.name, "status": "Previewed", "ai_used": True}
+		with patch("bulkbite.api.improve_price_import", return_value=improved) as improve:
+			processed = process_catalogue_price_improvement_job(batch.name, user="Administrator")
+		assert processed == improved
+		assert improve.call_args.args == (batch.name,)
+		assert improve.call_args.kwargs["progress"]
+
+		finished_job = SimpleNamespace(
+			id=queued_job.id,
+			kwargs={"user": "Administrator"},
+			meta={"stage": "ready for review"},
+			get_status=lambda refresh=True: "finished",
+			return_value=lambda refresh=True: improved,
+		)
+		with patch("bulkbite.api.get_job", return_value=finished_job):
+			status = get_catalogue_price_improvement_status(queued_job.id)
+		assert status["status"] == "finished" and status["result"] == improved
+		return {"passed": True, "queue": queue_args["queue"], "deduplicated": True, "private_to_user": True, "catalogue_apply_called": False}
+	finally:
+		frappe.db.rollback(save_point="bulkbite_catalogue_job_proof")
 
 
 def run_cost_invoice_integration_proof():
