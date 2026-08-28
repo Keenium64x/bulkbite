@@ -14,7 +14,7 @@ export const nativeState = reactive({ connected: true, connectionType: "unknown"
 export function routeFromAppUrl(value) {
   try {
     const url = new URL(value)
-    if (url.protocol === "https:" && url.hostname === "admin.bulkbite.co.za") return `${url.pathname}${url.search}${url.hash}`
+    if (url.protocol === "https:" && url.hostname === "admin.huispunte.co.za") return `${url.pathname}${url.search}${url.hash}`
     if (url.protocol === `${runtimeConfig.appScheme}:`) {
       if (url.hostname === "open") return url.searchParams.get("path") || "/bulkbite"
       const path = `/${url.hostname}${url.pathname}`.replace(/\/{2,}/g, "/")

@@ -2,7 +2,7 @@
 
 BulkBite uses one Vue source tree in `frontend/src`. The web build is served by Frappe at `/bulkbite`. The mobile build packages the same application into Capacitor Android and iOS shells.
 
-The installed app loads the live application from `https://admin.bulkbite.co.za/bulkbite`. It also forces every native authentication, API, upload, and export request to the same production origin over HTTPS. Build-time environment values cannot replace that origin. Browser sessions keep Frappe cookies and CSRF. Native sessions use short-lived access tokens with rotating refresh tokens stored by Android Keystore or iOS Keychain.
+The installed app loads the live application from `https://admin.huispunte.co.za/bulkbite`. It also forces every native authentication, API, upload, and export request to the same production origin over HTTPS. Build-time environment values cannot replace that origin. Browser sessions keep Frappe cookies and CSRF. Native sessions use short-lived access tokens with rotating refresh tokens stored by Android Keystore or iOS Keychain.
 
 ## Debug APK
 

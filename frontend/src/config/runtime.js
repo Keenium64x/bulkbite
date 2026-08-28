@@ -7,7 +7,7 @@ import { Capacitor } from "@capacitor/core"
 
 const platform = Capacitor.getPlatform()
 const isNative = Capacitor.isNativePlatform()
-export const PRODUCTION_ORIGIN = "https://admin.bulkbite.co.za"
+export const PRODUCTION_ORIGIN = "https://admin.huispunte.co.za"
 
 export const runtimeConfig = Object.freeze({
   isNative,

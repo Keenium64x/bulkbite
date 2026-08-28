@@ -7,9 +7,9 @@ const config: CapacitorConfig = {
   appendUserAgent: " BulkBiteNative/1",
   backgroundColor: "#F5F0E6",
   server: {
-    url: "https://admin.bulkbite.co.za/bulkbite",
+    url: "https://admin.huispunte.co.za/bulkbite",
     cleartext: false,
-    allowNavigation: ["admin.bulkbite.co.za"],
+    allowNavigation: ["admin.huispunte.co.za"],
   },
   plugins: {
     CapacitorHttp: { enabled: true },
