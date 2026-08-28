@@ -57,8 +57,8 @@ export const getAuxiliaryRecordList = (doctype) => call("bulkbite.api.get_auxili
 export const getAuxiliaryRecordWorkspace = (doctype, query = {}) => call("bulkbite.api.get_auxiliary_record_workspace", { doctype, ...query, filters: query.filters?.length ? JSON.stringify(query.filters) : undefined, sort: query.sort ? JSON.stringify(query.sort) : undefined }, "GET")
 export const getAuxiliaryRecord = (doctype, name) => call("bulkbite.api.get_auxiliary_record", { doctype, name }, "GET")
 export const saveAuxiliaryRecord = (doctype, name, values, tables) => call("bulkbite.api.save_auxiliary_record", { doctype, name, values, tables })
-export const planAuxiliaryRecordDeletion = (doctype, names) => call("bulkbite.api.plan_auxiliary_record_deletion", { doctype, names })
-export const deleteAuxiliaryRecords = (request) => call("bulkbite.api.delete_auxiliary_records", { doctype: request.doctype, names: request.names, plan_token: request.planToken, outcome: request.outcome, approved: request.approved })
+export const planAuxiliaryRecordDeletion = (doctype, names, defaultOutcome = "delete", outcomesByDoctype = {}) => call("bulkbite.api.plan_auxiliary_record_deletion", { doctype, names, default_outcome: defaultOutcome, outcomes_by_doctype: outcomesByDoctype })
+export const deleteAuxiliaryRecords = (request) => call("bulkbite.api.delete_auxiliary_records", { doctype: request.doctype, names: request.names, plan_token: request.planToken, outcome: request.outcome, outcomes_by_doctype: request.outcomesByDoctype, approved: request.approved })
 export const getRecipeExpectation = (recipe, plannedOutputQty, sourceLocation) => call("bulkbite.api.get_recipe_expectation", { recipe, planned_output_qty: plannedOutputQty, source_location: sourceLocation }, "GET")
 export const createRunFromPlan = (planName, planRowName, productionDate, sourceLocation, targetLocation, recipe, plannedOutputQty, directionAction) =>
   call("bulkbite.api.create_run_from_plan", {

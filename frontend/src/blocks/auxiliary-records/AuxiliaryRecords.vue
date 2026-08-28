@@ -18,7 +18,7 @@ import {
   SystemTextarea,
 } from "@/desyium"
 import { auxiliaryRecordSystem, recordDefinition } from "@/forms/auxiliary-records.definition"
-import { DELETE_OUTCOME, DELETE_STAGE, deletionOutcomeAllowed, finalDeleteRequest, normalizeDeletionPlan } from "@/forms/auxiliary-record-deletion"
+import { DELETE_OUTCOME, DELETE_STAGE, deletionOutcomeAllowed, finalDeleteRequest, normalizeDeletionPlan, relatedTypeChoices } from "@/forms/auxiliary-record-deletion"
 
 // =============================================================================
 // region AUXILIARY RECORD WORKFLOW
@@ -48,6 +48,7 @@ const deletePlan = ref(null)
 const deleteBusy = ref(false)
 const deleteNames = ref([])
 const deleteOutcome = ref("")
+const deleteOutcomesByDoctype = reactive({})
 const currentListDoctype = ref("")
 const selectedForm = computed(() => catalogue.value.find((row) => row.doctype === props.doctype))
 const availableFilters = computed(() => {
@@ -59,8 +60,9 @@ const allSelected = computed(() => Boolean(records.value.length && records.value
 const canDelete = computed(() => Boolean(workspace.value?.permissions?.bulkDelete))
 const deleteConnections = computed(() => [...(deletePlan.value?.roots || []), ...(deletePlan.value?.dependencies || [])].filter((row) => row.linkedBy.length))
 const deleteOutcomeAllowed = computed(() => deletionOutcomeAllowed(deletePlan.value, deleteOutcome.value))
-const deleteOutcomeBlockers = computed(() => deleteOutcome.value ? deletePlan.value?.outcomes[deleteOutcome.value]?.blockers || [] : deletePlan.value?.blockers || [])
-const deleteRecordCount = computed(() => deleteOutcome.value === DELETE_OUTCOME.RECURSIVE ? deletePlan.value?.totalRecords || 0 : deletePlan.value?.roots.length || 0)
+const deleteOutcomeBlockers = computed(() => deletePlan.value?.resolution?.blockers || deletePlan.value?.blockers || [])
+const deleteRecordCount = computed(() => (deletePlan.value?.resolution?.deleteCount || 0) + (deletePlan.value?.resolution?.archiveCount || 0))
+const deleteRelatedTypes = computed(() => relatedTypeChoices(deletePlan.value))
 const deleteOpen = computed({ get: () => Boolean(deleteStage.value), set: (open) => { if (!open) cancelDelete() } })
 const pageTitle = computed(() => {
   if (props.mode === "create") return `Add ${selectedForm.value?.label || props.doctype}`
@@ -211,15 +213,32 @@ async function reviewDelete(names) {
   deleteNames.value = [...names]
   deleteStage.value = DELETE_STAGE.REVIEW
   deletePlan.value = null
-  deleteOutcome.value = ""
+  deleteOutcome.value = DELETE_OUTCOME.DELETE
+  clearReactive(deleteOutcomesByDoctype)
   deleteBusy.value = true
   error.value = ""
-  try { deletePlan.value = normalizeDeletionPlan(await auxiliaryRecordSystem.resources.planDelete(props.doctype, deleteNames.value)) }
+  try { await refreshDeleteResolution() }
   catch (caught) { error.value = caught?.message || "The deletion plan could not be prepared."; cancelDelete() }
   finally { deleteBusy.value = false }
 }
-function chooseDeleteOutcome(outcome) {
-  if (deletionOutcomeAllowed(deletePlan.value, outcome)) deleteOutcome.value = outcome
+async function chooseDeleteOutcome(outcome) {
+  deleteOutcome.value = outcome
+  await updateDeleteResolution()
+}
+async function chooseRelatedDeleteOutcome(doctype, outcome) {
+  deleteOutcomesByDoctype[doctype] = outcome
+  await updateDeleteResolution()
+}
+async function refreshDeleteResolution() {
+  deletePlan.value = normalizeDeletionPlan(await auxiliaryRecordSystem.resources.planDelete(props.doctype, deleteNames.value, deleteOutcome.value, deleteOutcomesByDoctype))
+}
+async function updateDeleteResolution() {
+  if (deleteBusy.value) return
+  deleteBusy.value = true
+  error.value = ""
+  try { await refreshDeleteResolution() }
+  catch (caught) { error.value = caught?.message || "The deletion choices could not be checked." }
+  finally { deleteBusy.value = false }
 }
 function continueDelete() {
   if (deleteOutcomeAllowed.value) deleteStage.value = DELETE_STAGE.APPROVAL
@@ -229,7 +248,7 @@ async function approveDelete() {
   deleteBusy.value = true
   error.value = ""
   try {
-    await auxiliaryRecordSystem.resources.deleteMany(finalDeleteRequest(props.doctype, deleteNames.value, deletePlan.value, deleteOutcome.value))
+    await auxiliaryRecordSystem.resources.deleteMany(finalDeleteRequest(props.doctype, deleteNames.value, deletePlan.value, deleteOutcome.value, deleteOutcomesByDoctype))
     const deletedCurrentRecord = props.mode === "edit" && deleteNames.value.includes(props.recordName)
     cancelDelete()
     if (deletedCurrentRecord) emit("navigate", { mode: "list", doctype: props.doctype })
@@ -242,6 +261,7 @@ function cancelDelete() {
   deletePlan.value = null
   deleteNames.value = []
   deleteOutcome.value = ""
+  clearReactive(deleteOutcomesByDoctype)
 }
 function validateContract() {
   Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key])
@@ -386,18 +406,20 @@ function coerceValue(field, value) {
 
     <SystemDialog v-model:open="deleteOpen">
       <SystemDialogContent class="auxiliary-records__delete-dialog">
-        <SystemDialogHeader><p class="eyebrow">{{ deleteStage === DELETE_STAGE.APPROVAL ? 'Final approval' : 'Deletion review' }}</p><SystemDialogTitle>{{ deleteStage === DELETE_STAGE.APPROVAL ? `Permanently delete ${deleteRecordCount} record${deleteRecordCount === 1 ? '' : 's'}?` : `Review ${deleteNames.length} selected record${deleteNames.length === 1 ? '' : 's'}` }}</SystemDialogTitle><SystemDialogDescription>{{ deleteStage === DELETE_STAGE.APPROVAL ? (deleteOutcome === DELETE_OUTCOME.UNLINK ? 'Related setup records will remain after the reviewed links are cleared.' : 'The selected records and every listed managed dependency will be deleted in child-first order.') : 'Nothing has been deleted. Review every connection, then choose what should happen to related setup records.' }}</SystemDialogDescription></SystemDialogHeader>
+        <SystemDialogHeader><p class="eyebrow">{{ deleteStage === DELETE_STAGE.APPROVAL ? 'Final approval' : 'Deletion review' }}</p><SystemDialogTitle>{{ deleteStage === DELETE_STAGE.APPROVAL ? `Apply this deletion plan to ${deleteRecordCount} record${deleteRecordCount === 1 ? '' : 's'}?` : `Review ${deleteNames.length} selected record${deleteNames.length === 1 ? '' : 's'}` }}</SystemDialogTitle><SystemDialogDescription>{{ deleteStage === DELETE_STAGE.APPROVAL ? `${deletePlan.resolution.deleteCount} records will be deleted, ${deletePlan.resolution.unlinkCount} links cleared, and ${deletePlan.resolution.archiveCount} records hidden but preserved for history.` : 'Choose the default action, then override it for any related record type below.' }}</SystemDialogDescription></SystemDialogHeader>
         <div class="auxiliary-records__delete-body">
           <div v-if="deleteBusy && !deletePlan" class="state-message" role="status">Checking every connected record...</div>
           <template v-else-if="deletePlan">
             <section class="auxiliary-records__delete-summary"><strong>Selected records</strong><ul><li v-for="row in deletePlan.roots" :key="`${row.doctype}:${row.name}`">{{ row.doctype }}: {{ row.title || row.name }}</li></ul></section>
             <section v-if="deletePlan.dependencies.length" class="auxiliary-records__delete-summary"><strong>Related managed records</strong><ul><li v-for="row in deletePlan.dependencies" :key="`${row.doctype}:${row.name}`">{{ row.doctype }}: {{ row.title || row.name }}</li></ul></section>
             <section v-if="deleteConnections.length" class="auxiliary-records__delete-summary"><strong>Connections and linking fields</strong><ul><li v-for="row in deleteConnections" :key="`${row.doctype}:${row.name}`"><span>{{ row.doctype }}: {{ row.title || row.name }}</span><small>{{ row.linkedBy.map((link) => `${link.doctype}.${link.fieldLabel}`).join(', ') }}</small></li></ul></section>
+            <section v-if="deleteRelatedTypes.length" class="auxiliary-records__delete-summary auxiliary-records__delete-type-choices"><strong>Related record choices</strong><p>Each row inherits the default until you choose a different action.</p><div v-for="row in deleteRelatedTypes" :key="row.doctype" class="auxiliary-records__delete-type-row"><div><strong>{{ row.doctype }}</strong><small>{{ row.recordCount }} records · {{ row.linkCount }} links<span v-if="row.historyCount"> · {{ row.historyCount }} preserved for history</span></small></div><SystemSelect v-if="row.configurable" :model-value="deleteOutcomesByDoctype[row.doctype] || deleteOutcome" :options="[{ label: 'Delete related records', value: DELETE_OUTCOME.DELETE }, { label: 'Unlink and keep records', value: DELETE_OUTCOME.UNLINK }]" :disabled="deleteBusy" @update:model-value="chooseRelatedDeleteOutcome(row.doctype, $event)" /><small v-else>Protected history stays unchanged.</small></div></section>
+            <section v-if="deletePlan.resolution.archiveCount || deletePlan.resolution.preserveCount" class="auxiliary-records__delete-summary"><strong>Preserved history</strong><p>{{ deletePlan.resolution.archiveCount }} selected or managed records will be hidden from setup but retained for immutable references. {{ deletePlan.resolution.preserveCount }} history records remain unchanged.</p></section>
             <section v-if="deleteOutcomeBlockers.length" class="state-message state-message--error" role="alert"><strong>{{ deleteOutcome ? 'This option is blocked' : 'Deletion restrictions' }}</strong><ul><li v-for="row in deleteOutcomeBlockers" :key="`${row.doctype}:${row.name}:${row.reason}`">{{ row.doctype }} {{ row.title || row.name }}: {{ row.reason }}</li></ul></section>
           </template>
         </div>
-        <div v-if="deleteStage === DELETE_STAGE.REVIEW && deletePlan" class="auxiliary-records__delete-outcomes" aria-label="Deletion outcome"><button type="button" :aria-pressed="deleteOutcome === DELETE_OUTCOME.UNLINK" :disabled="!deletePlan.outcomes.unlink.allowed" @click="chooseDeleteOutcome(DELETE_OUTCOME.UNLINK)"><strong>Unlink related records and delete selected</strong><small>Keep related setup records and clear only the reviewed links.</small></button><button class="auxiliary-records__delete-outcome--danger" type="button" :aria-pressed="deleteOutcome === DELETE_OUTCOME.RECURSIVE" :disabled="!deletePlan.outcomes.recursive.allowed" @click="chooseDeleteOutcome(DELETE_OUTCOME.RECURSIVE)"><strong>Delete selected and related records</strong><small>Delete the selected records and every managed dependency shown above.</small></button></div>
-        <SystemDialogFooter class="auxiliary-records__delete-actions"><SystemOperationalButton variant="subtle" :disabled="deleteBusy" @click="cancelDelete">Cancel</SystemOperationalButton><SystemOperationalButton v-if="deleteStage === DELETE_STAGE.REVIEW" class="auxiliary-records__destructive-action" variant="outline" :disabled="deleteBusy || !deleteOutcomeAllowed" @click="continueDelete">Continue to final approval</SystemOperationalButton><SystemOperationalButton v-else class="auxiliary-records__destructive-action auxiliary-records__destructive-action--solid" variant="solid" :loading="deleteBusy" loading-text="Deleting" :disabled="!deleteOutcomeAllowed" @click="approveDelete">{{ deleteOutcome === DELETE_OUTCOME.UNLINK ? 'Approve unlink and delete' : 'Approve recursive deletion' }}</SystemOperationalButton></SystemDialogFooter>
+        <div v-if="deleteStage === DELETE_STAGE.REVIEW && deletePlan" class="auxiliary-records__delete-outcomes" aria-label="Default related record action"><button type="button" :aria-pressed="deleteOutcome === DELETE_OUTCOME.UNLINK" @click="chooseDeleteOutcome(DELETE_OUTCOME.UNLINK)"><strong>Default to unlink</strong><small>Keep mutable related records and clear optional links.</small></button><button class="auxiliary-records__delete-outcome--danger" type="button" :aria-pressed="deleteOutcome === DELETE_OUTCOME.DELETE" @click="chooseDeleteOutcome(DELETE_OUTCOME.DELETE)"><strong>Default to delete</strong><small>Delete mutable related records unless a row overrides this choice.</small></button></div>
+        <SystemDialogFooter class="auxiliary-records__delete-actions"><SystemOperationalButton variant="subtle" :disabled="deleteBusy" @click="cancelDelete">Cancel</SystemOperationalButton><SystemOperationalButton v-if="deleteStage === DELETE_STAGE.REVIEW" class="auxiliary-records__destructive-action" variant="outline" :disabled="deleteBusy || !deleteOutcomeAllowed" @click="continueDelete">Continue to final approval</SystemOperationalButton><SystemOperationalButton v-else class="auxiliary-records__destructive-action auxiliary-records__destructive-action--solid" variant="solid" :loading="deleteBusy" loading-text="Applying plan" :disabled="!deleteOutcomeAllowed" @click="approveDelete">Approve deletion plan</SystemOperationalButton></SystemDialogFooter>
       </SystemDialogContent>
     </SystemDialog>
   </section>
@@ -408,10 +430,13 @@ function coerceValue(field, value) {
 :global(.auxiliary-records__delete-dialog){box-sizing:border-box!important;display:grid!important;width:min(calc(100vw - 2rem),42rem)!important;height:min(50rem,calc(100dvh - 2rem))!important;max-height:calc(100dvh - 2rem)!important;min-height:0!important;grid-template-rows:auto minmax(0,1fr) auto auto!important;overflow:hidden!important}
 .auxiliary-records__delete-body{display:grid;min-width:0;min-height:0;gap:var(--spacing-xs);overflow-x:hidden;overflow-y:scroll;padding-right:var(--spacing-xs);overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-color:var(--theme-border) transparent;scrollbar-width:thin}
 .auxiliary-records__delete-body::-webkit-scrollbar{width:.55rem}.auxiliary-records__delete-body::-webkit-scrollbar-track{background:transparent}.auxiliary-records__delete-body::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:999px;background:var(--theme-border);background-clip:padding-box}
+.auxiliary-records__delete-type-choices{display:grid;gap:var(--spacing-xs)}
+.auxiliary-records__delete-type-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(11rem,15rem);align-items:center;gap:var(--spacing-xs);padding-top:var(--spacing-xs);border-top:var(--border-width-1) solid var(--theme-border)}
+.auxiliary-records__delete-type-row>*{min-width:0}
 .auxiliary-records__delete-outcomes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-xs)}
 .auxiliary-records__delete-outcomes button{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface);color:var(--theme-text);text-align:left}
 .auxiliary-records__delete-outcomes button[aria-pressed=true]{border-color:var(--theme-primary);box-shadow:0 0 0 2px color-mix(in oklch,var(--theme-primary) 18%,transparent)}
 .auxiliary-records__delete-outcomes button:disabled{opacity:.5}.auxiliary-records__delete-outcomes small{color:var(--theme-text-muted)}
 .auxiliary-records__delete-outcome--danger{border-color:color-mix(in oklch,var(--theme-error) 42%,var(--theme-border))!important}
-@media(max-width:44rem){.auxiliary-records__delete-outcomes{grid-template-columns:1fr}}
+@media(max-width:44rem){.auxiliary-records__delete-type-row,.auxiliary-records__delete-outcomes{grid-template-columns:1fr}}
 </style>

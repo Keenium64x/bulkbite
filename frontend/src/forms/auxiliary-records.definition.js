@@ -9,7 +9,7 @@ const records = Object.freeze(Object.fromEntries(Object.values(recordModules).ma
 
 export const auxiliaryRecordSystem = Object.freeze({
   page: Object.freeze({ preserveExistingLayout: true, pageSize: 25 }),
-  deletion: Object.freeze({ enabled: true, approvals: 2, recursive: true }),
+  deletion: Object.freeze({ enabled: true, approvals: 2, defaultOutcome: "delete", relatedTypeOverrides: true, preserveProtectedHistory: true }),
   records,
   resources: Object.freeze({
     catalogue: getAuxiliaryCatalogue,
