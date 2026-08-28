@@ -27,6 +27,7 @@ class TestAuxiliaryRecordDeletion(TestCase):
 	@patch("bulkbite.api._auxiliary_delete_links")
 	@patch("bulkbite.api._load_auxiliary_delete_document")
 	def test_plan_orders_managed_dependency_before_selected_root(self, load_doc, links, _meta, _title, _reason):
+		_meta.return_value.get_field.return_value = frappe._dict(reqd=0)
 		load_doc.side_effect = lambda doctype, name: (self.document(doctype, name), None)
 		links.side_effect = lambda doc: [{
 			"doctype": "BulkBite Supplier Offer",
@@ -48,6 +49,7 @@ class TestAuxiliaryRecordDeletion(TestCase):
 	@patch("bulkbite.api._auxiliary_delete_links")
 	@patch("bulkbite.api._load_auxiliary_delete_document")
 	def test_plan_blocks_unmanaged_operational_reference(self, load_doc, links, _meta, _title, _reason):
+		_meta.return_value.get_field.return_value = frappe._dict(reqd=0)
 		def load(doctype, name):
 			if doctype == "BulkBite Receipt Intake":
 				return None, "This connected record belongs to operational history."
@@ -76,35 +78,57 @@ class TestAuxiliaryRecordDeletion(TestCase):
 	@patch("bulkbite.api.frappe.throw", side_effect=frappe.ValidationError)
 	@patch("bulkbite.api._auxiliary_deletion_plan")
 	def test_executor_rejects_a_stale_plan_token(self, deletion_plan, _throw, _translate, _require):
-		deletion_plan.return_value = frappe._dict(public={"blockers": [], "dependencies": [], "plan_token": "fresh"})
+		deletion_plan.return_value = frappe._dict(public={"plan_token": "fresh"})
 		with self.assertRaises(frappe.ValidationError):
-			delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "stale", approved=True)
+			delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "stale", outcome="unlink", approved=True)
 
 	@patch("bulkbite.api._require_auxiliary_doctype")
 	@patch("bulkbite.api._", side_effect=lambda message: message)
 	@patch("bulkbite.api.frappe.throw", side_effect=frappe.ValidationError)
-	@patch("bulkbite.api._auxiliary_deletion_plan")
-	def test_executor_requires_recursive_approval_for_dependencies(self, deletion_plan, _throw, _translate, _require):
-		deletion_plan.return_value = frappe._dict(public={"blockers": [], "dependencies": [{"name": "OFFER-1"}], "plan_token": "fresh"})
+	def test_executor_requires_an_explicit_outcome(self, _throw, _translate, _require):
 		with self.assertRaises(frappe.ValidationError):
-			delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "fresh", cascade=False, approved=True)
+			delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "fresh", approved=True)
 
 	@patch("bulkbite.api._require_auxiliary_doctype")
 	@patch("bulkbite.api._auxiliary_delete_block_reason", return_value=None)
-	@patch("bulkbite.api._unlink_auxiliary_delete_plan")
+	@patch("bulkbite.api._clear_auxiliary_delete_plan_links")
 	@patch("bulkbite.api.frappe.delete_doc", side_effect=RuntimeError("delete failed"))
 	@patch("bulkbite.api.frappe.get_doc")
 	@patch("bulkbite.api.frappe.db", new_callable=MagicMock)
 	@patch("bulkbite.api._auxiliary_deletion_plan")
-	def test_executor_rolls_back_the_complete_plan_on_failure(self, deletion_plan, database, get_doc, _delete, _unlink, _reason, _require):
+	def test_executor_rolls_back_the_complete_plan_on_failure(self, deletion_plan, database, get_doc, _delete, _clear, _reason, _require):
 		doc = frappe._dict(check_permission=lambda permission: True)
 		get_doc.return_value = doc
 		node = {"doctype": "BulkBite Supplier", "name": "SUP-1", "title": "Supplier"}
 		deletion_plan.return_value = frappe._dict(
-			public={"blockers": [], "dependencies": [], "roots": [node], "plan_token": "fresh"},
+			public={"roots": [node], "plan_token": "fresh", "outcomes": {"recursive": {"allowed": True}}},
 			delete_edges=[],
+			unlink_edges=[],
 			delete_order=[node],
 		)
 		with self.assertRaisesRegex(RuntimeError, "delete failed"):
-			delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "fresh", approved=True)
+			delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "fresh", outcome="recursive", approved=True)
 		database.rollback.assert_called_once_with(save_point="bulkbite_auxiliary_record_deletion")
+
+	@patch("bulkbite.api._require_auxiliary_doctype")
+	@patch("bulkbite.api._auxiliary_delete_block_reason", return_value=None)
+	@patch("bulkbite.api._unlink_auxiliary_delete_plan")
+	@patch("bulkbite.api.frappe.delete_doc")
+	@patch("bulkbite.api.frappe.get_doc")
+	@patch("bulkbite.api.frappe.db", new_callable=MagicMock)
+	@patch("bulkbite.api._auxiliary_deletion_plan")
+	def test_unlink_deletes_only_roots_and_preserves_dependencies(self, deletion_plan, _database, get_doc, delete_doc, unlink, _reason, _require):
+		get_doc.return_value = frappe._dict(check_permission=lambda permission: True)
+		root = {"doctype": "BulkBite Supplier", "name": "SUP-1", "title": "Supplier"}
+		dependency = {"doctype": "BulkBite Supplier Offer", "name": "OFFER-1", "title": "Offer"}
+		edge = {"from": ("BulkBite Supplier", "SUP-1"), "to": ("BulkBite Supplier Offer", "OFFER-1")}
+		deletion_plan.return_value = frappe._dict(
+			public={"roots": [root], "dependencies": [dependency], "plan_token": "fresh", "outcomes": {"unlink": {"allowed": True}}},
+			delete_edges=[edge],
+			unlink_edges=[edge],
+			delete_order=[dependency, root],
+		)
+		result = delete_auxiliary_records("BulkBite Supplier", ["SUP-1"], "fresh", outcome="unlink", approved=True)
+		unlink.assert_called_once_with([edge])
+		delete_doc.assert_called_once_with("BulkBite Supplier", "SUP-1")
+		self.assertEqual(result["dependency_count"], 0)

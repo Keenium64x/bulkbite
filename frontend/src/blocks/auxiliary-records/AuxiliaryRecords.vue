@@ -18,7 +18,7 @@ import {
   SystemTextarea,
 } from "@/desyium"
 import { auxiliaryRecordSystem, recordDefinition } from "@/forms/auxiliary-records.definition"
-import { DELETE_STAGE, finalDeleteRequest, normalizeDeletionPlan } from "@/forms/auxiliary-record-deletion"
+import { DELETE_OUTCOME, DELETE_STAGE, deletionOutcomeAllowed, finalDeleteRequest, normalizeDeletionPlan } from "@/forms/auxiliary-record-deletion"
 
 // =============================================================================
 // region AUXILIARY RECORD WORKFLOW
@@ -47,6 +47,7 @@ const deleteStage = ref(DELETE_STAGE.CLOSED)
 const deletePlan = ref(null)
 const deleteBusy = ref(false)
 const deleteNames = ref([])
+const deleteOutcome = ref("")
 const currentListDoctype = ref("")
 const selectedForm = computed(() => catalogue.value.find((row) => row.doctype === props.doctype))
 const availableFilters = computed(() => {
@@ -57,6 +58,9 @@ const availableFilters = computed(() => {
 const allSelected = computed(() => Boolean(records.value.length && records.value.every((row) => selectedNames.value.includes(row.name))))
 const canDelete = computed(() => Boolean(workspace.value?.permissions?.bulkDelete))
 const deleteConnections = computed(() => [...(deletePlan.value?.roots || []), ...(deletePlan.value?.dependencies || [])].filter((row) => row.linkedBy.length))
+const deleteOutcomeAllowed = computed(() => deletionOutcomeAllowed(deletePlan.value, deleteOutcome.value))
+const deleteOutcomeBlockers = computed(() => deleteOutcome.value ? deletePlan.value?.outcomes[deleteOutcome.value]?.blockers || [] : deletePlan.value?.blockers || [])
+const deleteRecordCount = computed(() => deleteOutcome.value === DELETE_OUTCOME.RECURSIVE ? deletePlan.value?.totalRecords || 0 : deletePlan.value?.roots.length || 0)
 const deleteOpen = computed({ get: () => Boolean(deleteStage.value), set: (open) => { if (!open) cancelDelete() } })
 const pageTitle = computed(() => {
   if (props.mode === "create") return `Add ${selectedForm.value?.label || props.doctype}`
@@ -207,21 +211,25 @@ async function reviewDelete(names) {
   deleteNames.value = [...names]
   deleteStage.value = DELETE_STAGE.REVIEW
   deletePlan.value = null
+  deleteOutcome.value = ""
   deleteBusy.value = true
   error.value = ""
   try { deletePlan.value = normalizeDeletionPlan(await auxiliaryRecordSystem.resources.planDelete(props.doctype, deleteNames.value)) }
   catch (caught) { error.value = caught?.message || "The deletion plan could not be prepared."; cancelDelete() }
   finally { deleteBusy.value = false }
 }
+function chooseDeleteOutcome(outcome) {
+  if (deletionOutcomeAllowed(deletePlan.value, outcome)) deleteOutcome.value = outcome
+}
 function continueDelete() {
-  if (deletePlan.value && !deletePlan.value.blockers.length) deleteStage.value = DELETE_STAGE.APPROVAL
+  if (deleteOutcomeAllowed.value) deleteStage.value = DELETE_STAGE.APPROVAL
 }
 async function approveDelete() {
-  if (!deletePlan.value || deletePlan.value.blockers.length || deleteBusy.value) return
+  if (!deleteOutcomeAllowed.value || deleteBusy.value) return
   deleteBusy.value = true
   error.value = ""
   try {
-    await auxiliaryRecordSystem.resources.deleteMany(finalDeleteRequest(props.doctype, deleteNames.value, deletePlan.value))
+    await auxiliaryRecordSystem.resources.deleteMany(finalDeleteRequest(props.doctype, deleteNames.value, deletePlan.value, deleteOutcome.value))
     const deletedCurrentRecord = props.mode === "edit" && deleteNames.value.includes(props.recordName)
     cancelDelete()
     if (deletedCurrentRecord) emit("navigate", { mode: "list", doctype: props.doctype })
@@ -233,6 +241,7 @@ function cancelDelete() {
   deleteStage.value = DELETE_STAGE.CLOSED
   deletePlan.value = null
   deleteNames.value = []
+  deleteOutcome.value = ""
 }
 function validateContract() {
   Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key])
@@ -377,15 +386,18 @@ function coerceValue(field, value) {
 
     <SystemDialog v-model:open="deleteOpen">
       <SystemDialogContent class="auxiliary-records__delete-dialog">
-        <SystemDialogHeader><p class="eyebrow">{{ deleteStage === DELETE_STAGE.APPROVAL ? 'Final approval' : 'Deletion review' }}</p><SystemDialogTitle>{{ deleteStage === DELETE_STAGE.APPROVAL ? `Permanently delete ${deletePlan?.totalRecords || deleteNames.length} records?` : `Review ${deleteNames.length} selected record${deleteNames.length === 1 ? '' : 's'}` }}</SystemDialogTitle><SystemDialogDescription>{{ deleteStage === DELETE_STAGE.APPROVAL ? 'This is the second and final approval. The listed records will be permanently deleted in child-first order.' : 'Nothing has been deleted. Check every selected record, dependency, and linking field before continuing.' }}</SystemDialogDescription></SystemDialogHeader>
-        <div v-if="deleteBusy && !deletePlan" class="state-message" role="status">Checking every connected record...</div>
-        <template v-else-if="deletePlan">
-          <section class="auxiliary-records__delete-summary"><strong>Selected records</strong><ul><li v-for="row in deletePlan.roots" :key="`${row.doctype}:${row.name}`">{{ row.doctype }}: {{ row.title || row.name }}</li></ul></section>
-          <section v-if="deletePlan.dependencies.length" class="auxiliary-records__delete-summary"><strong>Dependent records to delete first</strong><ul><li v-for="row in deletePlan.dependencies" :key="`${row.doctype}:${row.name}`">{{ row.doctype }}: {{ row.title || row.name }}</li></ul></section>
-          <section v-if="deleteConnections.length" class="auxiliary-records__delete-summary"><strong>Connections and linking fields</strong><ul><li v-for="row in deleteConnections" :key="`${row.doctype}:${row.name}`"><span>{{ row.doctype }}: {{ row.title || row.name }}</span><small>{{ row.linkedBy.map((link) => `${link.doctype}.${link.fieldLabel}`).join(', ') }}</small></li></ul></section>
-          <section v-if="deletePlan.blockers.length" class="state-message state-message--error" role="alert"><strong>Deletion is blocked</strong><ul><li v-for="row in deletePlan.blockers" :key="`${row.doctype}:${row.name}:${row.reason}`">{{ row.doctype }} {{ row.title || row.name }}: {{ row.reason }}</li></ul></section>
-        </template>
-        <SystemDialogFooter class="auxiliary-records__delete-actions"><SystemOperationalButton variant="subtle" :disabled="deleteBusy" @click="cancelDelete">Cancel</SystemOperationalButton><SystemOperationalButton v-if="deleteStage === DELETE_STAGE.REVIEW" class="auxiliary-records__destructive-action" variant="outline" :disabled="deleteBusy || !deletePlan || deletePlan.blockers.length" @click="continueDelete">Continue to final approval</SystemOperationalButton><SystemOperationalButton v-else class="auxiliary-records__destructive-action auxiliary-records__destructive-action--solid" variant="solid" :loading="deleteBusy" loading-text="Deleting" :disabled="!deletePlan || deletePlan.blockers.length" @click="approveDelete">Approve permanent deletion</SystemOperationalButton></SystemDialogFooter>
+        <SystemDialogHeader><p class="eyebrow">{{ deleteStage === DELETE_STAGE.APPROVAL ? 'Final approval' : 'Deletion review' }}</p><SystemDialogTitle>{{ deleteStage === DELETE_STAGE.APPROVAL ? `Permanently delete ${deleteRecordCount} record${deleteRecordCount === 1 ? '' : 's'}?` : `Review ${deleteNames.length} selected record${deleteNames.length === 1 ? '' : 's'}` }}</SystemDialogTitle><SystemDialogDescription>{{ deleteStage === DELETE_STAGE.APPROVAL ? (deleteOutcome === DELETE_OUTCOME.UNLINK ? 'Related setup records will remain after the reviewed links are cleared.' : 'The selected records and every listed managed dependency will be deleted in child-first order.') : 'Nothing has been deleted. Review every connection, then choose what should happen to related setup records.' }}</SystemDialogDescription></SystemDialogHeader>
+        <div class="auxiliary-records__delete-body">
+          <div v-if="deleteBusy && !deletePlan" class="state-message" role="status">Checking every connected record...</div>
+          <template v-else-if="deletePlan">
+            <section class="auxiliary-records__delete-summary"><strong>Selected records</strong><ul><li v-for="row in deletePlan.roots" :key="`${row.doctype}:${row.name}`">{{ row.doctype }}: {{ row.title || row.name }}</li></ul></section>
+            <section v-if="deletePlan.dependencies.length" class="auxiliary-records__delete-summary"><strong>Related managed records</strong><ul><li v-for="row in deletePlan.dependencies" :key="`${row.doctype}:${row.name}`">{{ row.doctype }}: {{ row.title || row.name }}</li></ul></section>
+            <section v-if="deleteConnections.length" class="auxiliary-records__delete-summary"><strong>Connections and linking fields</strong><ul><li v-for="row in deleteConnections" :key="`${row.doctype}:${row.name}`"><span>{{ row.doctype }}: {{ row.title || row.name }}</span><small>{{ row.linkedBy.map((link) => `${link.doctype}.${link.fieldLabel}`).join(', ') }}</small></li></ul></section>
+            <section v-if="deleteOutcomeBlockers.length" class="state-message state-message--error" role="alert"><strong>{{ deleteOutcome ? 'This option is blocked' : 'Deletion restrictions' }}</strong><ul><li v-for="row in deleteOutcomeBlockers" :key="`${row.doctype}:${row.name}:${row.reason}`">{{ row.doctype }} {{ row.title || row.name }}: {{ row.reason }}</li></ul></section>
+          </template>
+        </div>
+        <div v-if="deleteStage === DELETE_STAGE.REVIEW && deletePlan" class="auxiliary-records__delete-outcomes" aria-label="Deletion outcome"><button type="button" :aria-pressed="deleteOutcome === DELETE_OUTCOME.UNLINK" :disabled="!deletePlan.outcomes.unlink.allowed" @click="chooseDeleteOutcome(DELETE_OUTCOME.UNLINK)"><strong>Unlink related records and delete selected</strong><small>Keep related setup records and clear only the reviewed links.</small></button><button class="auxiliary-records__delete-outcome--danger" type="button" :aria-pressed="deleteOutcome === DELETE_OUTCOME.RECURSIVE" :disabled="!deletePlan.outcomes.recursive.allowed" @click="chooseDeleteOutcome(DELETE_OUTCOME.RECURSIVE)"><strong>Delete selected and related records</strong><small>Delete the selected records and every managed dependency shown above.</small></button></div>
+        <SystemDialogFooter class="auxiliary-records__delete-actions"><SystemOperationalButton variant="subtle" :disabled="deleteBusy" @click="cancelDelete">Cancel</SystemOperationalButton><SystemOperationalButton v-if="deleteStage === DELETE_STAGE.REVIEW" class="auxiliary-records__destructive-action" variant="outline" :disabled="deleteBusy || !deleteOutcomeAllowed" @click="continueDelete">Continue to final approval</SystemOperationalButton><SystemOperationalButton v-else class="auxiliary-records__destructive-action auxiliary-records__destructive-action--solid" variant="solid" :loading="deleteBusy" loading-text="Deleting" :disabled="!deleteOutcomeAllowed" @click="approveDelete">{{ deleteOutcome === DELETE_OUTCOME.UNLINK ? 'Approve unlink and delete' : 'Approve recursive deletion' }}</SystemOperationalButton></SystemDialogFooter>
       </SystemDialogContent>
     </SystemDialog>
   </section>
@@ -393,4 +405,12 @@ function coerceValue(field, value) {
 
 <style scoped>
 .auxiliary-records{width:min(100%,90rem);min-height:calc(100vh - 8rem);margin-inline:auto;padding:var(--spacing-l) var(--spacing-m) var(--spacing-xl-2xl)}.auxiliary-records__header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-m);margin-bottom:var(--spacing-m)}.auxiliary-records__header h1{margin:var(--spacing-3xs) 0;font-size:var(--font-size-2);font-weight:var(--font-weight-700)}.auxiliary-records__header p{max-width:48rem;margin:0;color:var(--theme-text-muted)}.auxiliary-records__catalogue{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--spacing-s)}.auxiliary-records__card{display:flex;flex-direction:column;justify-content:space-between;gap:var(--spacing-m);min-height:13rem;padding:var(--spacing-m)!important;background:var(--theme-surface)!important}.auxiliary-records__card h2{margin:var(--spacing-xs) 0 var(--spacing-2xs);font-size:var(--font-size-1);font-weight:var(--font-weight-650)}.auxiliary-records__card p{margin:0;color:var(--theme-text-muted)}.auxiliary-records__list{padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-block);background:var(--theme-surface)}.auxiliary-records__list-tools{display:grid;grid-template-columns:minmax(14rem,1.5fr) repeat(auto-fit,minmax(10rem,1fr)) auto;align-items:end;gap:var(--spacing-xs);margin-bottom:var(--spacing-s)}.auxiliary-records__selection-bar{display:flex;align-items:center;gap:var(--spacing-s);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}.auxiliary-records__selection-bar label{display:flex;align-items:center;gap:var(--spacing-2xs);margin-right:auto}.auxiliary-records__destructive-action{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border))!important;color:var(--theme-error)!important}.auxiliary-records__destructive-action--solid{background:var(--theme-error)!important;color:var(--theme-error-foreground)!important}.auxiliary-records__list ul{display:grid;margin:0;padding:0;list-style:none}.auxiliary-records__list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--spacing-s);min-height:3.75rem;padding:var(--spacing-xs);border-bottom:var(--border-width-1) solid var(--theme-border)}.auxiliary-records__list li:last-child{border-bottom:0}.auxiliary-records__list span,.auxiliary-records__list small{display:block}.auxiliary-records__list small{margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.auxiliary-records__pagination{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);padding-top:var(--spacing-s)}.auxiliary-records__table-row{display:grid;grid-template-columns:auto repeat(auto-fit,minmax(min(100%,12rem),1fr)) auto;gap:var(--spacing-xs);align-items:end;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-canvas)}.auxiliary-records__table-row>*{min-width:0}.auxiliary-records__delete-dialog{width:min(calc(100vw - 2rem),42rem);max-height:min(82vh,50rem);overflow:auto;background:var(--theme-surface-raised);color:var(--theme-text)}.auxiliary-records__delete-dialog ul{display:grid;gap:var(--spacing-3xs);margin:var(--spacing-xs) 0 0;padding-left:var(--spacing-m)}.auxiliary-records__delete-summary{padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}.auxiliary-records__delete-summary small{display:block;color:var(--theme-text-muted)}.auxiliary-records__delete-actions{display:flex;justify-content:flex-end;gap:var(--spacing-xs)}@media(max-width:64rem){.auxiliary-records__catalogue{grid-template-columns:repeat(2,minmax(0,1fr))}.auxiliary-records__list-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.auxiliary-records__table-row{grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))}.auxiliary-records__table-row>.row-number{grid-column:1/-1}.auxiliary-records__table-row>*:last-child{justify-self:start}}@media(max-width:44rem){.auxiliary-records{padding:var(--spacing-m) var(--spacing-s) var(--spacing-xl)}.auxiliary-records__header{flex-direction:column}.auxiliary-records__catalogue,.auxiliary-records__list-tools{grid-template-columns:1fr}.auxiliary-records__selection-bar,.auxiliary-records__pagination{align-items:stretch;flex-direction:column}.auxiliary-records__selection-bar label{margin-right:0}.auxiliary-records__table-row{grid-template-columns:1fr}.auxiliary-records__table-row>.row-number{position:static}.auxiliary-records__list li{grid-template-columns:auto minmax(0,1fr)}.auxiliary-records__list li>*:last-child{grid-column:2}.auxiliary-records__delete-actions{align-items:stretch;flex-direction:column-reverse}.auxiliary-records__delete-actions>*{width:100%}}
+.auxiliary-records__delete-dialog{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;overflow:hidden}
+.auxiliary-records__delete-body{display:grid;min-height:0;gap:var(--spacing-xs);overflow:auto;padding-right:var(--spacing-3xs)}
+.auxiliary-records__delete-outcomes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-xs)}
+.auxiliary-records__delete-outcomes button{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface);color:var(--theme-text);text-align:left}
+.auxiliary-records__delete-outcomes button[aria-pressed=true]{border-color:var(--theme-primary);box-shadow:0 0 0 2px color-mix(in oklch,var(--theme-primary) 18%,transparent)}
+.auxiliary-records__delete-outcomes button:disabled{opacity:.5}.auxiliary-records__delete-outcomes small{color:var(--theme-text-muted)}
+.auxiliary-records__delete-outcome--danger{border-color:color-mix(in oklch,var(--theme-error) 42%,var(--theme-border))!important}
+@media(max-width:44rem){.auxiliary-records__delete-outcomes{grid-template-columns:1fr}}
 </style>

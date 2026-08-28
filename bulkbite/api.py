@@ -712,25 +712,31 @@ def plan_auxiliary_record_deletion(doctype, names):
 
 
 @frappe.whitelist(methods=["POST"])
-def delete_auxiliary_records(doctype, names, plan_token, cascade=False, approved=False):
-	"""Execute one freshly approved, child-first deletion plan atomically."""
+def delete_auxiliary_records(doctype, names, plan_token, outcome=None, approved=False):
+	"""Execute one freshly approved unlink or recursive deletion plan atomically."""
 	_require_auxiliary_doctype(doctype, "delete")
 	if not _as_bool(approved):
 		frappe.throw(_("Final deletion approval is required."), frappe.PermissionError)
+	if outcome not in {"unlink", "recursive"}:
+		frappe.throw(_("Choose whether to unlink or recursively delete related records."))
 	plan = _auxiliary_deletion_plan(doctype, names)
-	if plan.public["blockers"]:
-		frappe.throw(_("Deletion is blocked. Review every listed connection."))
 	if not plan_token or plan_token != plan.public["plan_token"]:
 		frappe.throw(_("The connected records changed. Review the deletion plan again."))
-	if plan.public["dependencies"] and not _as_bool(cascade):
-		frappe.throw(_("Connected records require recursive deletion approval."))
+	if not plan.public["outcomes"][outcome]["allowed"]:
+		frappe.throw(_("The selected deletion outcome is blocked. Review every listed connection."))
 
 	savepoint = "bulkbite_auxiliary_record_deletion"
 	frappe.db.savepoint(savepoint)
 	deleted = []
 	try:
-		_unlink_auxiliary_delete_plan(plan.delete_edges)
-		for node in plan.delete_order:
+		root_keys = {(node["doctype"], node["name"]) for node in plan.public["roots"]}
+		if outcome == "unlink":
+			_unlink_auxiliary_delete_plan(plan.unlink_edges)
+			delete_order = [node for node in plan.delete_order if (node["doctype"], node["name"]) in root_keys]
+		else:
+			_clear_auxiliary_delete_plan_links(plan.delete_edges)
+			delete_order = plan.delete_order
+		for node in delete_order:
 			doc = frappe.get_doc(node["doctype"], node["name"])
 			reason = _auxiliary_delete_block_reason(doc)
 			if reason:
@@ -745,7 +751,8 @@ def delete_auxiliary_records(doctype, names, plan_token, cascade=False, approved
 		"deleted": deleted,
 		"deleted_count": len(deleted),
 		"root_count": len(plan.public["roots"]),
-		"dependency_count": len(plan.public["dependencies"]),
+		"dependency_count": len(plan.public["dependencies"]) if outcome == "recursive" else 0,
+		"outcome": outcome,
 	}
 
 
@@ -894,20 +901,28 @@ def _auxiliary_list_type(field):
 
 def _auxiliary_deletion_plan(doctype, names):
 	root_names = _auxiliary_delete_names(names)
-	state = frappe._dict(nodes={}, edges=[], blockers=[], visiting=set(), visited=set())
+	state = frappe._dict(nodes={}, edges=[], blockers=[], recursive_blockers=[], visiting=set(), visited=set())
 	for name in root_names:
 		_collect_auxiliary_delete_node(doctype, name, state, root=True)
 	root_keys = {(doctype, name) for name in root_names}
 	ordered = _auxiliary_delete_order(state.nodes, state.edges)
+	common_blockers = _unique_auxiliary_blockers(state.blockers)
+	recursive_blockers = _unique_auxiliary_blockers([*common_blockers, *state.recursive_blockers])
+	unlink_edges = [edge for edge in state.edges if edge["from"] in root_keys]
+	unlink_blockers = _unique_auxiliary_blockers([*common_blockers, *_auxiliary_unlink_blockers(unlink_edges, state.nodes)])
 	public = {
 		"doctype": doctype,
 		"roots": [_public_auxiliary_delete_node(state.nodes[(doctype, name)], state.edges) for name in root_names if (doctype, name) in state.nodes],
 		"dependencies": [_public_auxiliary_delete_node(node, state.edges) for node in ordered if (node["doctype"], node["name"]) not in root_keys],
-		"blockers": _unique_auxiliary_blockers(state.blockers),
+		"blockers": common_blockers,
 		"total_records": len(ordered),
+		"outcomes": {
+			"unlink": {"allowed": not unlink_blockers, "blockers": unlink_blockers, "links": [_public_auxiliary_unlink_edge(edge) for edge in unlink_edges]},
+			"recursive": {"allowed": not recursive_blockers, "blockers": recursive_blockers, "links": []},
+		},
 	}
 	public["plan_token"] = _auxiliary_delete_plan_token(public)
-	return frappe._dict(public=public, delete_order=ordered, delete_edges=state.edges)
+	return frappe._dict(public=public, delete_order=ordered, delete_edges=state.edges, unlink_edges=unlink_edges)
 
 
 def _auxiliary_delete_names(names):
@@ -936,16 +951,18 @@ def _collect_auxiliary_delete_node(doctype, name, state, root=False):
 	state.visiting.add(key)
 	try:
 		doc, blocker = _load_auxiliary_delete_document(doctype, name)
-		node = {"doctype": doctype, "name": name, "title": name, "root": root}
+		node = {"doctype": doctype, "name": name, "title": name, "root": root, "docstatus": 0, "can_write": False}
 		state.nodes[key] = node
 		if blocker:
 			state.blockers.append(_auxiliary_delete_blocker(doctype, name, blocker))
 			return
 		title_field = _auxiliary_title_field(frappe.get_meta(doctype))
 		node["title"] = doc.get(title_field) if title_field else name
+		node["docstatus"] = doc.docstatus
+		node["can_write"] = doc.has_permission("write")
 		reason = _auxiliary_delete_block_reason(doc)
 		if reason:
-			state.blockers.append(_auxiliary_delete_blocker(doctype, name, reason, node["title"]))
+			(state.blockers if root else state.recursive_blockers).append(_auxiliary_delete_blocker(doctype, name, reason, node["title"]))
 		for link in _auxiliary_delete_links(doc):
 			child_key = (link["doctype"], link["name"])
 			state.edges.append({"from": key, "to": child_key, **{field: link[field] for field in ("field", "field_label", "storage_doctype", "storage_names")}})
@@ -976,6 +993,23 @@ def _auxiliary_delete_block_reason(doc):
 	if not doc.has_permission("delete"):
 		return _("Your role cannot delete this record.")
 	return None
+
+
+def _auxiliary_unlink_blockers(edges, nodes):
+	blockers = []
+	for edge in edges:
+		doc = nodes.get(edge["to"])
+		if not doc or edge["to"][0] not in _AUXILIARY_FORM_DOCTYPES:
+			blockers.append(_auxiliary_delete_blocker(edge["to"][0], edge["to"][1], _("Operational history and unmanaged records cannot be unlinked.")))
+			continue
+		field = frappe.get_meta(edge["storage_doctype"]).get_field(edge["field"])
+		if doc["docstatus"] != 0:
+			blockers.append(_auxiliary_delete_blocker(doc["doctype"], doc["name"], _("Submitted or cancelled records are retained as history."), doc["title"]))
+		elif not doc["can_write"]:
+			blockers.append(_auxiliary_delete_blocker(doc["doctype"], doc["name"], _("Your role cannot unlink this related record."), doc["title"]))
+		elif field and field.reqd:
+			blockers.append(_auxiliary_delete_blocker(doc["doctype"], doc["name"], _("The required field {0} cannot be unlinked.").format(edge["field_label"]), doc["title"]))
+	return blockers
 
 
 def _auxiliary_delete_links(doc):
@@ -1034,6 +1068,26 @@ def _auxiliary_delete_link(doctype, name, fieldname, field, storage_doctype, sto
 
 
 def _unlink_auxiliary_delete_plan(edges):
+	grouped = {}
+	for edge in edges:
+		grouped.setdefault(edge["to"], []).append(edge)
+	for (doctype, name), linked_edges in grouped.items():
+		if doctype not in _AUXILIARY_FORM_DOCTYPES:
+			frappe.throw(_("Operational history and unmanaged records cannot be unlinked."))
+		doc = frappe.get_doc(doctype, name)
+		doc.check_permission("write")
+		for edge in linked_edges:
+			storage_meta = frappe.get_meta(edge["storage_doctype"])
+			if storage_meta.istable:
+				for row in doc.get_all_children():
+					if row.name in edge["storage_names"]:
+						row.set(edge["field"], None)
+			else:
+				doc.set(edge["field"], None)
+		doc.save()
+
+
+def _clear_auxiliary_delete_plan_links(edges):
 	seen = set()
 	for edge in edges:
 		if edge["to"][0] not in _AUXILIARY_FORM_DOCTYPES:
@@ -1048,6 +1102,15 @@ def _unlink_auxiliary_delete_plan(edges):
 				frappe.db.set_single_value(edge["storage_doctype"], edge["field"], None)
 			else:
 				frappe.db.set_value(edge["storage_doctype"], storage_name, edge["field"], None, update_modified=False)
+
+
+def _public_auxiliary_unlink_edge(edge):
+	return {
+		"doctype": edge["to"][0],
+		"name": edge["to"][1],
+		"field": edge["field"],
+		"field_label": edge["field_label"],
+	}
 
 
 def _auxiliary_delete_order(nodes, edges):
@@ -1071,7 +1134,7 @@ def _auxiliary_delete_order(nodes, edges):
 def _public_auxiliary_delete_node(node, edges):
 	key = (node["doctype"], node["name"])
 	linked_by = [{"doctype": edge["to"][0], "name": edge["to"][1], "field": edge["field"], "field_label": edge["field_label"]} for edge in edges if edge["to"] == key]
-	return {**node, "linked_by": linked_by}
+	return {field: node[field] for field in ("doctype", "name", "title", "root")} | {"linked_by": linked_by}
 
 
 def _auxiliary_delete_blocker(doctype, name, reason, title=None):
