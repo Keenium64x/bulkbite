@@ -32,6 +32,13 @@ test("ordinary API responses are not classified as a server outage", () => {
   assert.match(availability, /else markNativeServerReachable\(\)/)
 })
 
+test("native login sends only network and gateway failures to outage recovery", () => {
+  const auth = source("../src/native/auth.js")
+  assert.match(auth, /catch \(error\) \{\s*markNativeServerUnavailable\(\)/)
+  assert.match(auth, /if \(isUnavailableHttpStatus\(response\.status\)\) markNativeServerUnavailable\(\)/)
+  assert.match(auth, /else noteNativeResponse\(response\)/)
+})
+
 test("recovery state supplies plain copy, production host, and retry", () => {
   const block = source("../src/blocks/native-availability-state/NativeAvailabilityState.vue")
   assert.match(block, /BulkBite is temporarily unavailable/)

@@ -1,5 +1,6 @@
 import { absoluteApiUrl, runtimeConfig } from "@/config/runtime"
 import { readSecureValue, removeSecureValue, writeSecureValue } from "@/native/secureStore"
+import { isUnavailableHttpStatus, markNativeServerUnavailable, noteNativeResponse } from "@/native/availability"
 
 
 // =============================================================================
@@ -13,14 +14,22 @@ let refreshRequest = null
 let volatileTokens = null
 
 async function postMobileAuth(method, values) {
-  const response = await fetch(absoluteApiUrl(`/api/method/bulkbite.mobile.${method}`), {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    body: JSON.stringify(values),
-  })
+  let response
+  try {
+    response = await fetch(absoluteApiUrl(`/api/method/bulkbite.mobile.${method}`), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(values),
+    })
+  } catch (error) {
+    markNativeServerUnavailable()
+    throw error
+  }
+  if (isUnavailableHttpStatus(response.status)) markNativeServerUnavailable()
+  else noteNativeResponse(response)
   const payload = await response.json().catch(() => ({}))
   if (!response.ok || payload.exc_type || payload.exception) {
     throw new Error(payload.message || (method === "login_mobile" ? "Your email or password is incorrect." : "Your mobile session has expired. Sign in again."))
