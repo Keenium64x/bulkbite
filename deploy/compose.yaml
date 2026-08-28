@@ -7,6 +7,7 @@ x-image: &image
 x-backend: &backend
   <<: *image
   volumes:
+    - assets:/home/frappe/frappe-bench/assets
     - sites:/home/frappe/frappe-bench/sites
     - logs:/home/frappe/frappe-bench/logs
   depends_on:
@@ -57,6 +58,7 @@ services:
         bench set-config -gp socketio_port 9000;
         bench set-config -g serve_default_site true;
     volumes:
+      - assets:/home/frappe/frappe-bench/assets
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
 
@@ -69,6 +71,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in deploy/.env}
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in deploy/.env}
     volumes:
+      - assets:/home/frappe/frappe-bench/assets
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
       - ./scripts:/workspace:ro
@@ -92,6 +95,7 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-180}
     volumes:
+      - assets:/home/frappe/frappe-bench/assets
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
       - ./scripts:/workspace:ro
@@ -125,6 +129,7 @@ services:
       PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-180}
       CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
     volumes:
+      - assets:/home/frappe/frappe-bench/assets
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     depends_on:
@@ -142,6 +147,7 @@ services:
       start_period: 30s
 
 volumes:
+  assets:
   db-data:
   redis-queue-data:
   sites:

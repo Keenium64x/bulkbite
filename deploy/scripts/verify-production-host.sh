@@ -6,7 +6,7 @@ set -euo pipefail
 # region PRODUCTION PROOF
 # =============================================================================
 
-HOSTNAME="admin.bulkbite.co.za"
+HOSTNAME="admin.huispunte.co.za"
 EXPECTED_ADDRESS="188.166.144.156"
 PRESERVED_PORTS=(8080 18789 20128)
 

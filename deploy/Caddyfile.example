@@ -1,4 +1,4 @@
-admin.bulkbite.co.za {
+admin.huispunte.co.za {
   encode zstd gzip
   reverse_proxy 127.0.0.1:8088
 }

@@ -8,7 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIRECTORY="$(cd "${SCRIPT_DIRECTORY}/.." && pwd)"
-HOSTNAME="admin.bulkbite.co.za"
+HOSTNAME="admin.huispunte.co.za"
 EXPECTED_ADDRESS="188.166.144.156"
 ACME_ROOT="/var/www/letsencrypt"
 NGINX_TARGET="/etc/nginx/conf.d/bulkbite-admin.conf"
