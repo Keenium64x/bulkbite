@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import csv
+import hashlib
 import io
 from pathlib import Path
 
 import frappe
 from frappe import _
+from frappe.model.dynamic_links import get_dynamic_link_map
+from frappe.model.rename_doc import get_link_fields
 from frappe.utils import add_days, add_months, flt, getdate, now_datetime, nowdate
 from frappe.utils.background_jobs import get_job
 from openpyxl import load_workbook
@@ -570,6 +573,10 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Team Template": {"label": "Team templates", "singular_label": "team template", "description": "Reusable groups that prefill the people expected in a normal production run."},
 }
 _AUXILIARY_FIELD_TYPES = {"Data", "Int", "Float", "Currency", "Date", "Select", "Check", "Small Text", "Text", "Long Text", "Link", "Table"}
+_AUXILIARY_LIST_FILTER_TYPES = {"Check", "Date", "Link", "Select"}
+_AUXILIARY_LIST_COLUMN_TYPES = {"Data", "Int", "Float", "Currency", "Date", "Select", "Check", "Link"}
+_AUXILIARY_DELETE_MAX_ROOTS = 100
+_AUXILIARY_DELETE_MAX_RECORDS = 250
 
 
 @frappe.whitelist(methods=["GET"])
@@ -582,6 +589,7 @@ def get_auxiliary_form_catalogue():
 			**copy,
 			"can_create": frappe.has_permission(doctype, "create"),
 			"can_read": frappe.has_permission(doctype, "read"),
+			"can_delete": frappe.has_permission(doctype, "delete"),
 		}
 		for doctype, copy in _AUXILIARY_FORM_DOCTYPES.items()
 		if frappe.has_permission(doctype, "read")
@@ -597,6 +605,67 @@ def get_auxiliary_record_list(doctype):
 	fields = ["name"] + ([title_field] if title_field and title_field != "name" else [])
 	rows = frappe.get_list(doctype, fields=fields, order_by=f"{meta.sort_field or 'modified'} {meta.sort_order or 'DESC'}", limit_page_length=200)
 	return [{"name": row.name, "label": row.get(title_field) or row.name} for row in rows]
+
+
+@frappe.whitelist(methods=["GET"])
+def get_auxiliary_record_workspace(doctype, search=None, page=1, page_size=25, filters=None, sort=None):
+	"""Return a safe list contract for the existing All setup record page."""
+	_require_auxiliary_doctype(doctype, "read")
+	meta = frappe.get_meta(doctype)
+	columns = _auxiliary_list_columns(meta)
+	title_field = _auxiliary_title_field(meta)
+	fieldnames = list(dict.fromkeys(["name", title_field, *[column["field"] for column in columns]]))
+	fieldnames = [fieldname for fieldname in fieldnames if fieldname and fieldname != "title"]
+	page = max(1, int(page or 1))
+	page_size = min(100, max(1, int(page_size or 25)))
+	start = (page - 1) * page_size
+	safe_filters = _auxiliary_list_filters(meta, filters)
+	search_filters = _auxiliary_search_filters(search, title_field)
+	order_by = _auxiliary_list_order(meta, sort, columns)
+	rows = frappe.get_list(
+		doctype,
+		fields=fieldnames,
+		filters=safe_filters or None,
+		or_filters=search_filters or None,
+		order_by=order_by,
+		limit_start=start,
+		limit_page_length=page_size,
+	)
+	if search_filters:
+		count_rows = frappe.get_list(
+			doctype,
+			fields=[{"COUNT": "name", "as": "count"}],
+			filters=safe_filters or None,
+			or_filters=search_filters,
+			limit_page_length=1,
+		)
+		total = int(count_rows[0].get("count") or 0) if count_rows else 0
+	else:
+		total = frappe.db.count(doctype, filters=safe_filters or None)
+	return {
+		"doctype": doctype,
+		"label": _AUXILIARY_FORM_DOCTYPES[doctype]["label"],
+		"columns": columns,
+		"rows": [
+			{
+				"name": row.name,
+				"title": row.get(title_field) or row.name,
+				"values": {fieldname: row.get(fieldname) for fieldname in fieldnames if fieldname != "name"},
+			}
+			for row in rows
+		],
+		"permissions": {
+			"read": True,
+			"create": bool(frappe.has_permission(doctype, "create")),
+			"bulkDelete": bool(frappe.has_permission(doctype, "delete")),
+		},
+		"filters": _auxiliary_filter_contract(meta),
+		"sort": _as_dict(sort) or None,
+		"page": page,
+		"page_size": page_size,
+		"total": total,
+		"has_next": start + len(rows) < total,
+	}
 
 
 @frappe.whitelist(methods=["GET"])
@@ -633,6 +702,51 @@ def save_auxiliary_record(doctype, values, tables=None, name=None):
 		doc.set(fieldname, [{key: value for key, value in row.items() if key in allowed_row_fields} for row in _as_list(rows)])
 	doc.save()
 	return {"doctype": doctype, "name": doc.name}
+
+
+@frappe.whitelist(methods=["POST"])
+def plan_auxiliary_record_deletion(doctype, names):
+	"""Preview every managed dependency and every link before any deletion."""
+	_require_auxiliary_doctype(doctype, "delete")
+	return _auxiliary_deletion_plan(doctype, names).public
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_auxiliary_records(doctype, names, plan_token, cascade=False, approved=False):
+	"""Execute one freshly approved, child-first deletion plan atomically."""
+	_require_auxiliary_doctype(doctype, "delete")
+	if not _as_bool(approved):
+		frappe.throw(_("Final deletion approval is required."), frappe.PermissionError)
+	plan = _auxiliary_deletion_plan(doctype, names)
+	if plan.public["blockers"]:
+		frappe.throw(_("Deletion is blocked. Review every listed connection."))
+	if not plan_token or plan_token != plan.public["plan_token"]:
+		frappe.throw(_("The connected records changed. Review the deletion plan again."))
+	if plan.public["dependencies"] and not _as_bool(cascade):
+		frappe.throw(_("Connected records require recursive deletion approval."))
+
+	savepoint = "bulkbite_auxiliary_record_deletion"
+	frappe.db.savepoint(savepoint)
+	deleted = []
+	try:
+		_unlink_auxiliary_delete_plan(plan.delete_edges)
+		for node in plan.delete_order:
+			doc = frappe.get_doc(node["doctype"], node["name"])
+			reason = _auxiliary_delete_block_reason(doc)
+			if reason:
+				frappe.throw(reason, frappe.PermissionError)
+			doc.check_permission("delete")
+			frappe.delete_doc(node["doctype"], node["name"])
+			deleted.append({key: node[key] for key in ("doctype", "name", "title")})
+	except Exception:
+		frappe.db.rollback(save_point=savepoint)
+		raise
+	return {
+		"deleted": deleted,
+		"deleted_count": len(deleted),
+		"root_count": len(plan.public["roots"]),
+		"dependency_count": len(plan.public["dependencies"]),
+	}
 
 
 def _require_auxiliary_doctype(doctype, permission):
@@ -684,6 +798,296 @@ def _serialize_auxiliary_field(field):
 		"default": field.default,
 		"link_options": link_options,
 	}
+
+
+# region 1. LIST CONTRACT
+
+def _auxiliary_title_field(meta):
+	title_field = meta.title_field or (meta.autoname.removeprefix("field:") if str(meta.autoname or "").startswith("field:") else None)
+	return title_field if title_field and meta.get_field(title_field) else None
+
+
+def _auxiliary_list_columns(meta):
+	columns = [{"field": "title", "label": _AUXILIARY_FORM_DOCTYPES[meta.name]["singular_label"].title(), "type": "data", "sortable": False}]
+	seen = {_auxiliary_title_field(meta), "name"}
+	for field in meta.fields:
+		if field.fieldname in seen or field.hidden or field.fieldtype not in _AUXILIARY_LIST_COLUMN_TYPES:
+			continue
+		columns.append({"field": field.fieldname, "label": field.label or field.fieldname, "type": _auxiliary_list_type(field), "sortable": True})
+		seen.add(field.fieldname)
+		if len(columns) >= 5:
+			break
+	return columns
+
+
+def _auxiliary_filter_contract(meta):
+	filters = []
+	for field in meta.fields:
+		if field.hidden or field.fieldtype not in _AUXILIARY_LIST_FILTER_TYPES:
+			continue
+		contract = {"field": field.fieldname, "label": field.label or field.fieldname, "type": _auxiliary_list_type(field)}
+		if field.fieldtype == "Check":
+			contract["options"] = [{"label": _("Yes"), "value": 1}, {"label": _("No"), "value": 0}]
+		elif field.fieldtype == "Select":
+			contract["options"] = [{"label": option, "value": option} for option in str(field.options or "").splitlines() if option]
+		elif field.fieldtype == "Link" and field.options in _AUXILIARY_FORM_DOCTYPES and frappe.has_permission(field.options, "read"):
+			contract["options"] = [{"label": row["label"], "value": row["name"]} for row in get_auxiliary_record_list(field.options)]
+		filters.append(contract)
+		if len(filters) >= 4:
+			break
+	return filters
+
+
+def _auxiliary_list_filters(meta, filters):
+	requested = json.loads(filters) if isinstance(filters, str) else filters
+	if not requested:
+		return []
+	if not isinstance(requested, list):
+		frappe.throw(_("Record filters must be a list."))
+	result = []
+	for item in requested:
+		field = meta.get_field(item.get("field")) if isinstance(item, dict) else None
+		if not field or field.fieldtype not in _AUXILIARY_LIST_FILTER_TYPES:
+			frappe.throw(_("Unsupported record filter."))
+		if item.get("operator", "=") != "=":
+			frappe.throw(_("Only exact record filters are supported."))
+		result.append([field.fieldname, "=", item.get("value")])
+	return result
+
+
+def _auxiliary_search_filters(search, title_field):
+	term = str(search or "").strip()
+	if not term:
+		return []
+	return [[fieldname, "like", f"%{term}%"] for fieldname in dict.fromkeys([title_field, "name"]) if fieldname]
+
+
+def _auxiliary_list_order(meta, sort, columns):
+	requested = _as_dict(sort)
+	fieldname = requested.get("field")
+	direction = str(requested.get("direction") or "asc").lower()
+	allowed = {column["field"] for column in columns if column["sortable"]}
+	if fieldname:
+		if fieldname not in allowed or direction not in {"asc", "desc"}:
+			frappe.throw(_("Unsupported record sort."))
+		return f"{fieldname} {direction}"
+	title_field = _auxiliary_title_field(meta)
+	return f"{title_field} asc" if title_field else f"{meta.sort_field or 'modified'} {meta.sort_order or 'DESC'}"
+
+
+def _auxiliary_list_type(field):
+	return {
+		"Check": "checkbox",
+		"Currency": "currency",
+		"Date": "date",
+		"Float": "decimal",
+		"Int": "integer",
+		"Link": "link",
+		"Select": "select",
+	}.get(field.fieldtype, "data")
+
+
+# endregion 1. LIST CONTRACT
+
+
+# region 2. RECURSIVE DELETION PLANNER
+
+def _auxiliary_deletion_plan(doctype, names):
+	root_names = _auxiliary_delete_names(names)
+	state = frappe._dict(nodes={}, edges=[], blockers=[], visiting=set(), visited=set())
+	for name in root_names:
+		_collect_auxiliary_delete_node(doctype, name, state, root=True)
+	root_keys = {(doctype, name) for name in root_names}
+	ordered = _auxiliary_delete_order(state.nodes, state.edges)
+	public = {
+		"doctype": doctype,
+		"roots": [_public_auxiliary_delete_node(state.nodes[(doctype, name)], state.edges) for name in root_names if (doctype, name) in state.nodes],
+		"dependencies": [_public_auxiliary_delete_node(node, state.edges) for node in ordered if (node["doctype"], node["name"]) not in root_keys],
+		"blockers": _unique_auxiliary_blockers(state.blockers),
+		"total_records": len(ordered),
+	}
+	public["plan_token"] = _auxiliary_delete_plan_token(public)
+	return frappe._dict(public=public, delete_order=ordered, delete_edges=state.edges)
+
+
+def _auxiliary_delete_names(names):
+	requested = json.loads(names) if isinstance(names, str) else names
+	if not isinstance(requested, list):
+		frappe.throw(_("Choose at least one record to delete."))
+	result = list(dict.fromkeys(str(name).strip() for name in requested if str(name).strip()))
+	if not result or len(result) > _AUXILIARY_DELETE_MAX_ROOTS:
+		frappe.throw(_("Choose between 1 and {0} records at a time.").format(_AUXILIARY_DELETE_MAX_ROOTS))
+	return result
+
+
+def _collect_auxiliary_delete_node(doctype, name, state, root=False):
+	key = (doctype, name)
+	if key in state.visited:
+		if root and key in state.nodes:
+			state.nodes[key]["root"] = True
+		return
+	if key in state.visiting:
+		state.blockers.append(_auxiliary_delete_blocker(doctype, name, _("A circular dependency requires manual review.")))
+		return
+	if len(state.nodes) >= _AUXILIARY_DELETE_MAX_RECORDS:
+		state.blockers.append(_auxiliary_delete_blocker(doctype, name, _("The dependency set is too large for in-app deletion.")))
+		return
+
+	state.visiting.add(key)
+	try:
+		doc, blocker = _load_auxiliary_delete_document(doctype, name)
+		node = {"doctype": doctype, "name": name, "title": name, "root": root}
+		state.nodes[key] = node
+		if blocker:
+			state.blockers.append(_auxiliary_delete_blocker(doctype, name, blocker))
+			return
+		title_field = _auxiliary_title_field(frappe.get_meta(doctype))
+		node["title"] = doc.get(title_field) if title_field else name
+		reason = _auxiliary_delete_block_reason(doc)
+		if reason:
+			state.blockers.append(_auxiliary_delete_blocker(doctype, name, reason, node["title"]))
+		for link in _auxiliary_delete_links(doc):
+			child_key = (link["doctype"], link["name"])
+			state.edges.append({"from": key, "to": child_key, **{field: link[field] for field in ("field", "field_label", "storage_doctype", "storage_names")}})
+			_collect_auxiliary_delete_node(link["doctype"], link["name"], state)
+	finally:
+		state.visiting.discard(key)
+		state.visited.add(key)
+
+
+def _load_auxiliary_delete_document(doctype, name):
+	if doctype not in _AUXILIARY_FORM_DOCTYPES:
+		return None, _("This connected record belongs to operational history or an unmanaged record type.")
+	if not frappe.db.exists(doctype, name):
+		frappe.throw(_("{0} {1} no longer exists.").format(doctype, name))
+	try:
+		doc = frappe.get_doc(doctype, name)
+		doc.check_permission("read")
+		return doc, None
+	except frappe.PermissionError:
+		return None, _("You cannot inspect this connected record.")
+
+
+def _auxiliary_delete_block_reason(doc):
+	if doc.doctype not in _AUXILIARY_FORM_DOCTYPES:
+		return _("This record type is not managed through All setup.")
+	if doc.docstatus != 0:
+		return _("Submitted or cancelled records are retained as history.")
+	if not doc.has_permission("delete"):
+		return _("Your role cannot delete this record.")
+	return None
+
+
+def _auxiliary_delete_links(doc):
+	unique = {(link["doctype"], link["name"], link["field"]): link for link in [*_static_auxiliary_delete_links(doc), *_dynamic_auxiliary_delete_links(doc)]}
+	return [unique[key] for key in sorted(unique)]
+
+
+def _static_auxiliary_delete_links(doc):
+	links = []
+	ignored = set(frappe.get_hooks("ignore_links_on_delete"))
+	for link_field in get_link_fields(doc.doctype):
+		storage_doctype = link_field["parent"]
+		fieldname = link_field["fieldname"]
+		if storage_doctype in ignored:
+			continue
+		meta = frappe.get_meta(storage_doctype)
+		field = meta.get_field(fieldname)
+		if link_field["issingle"]:
+			if frappe.db.get_single_value(storage_doctype, fieldname) == doc.name:
+				links.append(_auxiliary_delete_link(storage_doctype, storage_doctype, fieldname, field, storage_doctype, [storage_doctype]))
+			continue
+		fields = ["name"] + (["parent", "parenttype"] if meta.istable else [])
+		for row in frappe.db.get_values(storage_doctype, {fieldname: doc.name}, fields, as_dict=True, order_by=None):
+			reference_doctype = row.parenttype if meta.istable else storage_doctype
+			reference_name = row.parent if meta.istable else row.name
+			if reference_doctype in ignored or (reference_doctype == doc.doctype and reference_name == doc.name):
+				continue
+			links.append(_auxiliary_delete_link(reference_doctype, reference_name, fieldname, field, storage_doctype, [row.name]))
+	return links
+
+
+def _dynamic_auxiliary_delete_links(doc):
+	links = []
+	ignored = set(frappe.get_hooks("ignore_links_on_delete"))
+	for field in get_dynamic_link_map().get(doc.doctype, []):
+		if field.parent in ignored:
+			continue
+		meta = frappe.get_meta(field.parent)
+		filters = {field.options: doc.doctype, field.fieldname: doc.name}
+		fields = ["name"] + (["parent", "parenttype"] if meta.istable else [])
+		if meta.issingle:
+			values = frappe.db.get_singles_dict(field.parent)
+			rows = [frappe._dict(name=field.parent, parent=None, parenttype=None)] if values.get(field.options) == doc.doctype and values.get(field.fieldname) == doc.name else []
+		else:
+			rows = frappe.get_all(field.parent, filters=filters, fields=fields)
+		for row in rows:
+			reference_doctype = row.parenttype if meta.istable else field.parent
+			reference_name = row.parent if meta.istable else row.name
+			if reference_doctype not in ignored:
+				links.append(_auxiliary_delete_link(reference_doctype, reference_name, field.fieldname, field, field.parent, [row.name]))
+	return links
+
+
+def _auxiliary_delete_link(doctype, name, fieldname, field, storage_doctype, storage_names):
+	return {"doctype": doctype, "name": name, "field": fieldname, "field_label": field.label if field and field.label else fieldname.replace("_", " ").title(), "storage_doctype": storage_doctype, "storage_names": storage_names}
+
+
+def _unlink_auxiliary_delete_plan(edges):
+	seen = set()
+	for edge in edges:
+		if edge["to"][0] not in _AUXILIARY_FORM_DOCTYPES:
+			continue
+		for storage_name in edge["storage_names"]:
+			key = (edge["storage_doctype"], storage_name, edge["field"])
+			if key in seen:
+				continue
+			seen.add(key)
+			meta = frappe.get_meta(edge["storage_doctype"])
+			if meta.issingle:
+				frappe.db.set_single_value(edge["storage_doctype"], edge["field"], None)
+			else:
+				frappe.db.set_value(edge["storage_doctype"], storage_name, edge["field"], None, update_modified=False)
+
+
+def _auxiliary_delete_order(nodes, edges):
+	children = {}
+	for edge in edges:
+		if edge["to"] in nodes:
+			children.setdefault(edge["from"], []).append(edge["to"])
+	ordered, visited = [], set()
+	def visit(key):
+		if key in visited or key not in nodes:
+			return
+		visited.add(key)
+		for child in children.get(key, []):
+			visit(child)
+		ordered.append(nodes[key])
+	for key in nodes:
+		visit(key)
+	return ordered
+
+
+def _public_auxiliary_delete_node(node, edges):
+	key = (node["doctype"], node["name"])
+	linked_by = [{"doctype": edge["to"][0], "name": edge["to"][1], "field": edge["field"], "field_label": edge["field_label"]} for edge in edges if edge["to"] == key]
+	return {**node, "linked_by": linked_by}
+
+
+def _auxiliary_delete_blocker(doctype, name, reason, title=None):
+	return {"doctype": doctype, "name": name, "title": title or name, "reason": reason}
+
+
+def _unique_auxiliary_blockers(blockers):
+	return list({(row["doctype"], row["name"], str(row["reason"])): row for row in blockers}.values())
+
+
+def _auxiliary_delete_plan_token(plan):
+	stable = json.dumps(plan, sort_keys=True, separators=(",", ":"), default=str)
+	return hashlib.sha256(stable.encode("utf-8")).hexdigest()
+
+
+# endregion 2. RECURSIVE DELETION PLANNER
 
 
 # endregion AUXILIARY RECORD FORMS
@@ -2021,6 +2425,10 @@ def _as_list(value):
 	if isinstance(value, str):
 		value = json.loads(value)
 	return value or []
+
+
+def _as_bool(value):
+	return str(value).lower() in {"1", "true", "yes"}
 
 
 def _serialize_run(run):
