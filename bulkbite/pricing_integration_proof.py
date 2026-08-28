@@ -54,6 +54,7 @@ def run_pricing_integration_proof():
 				sheet.cell(row_number, headers["Normal Pack Price"]).value = 135
 				sheet.cell(row_number, headers["Price Effective From"]).value = "2026-08-25"
 				break
+		sheet.append([None, "BB-PRICE-PROOF-NEW", "Proof imported ingredient", "Proof Imported Supplier", "2026-08-25", 1, 2, "Kg", 50])
 		stream = BytesIO()
 		workbook.save(stream)
 		file_doc = frappe.get_doc({"doctype": "File", "file_name": "bulkbite-price-proof.xlsx", "is_private": 1, "content": stream.getvalue()}).insert()
@@ -63,10 +64,13 @@ def run_pricing_integration_proof():
 		assert inspection["suggested_mapping"]["Normal Pack Price"] == "normal_pack_price"
 		preview = preview_price_import(file_doc.file_url, inspection["suggested_mapping"])
 		assert preview["counts"]["update"] >= 1
+		assert preview["counts"]["insert"] >= 1
 		if preview["counts"]["error"]:
 			raise AssertionError([row for row in preview["rows"] if row["status"] == "error"])
 		applied = apply_price_import(preview["name"])
 		assert applied["status"] == "Applied"
+		assert frappe.db.exists("BulkBite Item", "BB-PRICE-PROOF-NEW")
+		assert frappe.db.exists("BulkBite Supplier", "Proof Imported Supplier")
 		assert frappe.db.count("BulkBite Stock Event") == stock_before
 		old = frappe.get_doc(offer.doctype, offer.name)
 		assert not old.enabled and str(old.effective_to) == "2026-08-24"

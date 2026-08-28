@@ -188,6 +188,7 @@ def _preview_offer(row, row_number):
 	offer_id = _text(row.get("offer_id"))
 	existing = frappe.get_doc("BulkBite Supplier Offer", offer_id) if offer_id and frappe.db.exists("BulkBite Supplier Offer", offer_id) else None
 	item_code = _text(row.get("item_code")) or (existing.item_code if existing else "")
+	item_name = _text(row.get("item_name"))
 	supplier = _text(row.get("supplier")) or (existing.supplier if existing else "")
 	supplier_item_code = _text(row.get("supplier_item_code")) or (existing.supplier_item_code if existing else "")
 	if not existing and item_code and supplier:
@@ -195,10 +196,14 @@ def _preview_offer(row, row_number):
 		existing_name = frappe.db.get_value("BulkBite Supplier Offer", {"offer_key": key, "enabled": 1}, "name")
 		existing = frappe.get_doc("BulkBite Supplier Offer", existing_name) if existing_name else None
 		offer_id = existing_name or offer_id
-	if not item_code or not frappe.db.exists("BulkBite Item", item_code):
-		errors.append("Match Item Code to an existing BulkBite item.")
+	item_exists = bool(item_code and frappe.db.exists("BulkBite Item", item_code))
+	supplier_exists = bool(supplier and frappe.db.exists("BulkBite Supplier", supplier))
+	if not item_code:
+		errors.append("Item Code is required.")
+	elif not item_exists and not item_name:
+		errors.append("Item Name is required when creating a new item.")
 	exact_name = frappe.db.get_value("BulkBite Item", item_code, "item_name") if item_code else None
-	if row.get("item_name") and exact_name and _text(row.get("item_name")) != exact_name:
+	if item_name and exact_name and item_name != exact_name:
 		errors.append("Item Name does not match the selected Item Code.")
 	if not existing and _is_item_reference_row(row):
 		return {
@@ -206,8 +211,8 @@ def _preview_offer(row, row_number):
 			"record_name": item_code, "item_code": item_code, "item_name": exact_name or _text(row.get("item_name")),
 			"supplier": "", "changes": [], "errors": errors, "values": {},
 		}
-	if not supplier or not frappe.db.exists("BulkBite Supplier", supplier):
-		errors.append("Match Supplier to an existing BulkBite supplier.")
+	if not supplier:
+		errors.append("Supplier is required.")
 	values = _offer_values(row, existing)
 	for field in ("units_per_pack", "unit_size", "normal_price"):
 		if flt(values.get(field)) <= 0:
@@ -217,7 +222,17 @@ def _preview_offer(row, row_number):
 	if existing and (existing.item_code != item_code or existing.supplier != supplier):
 		errors.append("Offer ID belongs to a different item or supplier.")
 	status = "error" if errors else ("insert" if not existing else ("unchanged" if not _changes(existing, values) else "update"))
-	return {"kind": "Supplier Offer", "row_number": row_number, "status": status, "record_name": offer_id, "item_code": item_code, "item_name": exact_name or _text(row.get("item_name")), "supplier": supplier, "changes": _changes(existing, values), "errors": errors, "values": values}
+	setup_creations = []
+	if not item_exists and item_code:
+		setup_creations.append({"doctype": "BulkBite Item", "name": item_code, "label": item_name})
+	if not supplier_exists and supplier:
+		setup_creations.append({"doctype": "BulkBite Supplier", "name": supplier, "label": supplier})
+	return {
+		"kind": "Supplier Offer", "row_number": row_number, "status": status, "record_name": offer_id,
+		"item_code": item_code, "item_name": exact_name or item_name, "supplier": supplier,
+		"changes": _changes(existing, values), "setup_creations": setup_creations,
+		"errors": errors, "values": values,
+	}
 
 
 def _is_item_reference_row(row):
@@ -259,6 +274,7 @@ def _apply_offer_row(row, result):
 		result["unchanged"].append(row.get("record_name"))
 		return
 	values = row["values"]
+	_ensure_price_import_setup(row, values)
 	if row["status"] == "update":
 		old = frappe.get_doc("BulkBite Supplier Offer", row["record_name"])
 		material_fields = {"item_code", "supplier", "supplier_item_code", "effective_from", "effective_to", "units_per_pack", "unit_size", "purchase_uom", "normal_price", "discounted_price", "discount_from", "discount_to", "price_includes_vat", "vat_rate"}
@@ -273,6 +289,50 @@ def _apply_offer_row(row, result):
 		values["notes"] = "Imported replacement for " + old.name + (f". {values.get('notes')}" if values.get("notes") else "")
 	doc = frappe.get_doc({"doctype": "BulkBite Supplier Offer", **values}).insert()
 	result["updated" if row["status"] == "update" else "inserted"].append(doc.name)
+
+
+def _ensure_price_import_setup(row, values):
+	"""Create missing reviewed item and supplier setup without posting stock."""
+	supplier = values["supplier"]
+	if not frappe.db.exists("BulkBite Supplier", supplier):
+		frappe.get_doc({
+			"doctype": "BulkBite Supplier", "supplier_name": supplier, "enabled": 1,
+			"notes": "Created from a reviewed price catalogue import.",
+		}).insert()
+
+	item_code = values["item_code"]
+	if frappe.db.exists("BulkBite Item", item_code):
+		return
+	frappe.get_doc({
+		"doctype": "BulkBite Item", "item_code": item_code,
+		"item_name": row["item_name"], "item_type": "Ingredient",
+		"stock_uom": _stock_uom(values["purchase_uom"]), "track_stock": 1,
+		"purchasable": 1, "enabled": 1,
+		"theory_valuation_rate": _offer_stock_unit_rate(values),
+		"description": "Created from a reviewed price catalogue import.",
+	}).insert()
+
+
+def _stock_uom(purchase_uom):
+	"""Map a supplier pack unit to the item's stock unit."""
+	return {"g": "Kg", "Kg": "Kg", "ml": "Litre", "Litre": "Litre", "Each": "Each"}.get(purchase_uom, purchase_uom)
+
+
+def _offer_stock_unit_rate(values):
+	"""Return the current pack price per Kg, Litre, or Each for a new item."""
+	pack_quantity = flt(values["units_per_pack"]) * flt(values["unit_size"])
+	if values["purchase_uom"] in {"g", "ml"}:
+		pack_quantity /= 1000
+	if pack_quantity <= 0:
+		return 0
+	price = flt(values["normal_price"])
+	if flt(values.get("discounted_price")) > 0 and _date_active(values.get("discount_from"), values.get("discount_to"), getdate(nowdate())):
+		price = flt(values["discounted_price"])
+	return round(price / pack_quantity, 6)
+
+
+def _date_active(effective_from, effective_to, on_date):
+	return (not effective_from or getdate(effective_from) <= on_date) and (not effective_to or getdate(effective_to) >= on_date)
 
 
 def _offer_values(row, existing=None):
