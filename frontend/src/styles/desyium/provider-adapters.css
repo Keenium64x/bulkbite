@@ -117,6 +117,41 @@ html:root {
   font-size: var(--font-size--1);
 }
 
+/* Frappe select-like controls use intrinsic sizing for their trigger labels.
+ * Bound the public System owners so long labels shrink inside narrow form
+ * columns instead of widening a mobile page. Popovers keep their provider
+ * geometry because these rules apply only to the mounted field and trigger. */
+.system-component--select,
+.system-component--combobox {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+:is(.system-component--select, .system-component--combobox) [data-slot="trigger"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+:is(.system-component--select, .system-component--combobox) [data-slot="trigger-value"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The provider's invisible sizing text should not remain wider than a
+ * SystemSelect after the public owner has adopted container sizing. */
+.system-component--select .select-trigger-sizer {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
 /* Preserve Frappe's component geometry. Only real field shells receive the
  * system field radius; internal combobox inputs and checkboxes are excluded. */
 .frappe-adapter :is(

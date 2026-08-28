@@ -135,7 +135,7 @@ function isScrollSurfaceAtTop(scrollSurface) {
 }
 
 function shouldIgnoreTarget(target) {
-  return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable='true'], [data-native-pull-ignore]"))
+  return target instanceof Element && Boolean(target.closest("[data-native-pull-ignore]"))
 }
 
 function showOutcome(outcome) {
