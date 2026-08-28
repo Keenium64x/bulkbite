@@ -13,7 +13,7 @@ test("native Capacitor shell is bundled and does not load a remote server URL", 
 
 test("native API origin remains locked to live production", () => {
   const runtime = source("../src/config/runtime.js")
-  assert.match(runtime, /PRODUCTION_ORIGIN\s*=\s*"https:\/\/admin\.huispunte\.co\.za"/)
+  assert.match(runtime, /PRODUCTION_ORIGIN\s*=\s*"https:\/\/admin\.bulkbite\.co\.za"/)
   assert.match(runtime, /apiBaseUrl:\s*isNative\s*\?\s*PRODUCTION_ORIGIN/)
   assert.match(runtime, /requestedUrl\.pathname/)
 })

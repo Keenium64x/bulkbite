@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
     hostname: "localhost",
     androidScheme: "https",
     cleartext: false,
-    allowNavigation: ["admin.huispunte.co.za"],
+    allowNavigation: ["admin.bulkbite.co.za"],
   },
   plugins: {
     CapacitorHttp: { enabled: true },
