@@ -1,6 +1,7 @@
 import { absoluteApiUrl, runtimeConfig } from "@/config/runtime"
 import { readSecureValue, removeSecureValue, writeSecureValue } from "@/native/secureStore"
 import { isUnavailableHttpStatus, markNativeServerUnavailable, noteNativeResponse } from "@/native/availability"
+import { reactive } from "vue"
 
 
 // =============================================================================
@@ -9,9 +10,26 @@ import { isUnavailableHttpStatus, markNativeServerUnavailable, noteNativeRespons
 
 const TOKEN_KEY = "tokens"
 const EXPIRY_SKEW_MS = 60_000
+const INVALID_SESSION_STATUSES = new Set([401, 403])
 export const MOBILE_AUTH_SCHEME = "BulkBite"
 let refreshRequest = null
 let volatileTokens = null
+
+export const nativeSession = reactive({
+  ready: !runtimeConfig.isNative,
+  authenticated: !runtimeConfig.isNative,
+  user: "",
+})
+
+class MobileAuthRequestError extends Error {
+  constructor(message, { status = 0, unavailable = false } = {}) {
+    super(message)
+    this.name = "MobileAuthRequestError"
+    this.status = Number(status)
+    this.invalidSession = INVALID_SESSION_STATUSES.has(this.status)
+    this.unavailable = unavailable
+  }
+}
 
 async function postMobileAuth(method, values) {
   let response
@@ -26,13 +44,16 @@ async function postMobileAuth(method, values) {
     })
   } catch (error) {
     markNativeServerUnavailable()
-    throw error
+    throw new MobileAuthRequestError(error.message || "BulkBite could not reach the production server.", { unavailable: true })
   }
   if (isUnavailableHttpStatus(response.status)) markNativeServerUnavailable()
   else noteNativeResponse(response)
   const payload = await response.json().catch(() => ({}))
   if (!response.ok || payload.exc_type || payload.exception) {
-    throw new Error(payload.message || (method === "login_mobile" ? "Your email or password is incorrect." : "Your mobile session has expired. Sign in again."))
+    throw new MobileAuthRequestError(
+      payload.message || (method === "login_mobile" ? "Your email or password is incorrect." : "Your mobile session has expired. Sign in again."),
+      { status: response.status, unavailable: isUnavailableHttpStatus(response.status) },
+    )
   }
   return payload.message || payload
 }
@@ -69,7 +90,32 @@ export async function loginNative(email, password) {
     device_name: `${runtimeConfig.platform} BulkBite Admin app`,
   })
   await storeTokenResponse(payload)
+  setNativeSession(payload.user)
   return payload
+}
+
+export async function restoreNativeSession() {
+  if (!runtimeConfig.isNative) return { user: window.boot?.user || "" }
+  nativeSession.ready = false
+  try {
+    const accessToken = await getNativeAccessToken()
+    if (!accessToken) {
+      setNativeSession("")
+      return null
+    }
+    const user = await validateNativeIdentity(accessToken)
+    setNativeSession(user)
+    return { user }
+  } catch (error) {
+    if (error?.invalidSession) {
+      await clearNativeTokens()
+      setNativeSession("")
+      return null
+    }
+    throw error
+  } finally {
+    nativeSession.ready = true
+  }
 }
 
 export async function getNativeAccessToken({ forceRefresh = false } = {}) {
@@ -90,7 +136,7 @@ async function refreshNativeAccessToken(refreshToken) {
     .then(storeTokenResponse)
     .then(tokens => tokens.accessToken)
     .catch(async error => {
-      await clearNativeTokens()
+      if (error?.invalidSession) await clearNativeTokens()
       throw error
     })
     .finally(() => { refreshRequest = null })
@@ -105,6 +151,43 @@ export async function clearNativeTokens({ revoke = false } = {}) {
   }
   volatileTokens = null
   await removeSecureValue(TOKEN_KEY).catch(() => {})
+  setNativeSession("")
+}
+
+async function validateNativeIdentity(accessToken) {
+  let response
+  try {
+    response = await fetch(absoluteApiUrl("/api/method/frappe.auth.get_logged_user"), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `${MOBILE_AUTH_SCHEME} ${accessToken}`,
+      },
+      cache: "no-store",
+    })
+  } catch (error) {
+    markNativeServerUnavailable()
+    throw new MobileAuthRequestError(error.message || "BulkBite could not validate this device session.", { unavailable: true })
+  }
+  if (isUnavailableHttpStatus(response.status)) markNativeServerUnavailable()
+  else noteNativeResponse(response)
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload.exc_type || payload.exception) {
+    throw new MobileAuthRequestError(payload.message || "Your mobile session could not be validated.", {
+      status: response.status,
+      unavailable: isUnavailableHttpStatus(response.status),
+    })
+  }
+  const user = String(payload.message || "").trim()
+  if (!user || user === "Guest") {
+    throw new MobileAuthRequestError("Your mobile session has expired. Sign in again.", { status: 401 })
+  }
+  return user
+}
+
+function setNativeSession(user) {
+  nativeSession.user = String(user || "")
+  nativeSession.authenticated = Boolean(nativeSession.user && nativeSession.user !== "Guest")
 }
 
 

@@ -4,6 +4,7 @@ import { SystemBars, SystemBarsStyle } from "@capacitor/core"
 import { Network } from "@capacitor/network"
 import { reactive } from "vue"
 import { checkNativeProductionAvailability, markNativeOffline } from "@/native/availability"
+import { nativeSession, restoreNativeSession } from "@/native/auth"
 
 
 // =============================================================================
@@ -11,6 +12,14 @@ import { checkNativeProductionAvailability, markNativeOffline } from "@/native/a
 // =============================================================================
 
 export const nativeState = reactive({ connected: true, connectionType: "unknown" })
+let nativeBackConsumer = null
+
+export function registerNativeBackConsumer(consumer) {
+  nativeBackConsumer = typeof consumer === "function" ? consumer : null
+  return () => {
+    if (nativeBackConsumer === consumer) nativeBackConsumer = null
+  }
+}
 
 export function routeFromAppUrl(value) {
   try {
@@ -27,7 +36,25 @@ export function routeFromAppUrl(value) {
 
 async function handleAppUrl(value, router) {
   const route = routeFromAppUrl(value)
-  if (route?.startsWith("/bulkbite")) await router.push(route)
+  if (route?.startsWith("/bulkbite")) await router.replace(route)
+}
+
+export async function handleNativeBack(router, exitApp = () => CapacitorApp.exitApp()) {
+  if (nativeBackConsumer && await nativeBackConsumer()) return "consumed"
+  const currentPath = router.currentRoute?.value?.path || "/bulkbite"
+  if (nativeSession.authenticated && currentPath !== "/bulkbite") {
+    await router.replace("/bulkbite")
+    return "root"
+  }
+  await exitApp()
+  return "exit"
+}
+
+async function restoreSessionAfterResume() {
+  if (!nativeState.connected) return
+  const available = await checkNativeProductionAvailability({ force: true })
+  if (!available) return
+  await restoreNativeSession().catch(() => {})
 }
 
 export async function initialiseNativeLifecycle(router) {
@@ -42,10 +69,10 @@ export async function initialiseNativeLifecycle(router) {
     else checkNativeProductionAvailability({ force: true })
   })
   CapacitorApp.addListener("appUrlOpen", ({ url }) => handleAppUrl(url, router))
-  CapacitorApp.addListener("backButton", async ({ canGoBack }) => {
-    if (canGoBack && window.history.length > 1) router.back()
-    else await CapacitorApp.exitApp()
+  CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+    if (isActive) restoreSessionAfterResume()
   })
+  CapacitorApp.addListener("backButton", () => handleNativeBack(router))
   const launch = await CapacitorApp.getLaunchUrl()
   if (launch?.url) await handleAppUrl(launch.url, router)
 }

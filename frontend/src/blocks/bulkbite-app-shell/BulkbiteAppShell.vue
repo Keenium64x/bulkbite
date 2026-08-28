@@ -38,6 +38,9 @@ import bulkbiteIcon from "@/assets/bulkbite-icon.svg"
 import bulkbiteWordmarkDark from "@/assets/bulkbite-logo-wordmark-dark.svg"
 import bulkbiteWordmark from "@/assets/bulkbite-logo-wordmark.svg"
 import { mountFlipLayoutTransition } from "@/experiences/bulkbite-nav-expand"
+import NativePullToRefresh from "@/components/native/NativePullToRefresh.vue"
+import { registerNativeBackConsumer } from "@/native/lifecycle"
+import { useNativePullToRefresh } from "@/native/pullToRefresh"
 
 // =============================================================================
 // region SHELL CONTRACT
@@ -65,6 +68,7 @@ const props = defineProps({
   user: { type: String, default: "" },
   busy: { type: Boolean, default: false },
   sessionBusy: { type: Boolean, default: false },
+  refreshAction: { type: Function, default: null },
 })
 
 const emit = defineEmits(["navigate", "refresh", "logout"])
@@ -81,6 +85,7 @@ const navGroupsRoot = ref(null)
 const theoreticalExpanded = ref(false)
 let flipExperience = null
 let mobileShellQuery = null
+let unregisterNativeBackConsumer = null
 const primarySections = computed(() => props.sections.filter(section => section.group !== "theoretical"))
 const theoreticalSections = computed(() => props.sections.filter(section => section.group === "theoretical"))
 const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
@@ -139,6 +144,19 @@ function resolveMobileShellMode(event) {
   if (!event.matches) mobileDrawerOpen.value = false
 }
 
+function closeTransientMobileUi() {
+  if (!mobileDrawerOpen.value) return false
+  mobileDrawerOpen.value = false
+  return true
+}
+
+async function refreshCurrentWorkflow() {
+  if (props.busy) return true
+  if (props.refreshAction) return props.refreshAction()
+  emit("refresh")
+  return true
+}
+
 function sidebarLinkIsActive(link) {
   if (link.target.mode === "workflow") return props.activeSection === link.target.id
   if (link.target.mode === "route") return window.location.pathname === link.target.href
@@ -159,6 +177,7 @@ watch(mobileDrawerOpen, async (isOpen) => {
 })
 
 onMounted(() => {
+  unregisterNativeBackConsumer = registerNativeBackConsumer(closeTransientMobileUi)
   mobileShellQuery = window.matchMedia("(max-width: 64rem)")
   mobileShellQuery.addEventListener("change", resolveMobileShellMode)
   if (!navGroupsRoot.value) return
@@ -171,17 +190,22 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  unregisterNativeBackConsumer?.()
+  unregisterNativeBackConsumer = null
   mobileShellQuery?.removeEventListener("change", resolveMobileShellMode)
   mobileShellQuery = null
   flipExperience?.destroy()
   flipExperience = null
 })
 
+useNativePullToRefresh(refreshCurrentWorkflow)
+
 // endregion SIDEBAR STATE
 </script>
 
 <template>
   <section data-block="bulkbite-app-shell" class="app-shell" :class="{ 'app-shell--collapsed': sidebarCollapsed }">
+    <NativePullToRefresh />
     <aside class="app-shell__sidebar" aria-label="BulkBite setup and tools">
       <header class="app-shell__brand">
         <div class="app-shell__brand-identity">
