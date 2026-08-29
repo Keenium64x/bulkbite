@@ -55,6 +55,38 @@ class TestControlledSpreadsheetWorkspace(IntegrationTestCase):
 			if file_path.exists():
 				file_path.unlink()
 
+	def test_master_workbook_finds_recipe_costing_and_groups_all_recipes(self):
+		workbook = Workbook()
+		workbook.active.title = "Dashboard"
+		ingredients = workbook.create_sheet("Ingredients")
+		ingredients.append(["BULKBITE INGREDIENTS"])
+		ingredients.append(["Current source"])
+		ingredients.append(["Ingredient", "Unit"])
+		ingredients.append(["Sunflower Oil", "L"])
+		ingredients.append(["Rice", "kg"])
+		recipes = workbook.create_sheet("Recipe_Costing")
+		recipes.append(["BULKBITE RECIPE COSTING"])
+		recipes.append(["Quantities per 100 kg"])
+		recipes.append(["Meal", "Ingredient", "Qty / 100 kg", "Unit", "Price / Unit"])
+		recipes.append(["Meal A", "Sunflower Oil", 1.5, "kg", 20])
+		recipes.append(["Meal A", "Rice", 15, "kg", 10])
+		recipes.append(["Meal B", "Rice", 20, "kg", 10])
+		file_doc, file_path = self._saved_workbook(workbook)
+		try:
+			inspection = inspect_workspace_file("recipes", file_doc.file_url)
+			self.assertEqual(inspection["source_sheet"], "Recipe_Costing")
+			self.assertEqual(inspection["header_row"], 3)
+			self.assertEqual(inspection["suggested_mapping"]["Ingredient Unit"], "ingredient_uom")
+			preview = preview_workspace_import("recipes", file_doc.file_url, inspection["suggested_mapping"])
+			self.assertEqual(preview["counts"]["total"], 2)
+			self.assertEqual(preview["counts"]["error"], 0)
+			self.assertEqual(preview["recipes"][0]["nominal_output_qty"], 100)
+			oil = next(row for row in preview["recipes"][0]["ingredients"] if row["item_name"] == "Sunflower Oil")
+			self.assertEqual(oil["uom"], "Litre")
+		finally:
+			if file_path.exists():
+				file_path.unlink()
+
 	def test_advanced_setup_targets_are_allowlisted(self):
 		contract = get_workspace_contract("setup")
 		self.assertIn("BulkBite Employee", {row["value"] for row in contract["setup_targets"]})
@@ -67,6 +99,9 @@ class TestControlledSpreadsheetWorkspace(IntegrationTestCase):
 		sheet.append(headers)
 		for row in rows:
 			sheet.append(row)
+		return self._saved_workbook(workbook)
+
+	def _saved_workbook(self, workbook):
 		stream = BytesIO()
 		workbook.save(stream)
 		file_doc = frappe.get_doc({

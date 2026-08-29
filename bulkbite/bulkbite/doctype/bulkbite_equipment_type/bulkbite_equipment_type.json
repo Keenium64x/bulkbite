@@ -1,0 +1,19 @@
+{
+ "actions": [], "allow_rename": 1, "autoname": "field:equipment_type_name", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["equipment_type_name", "capacity_qty", "capacity_uom", "quantity_available", "concurrent_batch_limit", "enabled", "notes"],
+ "fields": [
+  {"fieldname": "equipment_type_name", "fieldtype": "Data", "in_list_view": 1, "label": "Equipment Type", "reqd": 1, "unique": 1},
+  {"fieldname": "capacity_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Capacity per Batch", "non_negative": 1, "reqd": 1},
+  {"default": "Kg", "fieldname": "capacity_uom", "fieldtype": "Select", "label": "Capacity Unit", "options": "Kg\nLitre\nEach", "reqd": 1},
+  {"default": "1", "fieldname": "quantity_available", "fieldtype": "Int", "in_list_view": 1, "label": "Quantity Available", "non_negative": 1, "reqd": 1},
+  {"default": "1", "fieldname": "concurrent_batch_limit", "fieldtype": "Int", "label": "Concurrent Batches per Unit", "non_negative": 1, "reqd": 1},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "module": "BulkBite", "name": "BulkBite Equipment Type",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "BulkBite Worker"}
+ ], "states": [], "track_changes": 1
+}

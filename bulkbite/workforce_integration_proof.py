@@ -32,7 +32,7 @@ def run_capacity_carry_forward():
 	"""Prove that early production suppresses later runs until its carried effort is exhausted."""
 	mix = [{"plan_type": "Proof", "customer_count": 10, "meals_per_day": 1, "days_per_week": 1, "serving_size_g": 1000}]
 	runs = [
-		{"week_number": week, "run_number": 1, "scheduled_elapsed_hours": hours, "planned_people": 1}
+		{"week_number": week, "run_number": 1, "output_mode": "Fixed" if week == 1 else "Auto", "planned_output_qty": hours if week == 1 else 0, "scheduled_elapsed_hours": hours, "planned_people": 1}
 		for week, hours in enumerate((30, 2, 2, 2), start=1)
 	]
 	weeks = calculate_capacity_forecast(mix, mix, 4, [], 60, runs)
@@ -43,20 +43,20 @@ def run_capacity_carry_forward():
 	assert [row["capacity_state"] for row in weeks] == ["ready", "idle", "idle", "under"]
 	assert [row["status"] for row in weeks] == ["Over capacity", "Covered by earlier production", "Covered by earlier production", "Under capacity"]
 	multi_runs = [
-		{"week_number": week, "run_number": run, "scheduled_elapsed_hours": 6, "planned_people": 1}
+		{"week_number": week, "run_number": run, "output_mode": "Auto", "scheduled_elapsed_hours": 6, "planned_people": 1}
 		for week in range(1, 5)
 		for run in range(1, 3)
 	]
 	multi_run_weeks = calculate_capacity_forecast(mix, mix, 4, [], 60, multi_runs)
-	assert [row["run_count"] for row in multi_run_weeks] == [2, 2, 1, 2]
-	assert [row["closing_team_hour_balance"] for row in multi_run_weeks] == [0.0, 0.0, 0.0, 0.0]
-	assert [row["closing_output_balance_qty"] for row in multi_run_weeks] == [2.0, 4.0, 0.0, 2.0]
+	assert [row["run_count"] for row in multi_run_weeks] == [2, 2, 2, 2]
+	assert [row["closing_team_hour_balance"] for row in multi_run_weeks] == [2.0, 2.0, 2.0, 2.0]
+	assert [row["closing_output_balance_qty"] for row in multi_run_weeks] == [0.0, 0.0, 0.0, 0.0]
 	legacy_windows = [
 		{"week_number": week, "scheduled_elapsed_hours": 6, "runs_per_week": 1, "team_size": 1}
 		for week in range(1, 5)
 	]
 	explicit_runs = [
-		{"week_number": 1, "run_number": run, "scheduled_elapsed_hours": 6, "planned_people": 1}
+		{"week_number": 1, "run_number": run, "output_mode": "Auto", "scheduled_elapsed_hours": 6, "planned_people": 1}
 		for run in range(1, 3)
 	]
 	explicit_weeks = calculate_capacity_forecast(mix, mix, 4, legacy_windows, 60, explicit_runs)

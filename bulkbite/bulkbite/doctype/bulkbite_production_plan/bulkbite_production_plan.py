@@ -23,15 +23,11 @@ class BulkBiteProductionPlan(Document):
 			row.weekly_output_qty = calculated["weekly_output_qty"]
 		for row in self.plan_rows:
 			row.weekly_servings = demand["weekly_servings"]
-			assigned_output = sum(
-				flt(run.planned_output_qty)
-				for run in self.capacity_runs or []
-				if int(run.week_number or 0) == int(row.week_number or 0)
-			)
-			if assigned_output > 0:
-				row.planned_output_qty = assigned_output
-			elif flt(row.planned_output_qty) <= 0 and demand["weekly_output_qty"] > 0:
-				row.planned_output_qty = demand["weekly_output_qty"]
+			customer_output = flt(row.customer_required_output_qty) or flt(demand["weekly_output_qty"])
+			extra_output = max(flt(row.extra_output_qty), 0)
+			row.customer_required_output_qty = customer_output
+			row.extra_output_qty = extra_output
+			row.planned_output_qty = customer_output + extra_output
 			row.uom = "Kg"
 			if self.period_start and row.week_number:
 				row.planned_date = add_days(getdate(self.period_start), (int(row.week_number) - 1) * 7)

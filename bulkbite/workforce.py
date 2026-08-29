@@ -313,13 +313,14 @@ def calculate_run_performance(actual_output_qty, actual_elapsed_hours, employees
 	}
 
 
-def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg, capacity_runs=None):
+def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg, capacity_runs=None, required_output_by_week=None):
 	"""Compare food coverage and labour capacity for an explicit repeating schedule."""
 	forecast_weeks = max(int(forecast_weeks or 4), 1)
 	current_by_plan = {row.get("plan_type"): row for row in current_mix or []}
 	target_by_plan = {row.get("plan_type"): row for row in target_mix or []}
 	windows = {int(row.get("week_number") or 0): row for row in capacity_windows or []}
 	runs_by_week = _group_capacity_runs(capacity_runs)
+	required_by_cycle_week = {int(row.get("week_number") or 0): flt(row.get("required_output_qty")) for row in required_output_by_week or []}
 	has_explicit_run_schedule = bool(runs_by_week)
 	rows = []
 	carried_output_qty = 0
@@ -339,14 +340,16 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			if has_explicit_run_schedule
 			else _expand_capacity_window(windows.get(cycle_week) or {})
 		)
+		for run in available_schedule:
+			run.setdefault("output_mode", "Fixed" if flt(run.get("planned_output_qty")) > 0 else "Auto")
+		required_output_qty = required_by_cycle_week.get(cycle_week, flt(demand["weekly_output_qty"]))
 		schedule = _select_required_output_runs(
 			available_schedule,
 			carried_output_qty,
-			flt(demand["weekly_output_qty"]),
+			required_output_qty,
 			labour_minutes_per_kg,
 		)
 		planned_output_qty = sum(flt(run.get("planned_output_qty")) for run in schedule)
-		required_output_qty = flt(demand["weekly_output_qty"])
 		opening_output_balance = round(carried_output_qty, 3)
 		closing_output_balance = round(opening_output_balance + planned_output_qty - required_output_qty, 3)
 		carried_output_qty = closing_output_balance
@@ -400,24 +403,28 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 
 
 def _select_required_output_runs(schedule, opening_output_qty, required_output_qty, labour_minutes_per_kg):
-	"""Use ordered cooking sessions only until carried and planned food cover demand."""
+	"""Allocate only the remaining food target to auto runs while preserving fixed surplus."""
 	remaining_output = max(flt(required_output_qty) - flt(opening_output_qty), 0)
-	if remaining_output <= 0:
-		return []
 	selected = []
 	for supplied in schedule or []:
 		run = dict(supplied)
-		planned_output = flt(run.get("planned_output_qty"))
-		if planned_output <= 0 and flt(labour_minutes_per_kg) > 0:
+		configured_output = flt(run.get("planned_output_qty"))
+		capacity_output = 0
+		if flt(labour_minutes_per_kg) > 0:
 			team_hours = flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0)
-			planned_output = team_hours * 60 / flt(labour_minutes_per_kg)
+			capacity_output = team_hours * 60 / flt(labour_minutes_per_kg)
+		if run.get("output_mode") == "Fixed":
+			planned_output = configured_output
+		else:
+			if remaining_output <= 0:
+				continue
+			available_output = configured_output or capacity_output
+			planned_output = min(max(remaining_output, 0), available_output)
 		if planned_output <= 0:
 			continue
 		run["planned_output_qty"] = round(planned_output, 3)
 		selected.append(run)
 		remaining_output -= planned_output
-		if remaining_output <= 0:
-			break
 	return selected
 
 

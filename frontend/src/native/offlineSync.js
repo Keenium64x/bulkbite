@@ -1,6 +1,6 @@
-import { runtimeConfig } from "@/config/runtime"
-import { nativeState } from "@/native/lifecycle"
-import { listQueuedMutations, offlineState, queueMutation, removeQueuedMutation, saveSyncOutcome } from "@/native/offlineStore"
+import { runtimeConfig } from "../config/runtime.js"
+import { nativeState } from "./state.js"
+import { listQueuedMutations, offlineState, queueMutation, removeQueuedMutation, saveSyncOutcome } from "./offlineStore.js"
 
 
 // =============================================================================

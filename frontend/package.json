@@ -16,6 +16,7 @@
     "mobile:run:android": "npm run mobile:sync && cap run android",
     "mobile:run:ios": "npm run mobile:sync && cap run ios",
     "mobile:doctor": "cap doctor",
+    "test:offline-reconnect": "node scripts/offline-reconnect-proof.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

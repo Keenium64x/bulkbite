@@ -5,7 +5,7 @@
  "creation": "2026-08-20 09:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["production_date", "business_name", "production_plan", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "output_variance_qty", "output_variance_percent", "source_location", "target_location", "ingredients_section", "ingredients", "employees_section", "team_template", "scheduled_elapsed_hours", "actual_elapsed_hours", "employees", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_variance_minutes_per_kg", "takt_status", "employee_costs_posted", "cost_section", "expected_material_cost", "actual_material_cost", "material_cost_variance", "expected_cost_per_meal", "actual_cost_per_meal", "posting_section", "stock_events_posted", "output_stock_event", "truth_event", "notes"],
+ "field_order": ["production_date", "business_name", "production_plan", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "finished_container_count", "average_container_qty", "output_variance_qty", "output_variance_percent", "source_location", "target_location", "ingredients_section", "ingredients", "employees_section", "team_template", "scheduled_elapsed_hours", "actual_elapsed_hours", "employees", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_variance_minutes_per_kg", "takt_status", "employee_costs_posted", "cost_section", "expected_material_cost", "actual_material_cost", "material_cost_variance", "expected_cost_per_meal", "actual_cost_per_meal", "posting_section", "stock_events_posted", "output_stock_event", "truth_event", "notes"],
  "fields": [
   {"default": "Today", "fieldname": "production_date", "fieldtype": "Date", "in_list_view": 1, "label": "Production Date", "reqd": 1},
   {"default": "BulkBite", "fieldname": "business_name", "fieldtype": "Data", "label": "Business", "reqd": 1},
@@ -18,6 +18,8 @@
   {"fetch_from": "recipe.finished_item", "fieldname": "finished_item", "fieldtype": "Link", "in_list_view": 1, "label": "Finished Meal", "options": "BulkBite Item", "read_only": 1, "reqd": 1},
   {"default": "1", "fieldname": "planned_output_qty", "fieldtype": "Float", "label": "Planned Output", "non_negative": 1, "reqd": 1},
   {"default": "1", "fieldname": "actual_output_qty", "fieldtype": "Float", "label": "Actual Output", "non_negative": 1, "reqd": 1},
+  {"default": "0", "fieldname": "finished_container_count", "fieldtype": "Int", "label": "Finished Containers", "non_negative": 1},
+  {"fieldname": "average_container_qty", "fieldtype": "Float", "label": "Average Kg per Container", "read_only": 1},
   {"fieldname": "output_variance_qty", "fieldtype": "Float", "label": "Output Variance", "read_only": 1},
   {"fieldname": "output_variance_percent", "fieldtype": "Percent", "label": "Output Variance %", "read_only": 1},
   {"fieldname": "source_location", "fieldtype": "Link", "label": "Ingredient Location", "options": "BulkBite Location", "reqd": 1},

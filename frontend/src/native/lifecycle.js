@@ -2,10 +2,11 @@ import { runtimeConfig } from "@/config/runtime"
 import { App as CapacitorApp } from "@capacitor/app"
 import { SystemBars, SystemBarsStyle } from "@capacitor/core"
 import { Network } from "@capacitor/network"
-import { reactive } from "vue"
 import { checkNativeProductionAvailability, markNativeOffline } from "@/native/availability"
 import { nativeSession, restoreNativeSession } from "@/native/auth"
 import { flushOfflineMutations } from "@/native/offlineSync"
+export { nativeState } from "@/native/state"
+import { nativeState } from "@/native/state"
 import { syncOfflineMutation } from "@/resources/api"
 
 
@@ -13,7 +14,6 @@ import { syncOfflineMutation } from "@/resources/api"
 // region NATIVE LIFECYCLE STATION
 // =============================================================================
 
-export const nativeState = reactive({ connected: true, connectionType: "unknown" })
 let nativeBackConsumer = null
 
 export function registerNativeBackConsumer(consumer) {

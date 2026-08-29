@@ -48,6 +48,9 @@ class BulkBiteProductionRun(Document):
 			frappe.throw(_("Planned output must be greater than zero."))
 		if flt(self.actual_output_qty) <= 0:
 			frappe.throw(_("Actual output must be greater than zero before posting."))
+		if int(self.finished_container_count or 0) < 0:
+			frappe.throw(_("Finished container count cannot be negative."))
+		self.average_container_qty = flt(self.actual_output_qty) / int(self.finished_container_count) if int(self.finished_container_count or 0) else 0
 		if not self.ingredients:
 			frappe.throw(_("The selected recipe has no ingredient rows."))
 		for row in self.ingredients:

@@ -4,13 +4,17 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["week_number", "planned_date", "finished_item", "recipe", "weekly_servings", "planned_output_qty", "uom", "expected_material_cost"],
+ "field_order": ["week_number", "planned_date", "finished_item", "recipe", "weekly_servings", "customer_required_output_qty", "extra_output_qty", "extra_allocation_type", "extra_allocation_reference", "planned_output_qty", "uom", "expected_material_cost"],
  "fields": [
   {"fieldname": "week_number", "fieldtype": "Int", "in_list_view": 1, "label": "Week", "reqd": 1},
   {"fieldname": "planned_date", "fieldtype": "Date", "label": "Planned Date"},
   {"fieldname": "finished_item", "fieldtype": "Link", "in_list_view": 1, "label": "Meal", "options": "BulkBite Item", "reqd": 1},
   {"fieldname": "recipe", "fieldtype": "Link", "in_list_view": 1, "label": "Recipe Version", "options": "BulkBite Recipe", "reqd": 1},
   {"fieldname": "weekly_servings", "fieldtype": "Int", "in_list_view": 1, "label": "Servings", "read_only": 1},
+  {"fieldname": "customer_required_output_qty", "fieldtype": "Float", "label": "Customer Output Required", "non_negative": 1, "read_only": 1},
+  {"default": "0", "fieldname": "extra_output_qty", "fieldtype": "Float", "label": "Deliberate Extra Output", "non_negative": 1},
+  {"default": "Future Customers", "fieldname": "extra_allocation_type", "fieldtype": "Select", "label": "Extra Food Destination", "options": "Future Customers\nInternal Consumption\nUnallocated Buffer"},
+  {"fieldname": "extra_allocation_reference", "fieldtype": "Data", "label": "Destination Reference"},
   {"fieldname": "planned_output_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Planned Output", "non_negative": 1, "reqd": 1},
   {"fieldname": "uom", "fieldtype": "Data", "in_list_view": 1, "label": "Unit", "read_only": 1, "reqd": 1},
   {"fieldname": "expected_material_cost", "fieldtype": "Currency", "label": "Spreadsheet Planned Food Cost", "read_only": 1}

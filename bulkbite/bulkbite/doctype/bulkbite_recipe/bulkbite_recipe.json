@@ -1,6 +1,6 @@
 {
  "actions": [], "allow_rename": 0, "autoname": "BB-RECIPE-.#####", "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
- "field_order": ["recipe_name", "version", "status", "finished_item", "nominal_output_qty", "output_uom", "source_workbook", "source_sheet", "ingredients", "notes"],
+ "field_order": ["recipe_name", "version", "status", "finished_item", "nominal_output_qty", "output_uom", "source_workbook", "source_sheet", "ingredients", "instruction_steps", "instruction_guidance", "notes"],
  "fields": [
   {"fieldname": "recipe_name", "fieldtype": "Data", "in_list_view": 1, "label": "Recipe Name", "reqd": 1},
   {"default": "1", "fieldname": "version", "fieldtype": "Int", "in_list_view": 1, "label": "Version", "reqd": 1},
@@ -11,6 +11,8 @@
   {"fieldname": "source_workbook", "fieldtype": "Data", "label": "Source Workbook", "read_only": 1},
   {"fieldname": "source_sheet", "fieldtype": "Data", "label": "Source Sheet", "read_only": 1},
   {"fieldname": "ingredients", "fieldtype": "Table", "label": "Controlled Ingredients", "options": "BulkBite Recipe Ingredient", "reqd": 1},
+  {"fieldname": "instruction_steps", "fieldtype": "Table", "label": "Operational Instruction Steps", "options": "BulkBite Recipe Instruction Step"},
+  {"fieldname": "instruction_guidance", "fieldtype": "Small Text", "label": "Kitchen Planning Guidance"},
   {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
  ],
  "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-20 18:00:00.000000", "modified_by": "Administrator", "module": "BulkBite", "name": "BulkBite Recipe", "owner": "Administrator",

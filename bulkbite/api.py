@@ -59,6 +59,7 @@ from bulkbite.setup_workbook import (
 	preview_workspace_import,
 	review_workspace_import,
 )
+from bulkbite.production_instructions import build_run_instruction_plan
 
 
 # =============================================================================
@@ -601,6 +602,7 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Customer Plan Type": {"label": "Customer plans", "singular_label": "customer plan", "description": "Serving sizes and schedule assumptions such as Lite 300 g, Standard 450 g, and Full 600 g."},
 	"BulkBite Location": {"label": "Locations", "singular_label": "location", "description": "The physical places where ingredients, meals, quarantine, and waste are measured."},
 	"BulkBite Recipe": {"label": "Recipes", "singular_label": "recipe", "description": "Versioned meal theory and controlled ingredient quantities."},
+	"BulkBite Equipment Type": {"label": "Equipment types", "singular_label": "equipment type", "description": "Available kitchen equipment, batch capacity, and concurrent use limits for production instructions."},
 	"BulkBite Production Plan": {"label": "Production plans", "singular_label": "plan", "description": "Planned recipes and meal quantities used by the production workflow."},
 	"BulkBite Team Template": {"label": "Team templates", "singular_label": "team template", "description": "Reusable groups that prefill the people expected in a normal production run."},
 }
@@ -1451,6 +1453,13 @@ def get_recipe_expectation(recipe, planned_output_qty, source_location):
 	return load_expected_usage(recipe, planned_output_qty, source_location)
 
 
+@frappe.whitelist(methods=["GET"])
+def get_production_instructions(recipe, output_qty, team_size=1):
+	"""Return deterministic scaled kitchen instructions for review and execution."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	return build_run_instruction_plan(recipe, output_qty, team_size)
+
+
 @frappe.whitelist(methods=["POST"])
 def create_production_run(payload=None):
 	_require_roles("BulkBite Worker", "BulkBite Manager")
@@ -1545,7 +1554,7 @@ def allocate_finished_food(payload=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def update_production_actuals(name, actual_output_qty, ingredients, notes=None):
+def update_production_actuals(name, actual_output_qty, ingredients, notes=None, finished_container_count=0):
 	_require_roles("BulkBite Worker", "BulkBite Manager")
 	run = frappe.get_doc("BulkBite Production Run", name)
 	if run.docstatus != 0:
@@ -1557,6 +1566,7 @@ def update_production_actuals(name, actual_output_qty, ingredients, notes=None):
 	if flt(actual_output_qty) <= 0:
 		frappe.throw(_("Meals made must be greater than zero."))
 	run.actual_output_qty = round_operational_quantity(actual_output_qty)
+	run.finished_container_count = max(int(finished_container_count or 0), 0)
 	run.notes = notes
 	for row in run.ingredients:
 		actual = actual_by_item.get(row.item_code)
@@ -1711,6 +1721,7 @@ def _build_capacity_plan(plan, current_mix, workforce):
 			"run_number": int(row.run_number or 1),
 			"day_of_week": row.day_of_week,
 			"planned_output_qty": round_operational_quantity(row.planned_output_qty),
+			"output_mode": row.output_mode or "Auto",
 			"scheduled_elapsed_hours": flt(row.scheduled_elapsed_hours),
 			"team_template": row.team_template,
 			"planned_people": int(row.planned_people or 0),
@@ -1730,6 +1741,10 @@ def _build_capacity_plan(plan, current_mix, workforce):
 			windows,
 			workforce.get("planning_labour_minutes_per_kg"),
 			capacity_runs,
+			[
+				{"week_number": row.week_number, "required_output_qty": flt(row.planned_output_qty)}
+				for row in plan.plan_rows or []
+			],
 		),
 	}
 
@@ -1747,6 +1762,7 @@ def calculate_capacity_scenario(payload=None):
 			_as_list(data.get("capacity_windows")),
 			flt(data.get("labour_minutes_per_kg")),
 			_as_list(data.get("capacity_runs")),
+			_as_list(data.get("required_output_by_week")),
 		)
 	}
 
@@ -1804,7 +1820,11 @@ def save_monthly_production_plan(payload=None):
 			{
 				"week_number": index,
 				"recipe": row.get("recipe"),
-				"planned_output_qty": flt(row.get("planned_output_qty")),
+				"customer_required_output_qty": flt(row.get("customer_required_output_qty") or row.get("planned_output_qty")),
+				"extra_output_qty": max(flt(row.get("extra_output_qty")), 0),
+				"extra_allocation_type": row.get("extra_allocation_type") or "Future Customers",
+				"extra_allocation_reference": row.get("extra_allocation_reference"),
+				"planned_output_qty": flt(row.get("customer_required_output_qty") or row.get("planned_output_qty")) + max(flt(row.get("extra_output_qty")), 0),
 				"uom": "Kg",
 				"finished_item": row.get("finished_item") or frappe.get_cached_value("BulkBite Recipe", row.get("recipe"), "finished_item"),
 			}
@@ -1833,6 +1853,7 @@ def save_monthly_production_plan(payload=None):
 				"run_number": max(int(row.get("run_number") or 1), 1),
 				"day_of_week": row.get("day_of_week") or "Monday",
 				"planned_output_qty": max(flt(row.get("planned_output_qty")), 0),
+				"output_mode": row.get("output_mode") if row.get("output_mode") in {"Auto", "Fixed"} else "Auto",
 				"scheduled_elapsed_hours": max(flt(row.get("scheduled_elapsed_hours")), 0),
 				"team_template": row.get("team_template") or plan.default_team_template,
 				"planned_people": max(int(row.get("planned_people") or 0), 0),
@@ -1912,7 +1933,7 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 
 
 def _next_production_station(rows, runs):
-	"""Resume a draft or advance through the repeating meal direction."""
+	"""Resume a draft and keep a meal active until its cycle target is physically made."""
 	ordered_rows = sorted(rows, key=lambda value: value.get("week_number") or 0)
 	if not ordered_rows:
 		return {"state": "empty", "row": None, "run": None, "cycle_number": 1}
@@ -1946,6 +1967,18 @@ def _next_production_station(rows, runs):
 	latest_week = latest_week or 1
 	if (latest.direction_action or "Advance Direction") == "Repeat Meal":
 		return {"state": "ready", "row": row_by_number[latest_week], "run": None, "cycle_number": int(latest.cycle_number or 1)}
+	cycle_output = sum(
+		flt(run.actual_output_qty)
+		for run in posted
+		if int(run.cycle_number or 1) == int(latest.cycle_number or 1)
+		and int(run.plan_week_number or 0) == latest_week
+	)
+	target_output = flt(row_by_number[latest_week].get("planned_output_qty"))
+	if cycle_output + 0.0005 < target_output:
+		row = dict(row_by_number[latest_week])
+		row["remaining_output_qty"] = round_operational_quantity(target_output - cycle_output)
+		row["completed_output_qty"] = round_operational_quantity(cycle_output)
+		return {"state": "remaining", "row": row, "run": None, "cycle_number": int(latest.cycle_number or 1)}
 	next_week = latest_week + 1 if latest_week < len(ordered_rows) else 1
 	next_cycle = int(latest.cycle_number or 1) + (1 if next_week == 1 else 0)
 	return {"state": "ready", "row": row_by_number[next_week], "run": None, "cycle_number": next_cycle}
@@ -2820,7 +2853,7 @@ def _sync_production_draft(data, base_modified, overwrite_conflict):
 			data.get("planned_output_qty"), data.get("direction_action"),
 		)
 		run_name = run.get("name")
-	run = update_production_actuals(run_name, data.get("actual_output_qty"), data.get("ingredients"), data.get("notes"))
+	run = update_production_actuals(run_name, data.get("actual_output_qty"), data.get("ingredients"), data.get("notes"), data.get("finished_container_count"))
 	run = save_production_employees(run_name, data.get("employees"), data.get("team_template"), data.get("actual_elapsed_hours"), data.get("scheduled_elapsed_hours"))
 	return run
 
@@ -3114,6 +3147,8 @@ def _serialize_run(run):
 		"finished_item": run.finished_item,
 		"planned_output_qty": round(flt(run.planned_output_qty), 3),
 		"actual_output_qty": round(flt(run.actual_output_qty), 3),
+		"finished_container_count": int(run.finished_container_count or 0),
+		"average_container_qty": round(flt(run.average_container_qty), 3),
 		"output_variance_qty": round(flt(run.output_variance_qty), 3),
 		"output_variance_percent": run.output_variance_percent,
 		"expected_material_cost": run.expected_material_cost,

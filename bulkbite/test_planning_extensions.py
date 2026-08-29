@@ -2,15 +2,82 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
+from datetime import date
+
 import frappe
 from frappe.tests import IntegrationTestCase
 
+from bulkbite.api import _next_production_station
 from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation import _lock_finished_food_position, get_reservation_remaining, get_unallocated_finished_food
-from bulkbite.planning import _delivery_threshold_recommendation, _supplier_minimum_position, build_plan_snapshot
+from bulkbite.planning import _delivery_threshold_recommendation, _next_planned_production_date, _supplier_minimum_position, _supplier_order_deadline, build_plan_snapshot
 from bulkbite.stock_ledger import append_stock_event, get_stock_balance
+from bulkbite.workforce import calculate_capacity_forecast
 
 
 class TestFinishedFoodBuyingCoverage(TestCase):
+	def test_partial_production_keeps_the_same_meal_and_returns_the_remaining_target(self):
+		rows = [{"name": "ROW-1", "week_number": 1, "planned_output_qty": 20}, {"name": "ROW-2", "week_number": 2, "planned_output_qty": 10}]
+		runs = [SimpleNamespace(name="RUN-1", docstatus=1, direction_action="Advance Direction", cycle_number=1, plan_week_number=1, production_plan_row="ROW-1", production_date=date(2026, 8, 29), creation="2026-08-29 10:00:00", actual_output_qty=7)]
+
+		station = _next_production_station(rows, runs)
+
+		self.assertEqual(station["state"], "remaining")
+		self.assertEqual(station["row"]["name"], "ROW-1")
+		self.assertEqual(station["row"]["completed_output_qty"], 7)
+		self.assertEqual(station["row"]["remaining_output_qty"], 13)
+
+	def test_cumulative_production_advances_only_after_the_meal_target_is_complete(self):
+		rows = [{"name": "ROW-1", "week_number": 1, "planned_output_qty": 20}, {"name": "ROW-2", "week_number": 2, "planned_output_qty": 10}]
+		runs = [
+			SimpleNamespace(name="RUN-1", docstatus=1, direction_action="Advance Direction", cycle_number=1, plan_week_number=1, production_plan_row="ROW-1", production_date=date(2026, 8, 29), creation="2026-08-29 10:00:00", actual_output_qty=7),
+			SimpleNamespace(name="RUN-2", docstatus=1, direction_action="Advance Direction", cycle_number=1, plan_week_number=1, production_plan_row="ROW-1", production_date=date(2026, 8, 29), creation="2026-08-29 12:00:00", actual_output_qty=13),
+		]
+
+		station = _next_production_station(rows, runs)
+
+		self.assertEqual(station["state"], "ready")
+		self.assertEqual(station["row"]["name"], "ROW-2")
+		self.assertEqual(station["cycle_number"], 1)
+
+	def test_fixed_surplus_reduces_later_auto_runs(self):
+		mix = [{"plan_type": "Proof", "customer_count": 10, "meals_per_day": 1, "days_per_week": 1, "serving_size_g": 1000}]
+		runs = [
+			{"week_number": 1, "run_number": 1, "output_mode": "Fixed", "planned_output_qty": 25, "scheduled_elapsed_hours": 5, "planned_people": 5},
+			*[
+				{"week_number": week, "run_number": 1, "output_mode": "Auto", "planned_output_qty": 10, "scheduled_elapsed_hours": 2, "planned_people": 5}
+				for week in range(2, 5)
+			],
+		]
+		weeks = calculate_capacity_forecast(mix, mix, 4, [], 60, runs)
+
+		self.assertEqual([row["planned_output_qty"] for row in weeks], [25.0, 0, 5.0, 10.0])
+		self.assertEqual([row["run_count"] for row in weeks], [1, 0, 1, 1])
+		self.assertEqual([row["capacity_state"] for row in weeks], ["ready", "idle", "ready", "ready"])
+
+	def test_fixed_run_remains_deliberate_even_when_opening_food_covers_week(self):
+		mix = [{"plan_type": "Proof", "customer_count": 10, "meals_per_day": 1, "days_per_week": 1, "serving_size_g": 1000}]
+		runs = [
+			{"week_number": 1, "run_number": 1, "output_mode": "Fixed", "planned_output_qty": 20, "scheduled_elapsed_hours": 4, "planned_people": 5},
+			{"week_number": 2, "run_number": 1, "output_mode": "Fixed", "planned_output_qty": 5, "scheduled_elapsed_hours": 1, "planned_people": 5},
+		]
+		weeks = calculate_capacity_forecast(mix, mix, 2, [], 60, runs)
+
+		self.assertEqual(weeks[1]["planned_output_qty"], 5)
+		self.assertEqual(weeks[1]["closing_output_balance_qty"], 5)
+
+	def test_supplier_deadline_uses_first_saved_cooking_session(self):
+		plan = SimpleNamespace(
+			period_start=date(2026, 8, 24),
+			capacity_runs=[SimpleNamespace(week_number=1, day_of_week="Friday")],
+		)
+		production_date = _next_planned_production_date(plan, date(2026, 8, 24))
+		with patch("bulkbite.planning.frappe.db.get_value", return_value=SimpleNamespace(delivery_lead_time_days=4, order_safety_days=1)):
+			deadline = _supplier_order_deadline(plan, "Makro", date(2026, 8, 24), production_date)
+
+		self.assertEqual(deadline["production_date"], date(2026, 8, 28))
+		self.assertEqual(deadline["customer_delivery_date"], date(2026, 8, 30))
+		self.assertEqual(deadline["order_by_date"], date(2026, 8, 23))
+
 	def test_finished_food_position_uses_a_shared_item_location_lock(self):
 		with patch("bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation.frappe.db.sql") as sql:
 			_lock_finished_food_position("MEAL-001", "Finished Meals")

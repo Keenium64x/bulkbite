@@ -28,6 +28,8 @@ const recipeOptions = computed(() => (props.snapshot?.options?.recipes || []).ma
 const teamTemplates = computed(() => props.snapshot?.options?.team_templates || [])
 const teamTemplateOptions = computed(() => teamTemplates.value.map(row => ({ label: row.template_name, value: row.name })))
 const dayOptions = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(value => ({ label: value, value }))
+const outputModeOptions = [{ label: "Auto balance remaining food", value: "Auto" }, { label: "Fixed deliberate output", value: "Fixed" }]
+const allocationTypeOptions = ["Future Customers", "Internal Consumption", "Unallocated Buffer"].map(value => ({ label: value, value }))
 const scenarioWeeks = computed(() => props.mode === "forecasting" ? Number(form.forecast_weeks || 8) : 4)
 const scenarioTargetMix = computed(() => props.mode === "forecasting"
   ? form.forecast_customer_mix
@@ -107,7 +109,7 @@ function hydrate() {
     }),
     plan_rows: Array.from({ length: 4 }, (_, index) => {
       const current = props.plan?.rows?.find(row => Number(row.week_number) === index + 1)
-      return { week_number: index + 1, recipe: current?.recipe || "", finished_item: current?.finished_item || "", planned_output_qty: weeklyKg.value }
+      return { week_number: index + 1, recipe: current?.recipe || "", finished_item: current?.finished_item || "", customer_required_output_qty: Number(current?.customer_required_output_qty || weeklyKg.value), extra_output_qty: Number(current?.extra_output_qty || 0), extra_allocation_type: current?.extra_allocation_type || "Future Customers", extra_allocation_reference: current?.extra_allocation_reference || "", planned_output_qty: Number(current?.planned_output_qty || weeklyKg.value) }
     }),
     purchase_routes: (props.snapshot?.options?.item_categories || []).map(category => {
       const current = props.plan?.purchase_routes?.find(row => row.item_category === category.name)
@@ -120,8 +122,8 @@ function hydrate() {
       return { week_number: index + 1, scheduled_elapsed_hours: Number(saved?.scheduled_elapsed_hours || 4), runs_per_week: Number(saved?.runs_per_week || 1), team_template: saved?.team_template || props.plan?.capacity_plan?.default_team_template || "" }
     }),
     capacity_runs: props.plan?.capacity_plan?.runs?.length
-      ? props.plan.capacity_plan.runs.map(row => ({ ...row, planned_output_qty: Number(row.planned_output_qty || props.plan?.rows?.find(item => Number(item.week_number) === Number(row.week_number))?.planned_output_qty || weeklyKg.value) }))
-      : Array.from({ length: 4 }, (_, index) => ({ week_number: index + 1, run_number: 1, day_of_week: "Saturday", planned_output_qty: Number(props.plan?.rows?.[index]?.planned_output_qty || weeklyKg.value), scheduled_elapsed_hours: Number(props.plan?.capacity_plan?.windows?.[index]?.scheduled_elapsed_hours || 5), team_template: props.plan?.capacity_plan?.windows?.[index]?.team_template || props.plan?.capacity_plan?.default_team_template || "", planned_people: Number(props.plan?.capacity_plan?.windows?.[index]?.team_size || 0) })),
+      ? props.plan.capacity_plan.runs.map(row => ({ ...row, output_mode: row.output_mode || "Auto", planned_output_qty: Number(row.planned_output_qty || props.plan?.rows?.find(item => Number(item.week_number) === Number(row.week_number))?.planned_output_qty || weeklyKg.value) }))
+      : Array.from({ length: 4 }, (_, index) => ({ week_number: index + 1, run_number: 1, day_of_week: "Saturday", output_mode: "Auto", planned_output_qty: Number(props.plan?.rows?.[index]?.planned_output_qty || weeklyKg.value), scheduled_elapsed_hours: Number(props.plan?.capacity_plan?.windows?.[index]?.scheduled_elapsed_hours || 5), team_template: props.plan?.capacity_plan?.windows?.[index]?.team_template || props.plan?.capacity_plan?.default_team_template || "", planned_people: Number(props.plan?.capacity_plan?.windows?.[index]?.team_size || 0) })),
     forecast_customer_mix: planTypes.value.map(type => {
       const base = props.plan?.customer_mix?.find(row => row.plan_type === type.name)
       return { plan_type: type.name, target_customers: Number(base?.customer_count || 0), target_week: 8 }
@@ -196,6 +198,7 @@ async function calculateScenario() {
       forecast_weeks: scenarioWeeks.value,
       capacity_windows: form.capacity_windows.map(row => ({ ...row, team_size: templateSize(row.team_template || form.default_team_template) })),
       capacity_runs: form.capacity_runs.map(row => ({ ...row, team_template: row.team_template || form.default_team_template, planned_people: Number(row.planned_people || templateSize(row.team_template || form.default_team_template)) })),
+      required_output_by_week: form.plan_rows.map(row => ({ week_number: row.week_number, required_output_qty: roundQuantity(weeklyKg.value + Number(row.extra_output_qty || 0)) })),
       labour_minutes_per_kg: Number(props.plan?.workforce?.planning_labour_minutes_per_kg || 0),
     })
     scenarioForecast.value = result.forecast || []
@@ -205,7 +208,7 @@ async function calculateScenario() {
 function templateSize(name) { return Number(teamTemplates.value.find(row => row.name === name)?.team_size || 0) }
 function addCapacityRun(weekNumber = 1) {
   const sameWeek = form.capacity_runs.filter(row => Number(row.week_number) === Number(weekNumber))
-  form.capacity_runs.push({ week_number: Number(weekNumber), run_number: sameWeek.length + 1, day_of_week: "Saturday", planned_output_qty: 0, scheduled_elapsed_hours: 5, team_template: form.default_team_template, planned_people: templateSize(form.default_team_template) })
+  form.capacity_runs.push({ week_number: Number(weekNumber), run_number: sameWeek.length + 1, day_of_week: "Saturday", output_mode: "Auto", planned_output_qty: 0, scheduled_elapsed_hours: 5, team_template: form.default_team_template, planned_people: templateSize(form.default_team_template) })
 }
 function removeCapacityRun(index) { form.capacity_runs.splice(index, 1) }
 function applyDefaultTeam(row) {
@@ -230,7 +233,8 @@ async function savePlan() {
       location: "Ingredients",
       plan_rows: form.plan_rows.map(row => ({
         ...row,
-        planned_output_qty: roundQuantity(form.capacity_runs.filter(run => Number(run.week_number) === Number(row.week_number)).reduce((sum, run) => sum + Number(run.planned_output_qty || 0), 0) || weeklyKg.value),
+        customer_required_output_qty: roundQuantity(weeklyKg.value),
+        planned_output_qty: roundQuantity(weeklyKg.value + Number(row.extra_output_qty || 0)),
       })),
     }
     if (runtimeConfig.isNative) {
@@ -296,7 +300,11 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
         <article v-for="row in form.plan_rows" :key="row.week_number" class="week-card">
           <SystemBadge>MEAL {{ row.week_number }}</SystemBadge>
           <SystemLinkedRecordField v-model="row.recipe" label="Meal recipe" :options="recipeOptions" placeholder="Choose this meal" create-label="Add recipe" manage-label="Manage recipes" @create="openLinked('create', 'BulkBite Recipe')" @manage="openLinked('list', 'BulkBite Recipe')" />
-          <p><strong>{{ weeklyServings }}</strong> meals · <strong>{{ number(weeklyKg) }} kg</strong> planned output</p>
+          <div class="calculated-field"><span>Customer food required</span><strong>{{ number(weeklyKg) }} kg</strong></div>
+          <SystemFormControl v-model="row.extra_output_qty" type="number" min="0" step="0.1" label="Extra food to make (kg)" />
+          <SystemSelect v-model="row.extra_allocation_type" label="Extra food for" :options="allocationTypeOptions" />
+          <SystemFormControl v-model="row.extra_allocation_reference" label="Week, person, or reason" />
+          <p><strong>{{ number(weeklyKg + Number(row.extra_output_qty || 0)) }} kg</strong> total planned output</p>
         </article>
       </div>
     </section>
@@ -317,7 +325,8 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
           <article v-for="(row, index) in form.capacity_runs" :key="index">
             <SystemFormControl v-model="row.week_number" type="number" min="1" max="4" step="1" label="Cycle week" />
             <SystemSelect v-model="row.day_of_week" label="Day" :options="dayOptions" />
-            <SystemFormControl v-model="row.planned_output_qty" type="number" min="0.1" step="0.1" label="Expected output (kg)" />
+            <SystemSelect v-model="row.output_mode" label="Output allocation" :options="outputModeOptions" />
+            <SystemFormControl v-model="row.planned_output_qty" type="number" min="0" step="0.1" :label="row.output_mode === 'Fixed' ? 'Fixed output (kg)' : 'Maximum output (kg)'" />
             <SystemFormControl v-model="row.scheduled_elapsed_hours" type="number" min="0.1" step="0.1" label="Cooking hours" />
             <SystemLinkedRecordField :model-value="row.team_template" label="Team template" :options="teamTemplateOptions" placeholder="Use default team" create-label="Create team template" manage-label="Manage team templates" @create="openLinked('create', 'BulkBite Team Template')" @manage="openLinked('list', 'BulkBite Team Template')" @update:model-value="changeCapacityRunTeam(row, $event)" />
             <SystemFormControl v-model="row.planned_people" type="number" min="1" step="1" label="People working" />
@@ -359,5 +368,5 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
 .capacity-period-summary :deep(.metric-board>div),.forecast-week-list :deep(.metric-board>div){min-width:0}.capacity-period-summary :deep(.metric-board strong),.capacity-period-summary :deep(.metric-board span),.forecast-week-list :deep(.metric-board strong),.forecast-week-list :deep(.metric-board span){overflow-wrap:anywhere}.forecast-week-list :deep(.metric-board strong){white-space:normal}.workforce-list{display:grid;gap:var(--spacing-xs)}.workforce-list article{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.workforce-list small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}.workforce-metrics{margin-bottom:var(--spacing-s)}.workforce-basis{margin:0 0 var(--spacing-s);color:var(--theme-text-muted)}.capacity-status-card{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);margin-bottom:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card)}.capacity-status-card.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 10%,var(--theme-surface-raised))}.capacity-status-card.is-ready{border-color:color-mix(in oklch,var(--theme-success) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 10%,var(--theme-surface-raised))}.capacity-status-card span,.capacity-status-card p{color:var(--theme-text-muted)}.capacity-status-card strong{display:block;margin-top:var(--spacing-3xs);font-size:var(--font-size-2)}.capacity-status-card p{margin:var(--spacing-3xs) 0 0}
 .plan-mix{display:grid;gap:var(--spacing-xs)}.plan-mix__row{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(9rem,.5fr) minmax(10rem,.6fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.plan-mix__row>div:first-child{align-self:center;display:grid;gap:var(--spacing-3xs)}.plan-mix__row small,.week-card p{color:var(--theme-text-muted)}.calculated-value{align-self:center;display:grid;gap:var(--spacing-3xs)}.calculated-value span{color:var(--theme-text-muted);font-size:var(--font-size--2)}.week-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-s)}.week-card{display:grid;align-content:start;gap:var(--spacing-s);min-width:0;max-width:100%;overflow:visible;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.week-card :deep(*){min-width:0;max-width:100%}.week-card :deep(.system-linked-record-field__actions){flex-wrap:wrap}.week-card :deep(.system-linked-record-field__actions button){min-width:0;max-width:100%;white-space:normal}.week-card p{margin:0}@media(max-width:70rem){.week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:44rem){.plan-mix__row,.week-grid{grid-template-columns:1fr}.workforce-list article,.capacity-status-card{align-items:flex-start;flex-direction:column}}
 @media(max-width:70rem){.capacity-window-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.capacity-run-list article{grid-template-columns:repeat(3,minmax(0,1fr))}.run-actions{grid-column:1/-1}}@media(max-width:44rem){.capacity-window-grid,.forecast-mix article,.forecast-settings,.capacity-run-list article{grid-template-columns:minmax(0,1fr)}.capacity-run-list article>*{min-width:0}.capacity-run-list :deep(.system-linked-record-field__label),.capacity-run-list :deep(.system-linked-record-field>div){width:100%;min-width:0}.run-actions{grid-column:auto;flex-wrap:wrap}.capacity-period-summary{padding:var(--spacing-m)}.capacity-breakdown-heading,.forecast-week-heading{align-items:flex-start;flex-direction:column}}
-.capacity-run-list,.capacity-run-list article{min-width:0}.capacity-run-list article{grid-template-columns:minmax(4.5rem,.35fr) minmax(6.5rem,.55fr) minmax(6.5rem,.55fr) minmax(10rem,1fr) minmax(5.5rem,.4fr) auto}.capacity-run-list article>*{min-width:0}
+.capacity-run-list,.capacity-run-list article{min-width:0}.capacity-run-list article{grid-template-columns:minmax(4.5rem,.32fr) minmax(6.5rem,.48fr) minmax(8.5rem,.72fr) minmax(8.5rem,.62fr) minmax(6.5rem,.45fr) minmax(11rem,1fr) minmax(6rem,.42fr) auto}.capacity-run-list article>*{min-width:0}
 </style>

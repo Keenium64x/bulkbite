@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from datetime import timedelta
 
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
@@ -173,6 +174,10 @@ def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finish
 				"recipe": plan_row.recipe,
 				"weekly_servings": plan_row.weekly_servings,
 				"planned_output_qty": planned_output,
+				"customer_required_output_qty": round_operational_quantity(getattr(plan_row, "customer_required_output_qty", 0) or planned_output),
+				"extra_output_qty": round_operational_quantity(getattr(plan_row, "extra_output_qty", 0)),
+				"extra_allocation_type": getattr(plan_row, "extra_allocation_type", None),
+				"extra_allocation_reference": getattr(plan_row, "extra_allocation_reference", None),
 				"finished_stock_coverage_qty": finished_coverage,
 				"production_required_qty": production_required,
 				"finished_stock_closing_qty": round_operational_quantity(finished_balances.get(finished_item, 0)) if cover_with_finished_stock else 0,
@@ -197,6 +202,7 @@ def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finish
 def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 	"""Round ingredient shortages to chosen supplier packs and price the theoretical basket."""
 	as_of_date = getdate(as_of_date or plan.period_start or nowdate())
+	production_date = _next_planned_production_date(plan, as_of_date)
 	routes = {row.item_category: row for row in plan.purchase_routes}
 	lines = []
 	for item in requirements:
@@ -236,6 +242,7 @@ def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 		group["expected_cost"] += line["expected_cost"]
 		group["items"].append(line)
 	for group in groups.values():
+		group.update(_supplier_order_deadline(plan, group["supplier"], as_of_date, production_date))
 		basket_bridge = calculate_basket_adjustments(group["supplier"], group["base_cost"], as_of_date)
 		group["basket_adjustments"] = basket_bridge
 		group["expected_savings"] += basket_bridge["savings"]
@@ -255,6 +262,47 @@ def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 		"missing_offer_count": missing_offers,
 		"horizon_weeks": max(int(horizon_weeks or 4), 1),
 	}
+
+
+def _supplier_order_deadline(plan, supplier, as_of_date, production_date=None):
+	"""Return the production, customer handoff, and supplier order-by dates."""
+	production_date = getdate(production_date or _next_planned_production_date(plan, as_of_date))
+	delivery_date = production_date + timedelta(days=(6 - production_date.weekday()) % 7)
+	if supplier == "Supplier not chosen":
+		return {"production_date": production_date, "customer_delivery_date": delivery_date, "order_by_date": None, "lead_time_days": 0, "safety_days": 0}
+	settings = frappe.db.get_value("BulkBite Supplier", supplier, ["delivery_lead_time_days", "order_safety_days"], as_dict=True) or frappe._dict()
+	lead_time = max(int(settings.delivery_lead_time_days or 0), 0)
+	safety_days = max(int(settings.order_safety_days or 0), 0)
+	return {
+		"production_date": production_date,
+		"customer_delivery_date": delivery_date,
+		"order_by_date": production_date - timedelta(days=lead_time + safety_days),
+		"lead_time_days": lead_time,
+		"safety_days": safety_days,
+	}
+
+
+def _next_planned_production_date(plan, as_of_date):
+	"""Resolve the first saved cooking session which can still happen on or after today."""
+	as_of = getdate(as_of_date or nowdate())
+	weekday_index = {name: index for index, name in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])}
+	candidates = []
+	for run in plan.capacity_runs or []:
+		week = max(int(run.week_number or 1), 1)
+		weekday = weekday_index.get(run.day_of_week or "Saturday", 5)
+		cycle_start = getdate(plan.period_start or as_of)
+		candidate = cycle_start + timedelta(days=(week - 1) * 7 + weekday)
+		while candidate < as_of:
+			candidate += timedelta(days=28)
+		candidates.append(candidate)
+	return min(candidates) if candidates else _next_cycle_date(plan, "Saturday", as_of)
+
+
+def _next_cycle_date(plan, weekday_name, as_of_date):
+	"""Resolve the next named weekday on or after the advisory calculation date."""
+	start = getdate(as_of_date or plan.period_start or nowdate())
+	target = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].index(weekday_name)
+	return start + timedelta(days=(target - start.weekday()) % 7)
 
 
 def _supplier_minimum_position(supplier, basket_subtotal, as_of_date):
