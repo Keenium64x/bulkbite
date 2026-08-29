@@ -15,6 +15,16 @@ The Vue source lives in `apps/bulkbite/frontend` and builds into the Frappe rout
 
 The Vue project is Desyium-owned. Select component and block owners through Desyium before adding interface source. Frappe UI owns forms and operational controls. shadcn-vue may fill jobs that Frappe UI does not own.
 
+## Production release
+
+After the one-time server bootstrap, build, upload, migrate, verify, and activate the current repository state with one command:
+
+```bash
+./deploy-bulkbite
+```
+
+The server keeps the previous runtime available during the image build, backs up the site before migration, resumes interrupted release jobs, verifies the public application and assets, and records a release as current only after the checks pass. The full host contract is documented in `deploy/README.md`.
+
 ## Operational boundary
 
 - Approved custom recipes define expected ingredient use.

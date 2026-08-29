@@ -1,0 +1,167 @@
+name: bulkbite
+
+x-image: &image
+  image: bulkbite:${BULKBITE_TAG:?BULKBITE_TAG is required}
+  restart: unless-stopped
+
+x-backend: &backend
+  <<: *image
+  volumes:
+    - assets:/home/frappe/frappe-bench/assets
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+  depends_on:
+    configurator:
+      condition: service_completed_successfully
+
+services:
+  db:
+    image: mariadb:11.8.3@sha256:ae6119716edac6998ae85508431b3d2e666530ddf4e94c61a10710caec9b0f71
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 15s
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    restart: unless-stopped
+    volumes:
+      - redis-queue-data:/data
+
+  configurator:
+    <<: *image
+    restart: "no"
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        printf 'frappe\nbulkbite\n' > sites/apps.txt;
+        bench set-config -g db_host db;
+        bench set-config -gp db_port 3306;
+        bench set-config -g redis_cache redis://redis-cache:6379;
+        bench set-config -g redis_queue redis://redis-queue:6379;
+        bench set-config -g redis_socketio redis://redis-queue:6379;
+        bench set-config -gp socketio_port 9000;
+        bench set-config -g serve_default_site true;
+    volumes:
+      - assets:/home/frappe/frappe-bench/assets
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+
+  site-setup:
+    <<: *image
+    restart: "no"
+    user: root
+    entrypoint: ["bash", "/workspace/run-site-setup.sh"]
+    environment:
+      SITE_NAME: ${SITE_NAME:?SITE_NAME is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+    volumes:
+      - assets:/home/frappe/frappe-bench/assets
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+      - type: bind
+        source: ${BULKBITE_RELEASE_SCRIPTS:?BULKBITE_RELEASE_SCRIPTS is required}
+        target: /workspace
+        read_only: true
+    secrets:
+      - gemini_api_key
+    tmpfs:
+      - /run/bulkbite-secrets:mode=0700
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+
+  backend:
+    <<: *backend
+    command: ["/workspace/start-backend.sh"]
+    environment:
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-180}
+    volumes:
+      - assets:/home/frappe/frappe-bench/assets
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+      - type: bind
+        source: ${BULKBITE_RELEASE_SCRIPTS:?BULKBITE_RELEASE_SCRIPTS is required}
+        target: /workspace
+        read_only: true
+
+  websocket:
+    <<: *backend
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+
+  queue-short:
+    <<: *backend
+    command: ["bench", "worker", "--queue", "short,default"]
+
+  queue-long:
+    <<: *backend
+    command: ["bench", "worker", "--queue", "long,default,short"]
+
+  scheduler:
+    <<: *backend
+    command: ["bench", "schedule"]
+
+  frontend:
+    <<: *image
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:?SITE_NAME is required}
+      UPSTREAM_REAL_IP_ADDRESS: ${UPSTREAM_REAL_IP_ADDRESS:-127.0.0.1}
+      UPSTREAM_REAL_IP_HEADER: ${UPSTREAM_REAL_IP_HEADER:-X-Forwarded-For}
+      UPSTREAM_REAL_IP_RECURSIVE: ${UPSTREAM_REAL_IP_RECURSIVE:-off}
+      PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-180}
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
+    volumes:
+      - assets:/home/frappe/frappe-bench/assets
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      backend:
+        condition: service_started
+      websocket:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8088:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H 'Host: ${SITE_NAME:?SITE_NAME is required}' http://127.0.0.1:8080/api/method/ping | grep -q pong"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  assets:
+  db-data:
+  redis-queue-data:
+  sites:
+  logs:
+
+secrets:
+  gemini_api_key:
+    file: ${BULKBITE_GEMINI_SECRET:?BULKBITE_GEMINI_SECRET is required}

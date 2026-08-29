@@ -65,7 +65,8 @@ services:
   site-setup:
     <<: *image
     restart: "no"
-    entrypoint: ["bash", "/workspace/setup-site.sh"]
+    user: root
+    entrypoint: ["bash", "/workspace/run-site-setup.sh"]
     environment:
       SITE_NAME: ${SITE_NAME:-admin.bulkbite.co.za}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in deploy/.env}
@@ -77,6 +78,8 @@ services:
       - ./scripts:/workspace:ro
     secrets:
       - gemini_api_key
+    tmpfs:
+      - /run/bulkbite-secrets:mode=0700
     depends_on:
       configurator:
         condition: service_completed_successfully

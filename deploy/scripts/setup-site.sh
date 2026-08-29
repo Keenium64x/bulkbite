@@ -27,7 +27,7 @@ bench --site "${SITE_NAME}" set-config host_name "https://${SITE_NAME}"
 bench --site "${SITE_NAME}" set-config -p allow_cors '["https://localhost","capacitor://localhost"]'
 bench --site "${SITE_NAME}" set-config mute_emails 0
 
-if [[ -s /run/secrets/gemini_api_key ]]; then
+if [[ -s /run/bulkbite-secrets/gemini_api_key ]]; then
 	SITE_NAME="${SITE_NAME}" python3 <<'PY'
 import json
 import os
@@ -36,7 +36,7 @@ import tempfile
 from pathlib import Path
 
 site_config_path = Path("sites") / os.environ["SITE_NAME"] / "site_config.json"
-secret_path = Path("/run/secrets/gemini_api_key")
+secret_path = Path("/run/bulkbite-secrets/gemini_api_key")
 site_config = json.loads(site_config_path.read_text())
 site_config.update(
 	{

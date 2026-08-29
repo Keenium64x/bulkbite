@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# =============================================================================
+# region LOCAL RELEASE CONTRACT
+# =============================================================================
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SSH_ALIAS="${BULKBITE_SSH_ALIAS:-bulkbite-codex}"
+REMOTE_ROOT="/home/codex-bulkbite"
+TEMPORARY_DIRECTORY=""
+RELEASE_ID=""
+LOCAL_AGENT_STARTED=0
+
+cleanup() {
+  if [[ -n "${TEMPORARY_DIRECTORY}" && -d "${TEMPORARY_DIRECTORY}" ]]; then
+    rm -rf "${TEMPORARY_DIRECTORY}"
+  fi
+  if (( LOCAL_AGENT_STARTED == 1 )); then
+    ssh-agent -k >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup EXIT
+
+# endregion LOCAL RELEASE CONTRACT
+
+
+# =============================================================================
+# region LOCAL RELEASE STATIONS
+# =============================================================================
+
+fail() {
+  printf 'BulkBite deployment stopped: %s\n' "$1" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "missing local command: $1"
+}
+
+ensure_ssh_agent() {
+  if [[ -n "${SSH_AUTH_SOCK:-}" ]] && ssh-add -l >/dev/null 2>&1; then
+    return
+  fi
+  eval "$(ssh-agent -s)" >/dev/null
+  LOCAL_AGENT_STARTED=1
+}
+
+validate_local_preflight() {
+  for command_name in git npm python3 ssh ssh-add ssh-agent scp tar sha256sum mktemp; do
+    require_command "${command_name}"
+  done
+
+  [[ -d "${SCRIPT_DIRECTORY}/.git" ]] || fail "run the command from the BulkBite repository"
+  [[ -f "${SCRIPT_DIRECTORY}/deploy/Containerfile" ]] || fail "deploy/Containerfile is missing"
+  [[ -f "${SCRIPT_DIRECTORY}/deploy/host/bulkbite-release" ]] || fail "the host release operator source is missing"
+
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=12 "${SSH_ALIAS}" true; then
+    printf 'Unlocking the dedicated BulkBite deployment key for this login session.\n'
+    ensure_ssh_agent
+    ssh-add "${HOME}/.ssh/bulkbite_codex_ed25519" || fail "the BulkBite deployment key could not be loaded"
+    ssh -o BatchMode=yes -o ConnectTimeout=12 "${SSH_ALIAS}" true || fail "SSH alias ${SSH_ALIAS} is unavailable"
+  fi
+}
+
+build_web_assets() {
+  printf 'Building the BulkBite web application.\n'
+  npm --prefix "${SCRIPT_DIRECTORY}/frontend" run build:web
+  test -s "${SCRIPT_DIRECTORY}/bulkbite/public/frontend/index.html"
+}
+
+validate_release_source() {
+  printf 'Checking deployment scripts and Python source.\n'
+  find "${SCRIPT_DIRECTORY}/deploy/scripts" "${SCRIPT_DIRECTORY}/deploy/host" \
+    -type f -name '*.sh' -o -type f -name 'bulkbite-release' |
+    while IFS= read -r script_path; do
+      bash -n "${script_path}"
+    done
+  python3 -m compileall -q "${SCRIPT_DIRECTORY}/bulkbite"
+  git -C "${SCRIPT_DIRECTORY}" diff --check
+}
+
+build_release_archive() {
+  TEMPORARY_DIRECTORY="$(mktemp -d)"
+  local archive_path="${TEMPORARY_DIRECTORY}/bulkbite-release.tar.gz"
+
+  git -C "${SCRIPT_DIRECTORY}" ls-files --cached --others --exclude-standard -z |
+    tar \
+      --directory="${SCRIPT_DIRECTORY}" \
+      --no-recursion \
+      --sort=name \
+      --mtime='UTC 1970-01-01' \
+      --owner=0 \
+      --group=0 \
+      --numeric-owner \
+      --exclude='.serena' \
+      --exclude='.serena/*' \
+      --exclude='.playwright-mcp' \
+      --exclude='.playwright-mcp/*' \
+      --exclude='deploy/.env' \
+      --exclude='deploy/secrets' \
+      --exclude='deploy/secrets/*' \
+      --null \
+      --files-from=- \
+      -czf "${archive_path}"
+
+  local archive_hash
+  archive_hash="$(sha256sum "${archive_path}" | awk '{print $1}')"
+  RELEASE_ID="${archive_hash:0:12}"
+  mv "${archive_path}" "${TEMPORARY_DIRECTORY}/${RELEASE_ID}.tar.gz"
+  printf '%s  %s.tar.gz\n' "${archive_hash}" "${RELEASE_ID}" > "${TEMPORARY_DIRECTORY}/${RELEASE_ID}.sha256"
+}
+
+upload_release_archive() {
+  local release_id="$1"
+  local remote_incoming="${REMOTE_ROOT}/incoming"
+
+  printf 'Uploading release %s.\n' "${release_id}"
+  ssh "${SSH_ALIAS}" "mkdir -p '${remote_incoming}' && chmod 0700 '${remote_incoming}'"
+  scp \
+    "${TEMPORARY_DIRECTORY}/${release_id}.tar.gz" \
+    "${SSH_ALIAS}:${remote_incoming}/${release_id}.tar.gz.part"
+  scp \
+    "${TEMPORARY_DIRECTORY}/${release_id}.sha256" \
+    "${SSH_ALIAS}:${remote_incoming}/${release_id}.sha256.part"
+  ssh "${SSH_ALIAS}" \
+    "mv '${remote_incoming}/${release_id}.tar.gz.part' '${remote_incoming}/${release_id}.tar.gz' && mv '${remote_incoming}/${release_id}.sha256.part' '${remote_incoming}/${release_id}.sha256'"
+}
+
+activate_remote_release() {
+  local release_id="$1"
+  printf 'Activating release %s. The working production release stays available until verification.\n' "${release_id}"
+  ssh "${SSH_ALIAS}" sudo -n /usr/local/sbin/bulkbite-release start "${release_id}"
+  ssh "${SSH_ALIAS}" sudo -n /usr/local/sbin/bulkbite-release wait "${release_id}"
+}
+
+main() {
+  cd "${SCRIPT_DIRECTORY}"
+  validate_local_preflight
+  build_web_assets
+  validate_release_source
+
+  build_release_archive
+  upload_release_archive "${RELEASE_ID}"
+  activate_remote_release "${RELEASE_ID}"
+
+  printf '\nBulkBite release %s is live.\n' "${RELEASE_ID}"
+  printf 'Application: https://admin.bulkbite.co.za/bulkbite\n'
+}
+
+main "$@"
+
+# endregion LOCAL RELEASE STATIONS

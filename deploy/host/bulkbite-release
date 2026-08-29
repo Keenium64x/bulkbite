@@ -1,0 +1,493 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# =============================================================================
+# region PRODUCTION RELEASE CONTRACT
+# =============================================================================
+
+DEPLOY_USER="codex-bulkbite"
+DEPLOY_ROOT="/home/codex-bulkbite"
+INCOMING_DIRECTORY="${DEPLOY_ROOT}/incoming"
+RELEASES_DIRECTORY="${DEPLOY_ROOT}/releases"
+CURRENT_LINK="${DEPLOY_ROOT}/current"
+CONFIG_DIRECTORY="/etc/bulkbite"
+RUNTIME_ENVIRONMENT="${CONFIG_DIRECTORY}/runtime.env"
+COMPOSE_FILE="${CONFIG_DIRECTORY}/compose.production.yaml"
+GEMINI_SECRET="${CONFIG_DIRECTORY}/gemini_api_key.txt"
+STATE_DIRECTORY="/var/lib/bulkbite"
+CURRENT_RELEASE_FILE="${STATE_DIRECTORY}/current-release"
+PACKAGES_DIRECTORY="${STATE_DIRECTORY}/packages"
+DEPLOYMENT_LOCK="/run/lock/bulkbite-release.lock"
+JOBS_DIRECTORY="${STATE_DIRECTORY}/jobs"
+SITE_NAME="admin.bulkbite.co.za"
+APP_SERVICES=(backend websocket queue-short queue-long scheduler frontend)
+TEMPORARY_RELEASE_DIRECTORY=""
+PREVIOUS_RELEASE=""
+ACTIVATION_STARTED=0
+ACTIVATION_COMPLETE=0
+CURRENT_JOB_ID=""
+
+cleanup() {
+  if [[ -n "${TEMPORARY_RELEASE_DIRECTORY}" && -d "${TEMPORARY_RELEASE_DIRECTORY}" ]]; then
+    rm -rf "${TEMPORARY_RELEASE_DIRECTORY}"
+  fi
+}
+
+finish_release_job() {
+  local exit_code=$?
+  cleanup
+
+  if (( exit_code != 0 && ACTIVATION_STARTED == 1 && ACTIVATION_COMPLETE == 0 )) && [[ -n "${PREVIOUS_RELEASE}" ]]; then
+    printf 'Candidate verification failed. Restoring runtime %s.\n' "${PREVIOUS_RELEASE}" >&2
+    compose_for_release "${PREVIOUS_RELEASE}" up -d --remove-orphans "${APP_SERVICES[@]}" >/dev/null 2>&1 || true
+    sync_release_assets "${PREVIOUS_RELEASE}" >/dev/null 2>&1 || true
+    wait_for_loopback_health >/dev/null 2>&1 || true
+  fi
+
+  if [[ -n "${CURRENT_JOB_ID}" ]]; then
+    if (( exit_code == 0 )); then
+      printf 'success\n' > "${JOBS_DIRECTORY}/${CURRENT_JOB_ID}.status"
+    else
+      printf 'failed\n' > "${JOBS_DIRECTORY}/${CURRENT_JOB_ID}.status"
+    fi
+  fi
+
+  exit "${exit_code}"
+}
+
+trap cleanup EXIT
+
+# endregion PRODUCTION RELEASE CONTRACT
+
+
+# =============================================================================
+# region VALIDATION STATIONS
+# =============================================================================
+
+fail() {
+  printf 'BulkBite release failed: %s\n' "$1" >&2
+  exit 1
+}
+
+require_root() {
+  [[ "${EUID}" -eq 0 ]] || fail "the root-owned operator must run through sudo"
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "missing server command: $1"
+}
+
+validate_release_id() {
+  [[ "$1" =~ ^[0-9a-f]{12}$ ]] || fail "invalid release ID"
+}
+
+validate_host_contract() {
+  require_root
+  for command_name in docker curl flock nohup python3 sha256sum tail tar; do
+    require_command "${command_name}"
+  done
+  docker compose version >/dev/null
+  [[ -s "${RUNTIME_ENVIRONMENT}" ]] || fail "${RUNTIME_ENVIRONMENT} is missing or empty"
+  [[ -s "${COMPOSE_FILE}" ]] || fail "${COMPOSE_FILE} is missing or empty"
+  [[ -s "${GEMINI_SECRET}" ]] || fail "${GEMINI_SECRET} is missing or empty"
+  [[ "$(stat -c '%U:%G' "${COMPOSE_FILE}")" == "root:root" ]] || fail "the Compose contract is not root-owned"
+  [[ "$(stat -c '%U:%G' "$0")" == "root:root" ]] || fail "the release operator is not root-owned"
+
+  local compose_bind_sources
+  compose_bind_sources="$(grep -E '^[[:space:]]+source:' "${COMPOSE_FILE}" | sed -E 's/^[[:space:]]*source:[[:space:]]*//')"
+  [[ "${compose_bind_sources}" == '${BULKBITE_RELEASE_SCRIPTS:?BULKBITE_RELEASE_SCRIPTS is required}'$'\n''${BULKBITE_RELEASE_SCRIPTS:?BULKBITE_RELEASE_SCRIPTS is required}' ]] ||
+    fail "the root-owned Compose contract contains an unexpected bind mount"
+
+}
+
+validate_runtime_before_start() {
+  if ss -lntH | awk '{print $4}' | grep -Eq '(^|:)8088$'; then
+    curl -fsS --max-time 8 -H "Host: ${SITE_NAME}" http://127.0.0.1:8088/api/method/ping | grep -q pong ||
+      fail "port 8088 is occupied by a service that is not healthy BulkBite"
+  fi
+}
+
+validate_incoming_archive() {
+  local release_id="$1"
+  local archive_path="${PACKAGES_DIRECTORY}/${release_id}.tar.gz"
+  local checksum_path="${PACKAGES_DIRECTORY}/${release_id}.sha256"
+
+  [[ -f "${archive_path}" && ! -L "${archive_path}" ]] || fail "release archive is missing or is a symbolic link"
+  [[ -f "${checksum_path}" && ! -L "${checksum_path}" ]] || fail "release checksum is missing or is a symbolic link"
+
+  local expected_hash actual_hash checksum_name
+  read -r expected_hash checksum_name < "${checksum_path}"
+  [[ "${expected_hash}" =~ ^[0-9a-f]{64}$ ]] || fail "release checksum is invalid"
+  [[ "${checksum_name}" == "${release_id}.tar.gz" ]] || fail "release checksum filename does not match"
+  [[ "${expected_hash:0:12}" == "${release_id}" ]] || fail "release ID does not match its checksum"
+  actual_hash="$(sha256sum "${archive_path}" | awk '{print $1}')"
+  [[ "${actual_hash}" == "${expected_hash}" ]] || fail "release archive checksum failed"
+}
+
+claim_release_archive() {
+  local release_id="$1"
+  local claimed_archive="${PACKAGES_DIRECTORY}/${release_id}.tar.gz"
+  local claimed_checksum="${PACKAGES_DIRECTORY}/${release_id}.sha256"
+
+  if [[ -f "${claimed_archive}" && -f "${claimed_checksum}" ]]; then
+    printf 'Using the already claimed release package.\n'
+    return
+  fi
+
+  [[ -f "${INCOMING_DIRECTORY}/${release_id}.tar.gz" ]] || fail "incoming release archive is missing"
+  [[ -f "${INCOMING_DIRECTORY}/${release_id}.sha256" ]] || fail "incoming release checksum is missing"
+  mv "${INCOMING_DIRECTORY}/${release_id}.tar.gz" "${claimed_archive}"
+  mv "${INCOMING_DIRECTORY}/${release_id}.sha256" "${claimed_checksum}"
+  chown root:root "${claimed_archive}" "${claimed_checksum}"
+  chmod 0400 "${claimed_archive}" "${claimed_checksum}"
+}
+
+validate_archive_members() {
+  local archive_path="$1"
+  python3 - "${archive_path}" <<'PY'
+import pathlib
+import sys
+import tarfile
+
+archive_path = pathlib.Path(sys.argv[1])
+with tarfile.open(archive_path, "r:gz") as archive:
+    members = archive.getmembers()
+    if not members:
+        raise SystemExit("release archive is empty")
+    for member in members:
+        path = pathlib.PurePosixPath(member.name)
+        if path.is_absolute() or ".." in path.parts:
+            raise SystemExit(f"unsafe archive path: {member.name}")
+        if not (member.isfile() or member.isdir()):
+            raise SystemExit(f"unsupported archive member: {member.name}")
+PY
+}
+
+validate_release_contents() {
+  local release_directory="$1"
+  local required_paths=(
+    deploy/Containerfile
+    deploy/scripts/setup-site.sh
+    deploy/scripts/start-backend.sh
+    deploy/scripts/run-site-setup.sh
+    bulkbite/public/frontend/index.html
+    bulkbite/www/bulkbite.html
+  )
+  local required_path
+  for required_path in "${required_paths[@]}"; do
+    [[ -s "${release_directory}/${required_path}" ]] || fail "release is missing ${required_path}"
+  done
+
+  chmod 0755 "${release_directory}" "${release_directory}/deploy" "${release_directory}/deploy/scripts"
+  chmod 0755 "${release_directory}/deploy/scripts"/*.sh
+}
+
+ensure_build_capacity() {
+  local available_kib
+  available_kib="$(df --output=avail / | tail -n 1 | tr -d ' ')"
+  if (( available_kib < 7340032 )); then
+    printf 'Freeing unused Docker build cache before the image build.\n'
+    docker builder prune --all --force --filter 'until=168h' >/dev/null
+    available_kib="$(df --output=avail / | tail -n 1 | tr -d ' ')"
+  fi
+  (( available_kib >= 5242880 )) || fail "less than 5 GiB is available after pruning old build cache"
+}
+
+# endregion VALIDATION STATIONS
+
+
+# =============================================================================
+# region RELEASE PREPARATION
+# =============================================================================
+
+prepare_release_directory() {
+  local release_id="$1"
+  local release_directory="${RELEASES_DIRECTORY}/${release_id}"
+  local archive_path="${PACKAGES_DIRECTORY}/${release_id}.tar.gz"
+
+  if [[ -d "${release_directory}" ]]; then
+    [[ ! -L "${release_directory}" ]] || fail "existing release directory is a symbolic link"
+    validate_release_contents "${release_directory}"
+    printf 'Using the already prepared release directory.\n'
+    return
+  fi
+
+  validate_archive_members "${archive_path}"
+  TEMPORARY_RELEASE_DIRECTORY="$(mktemp -d "${RELEASES_DIRECTORY}/.${release_id}.XXXXXX")"
+  tar --extract --gzip --file "${archive_path}" --directory "${TEMPORARY_RELEASE_DIRECTORY}" --no-same-owner --no-same-permissions
+  validate_release_contents "${TEMPORARY_RELEASE_DIRECTORY}"
+
+  chown -R root:root "${TEMPORARY_RELEASE_DIRECTORY}"
+  mv "${TEMPORARY_RELEASE_DIRECTORY}" "${release_directory}"
+  TEMPORARY_RELEASE_DIRECTORY=""
+}
+
+build_release_image() {
+  local release_id="$1"
+  local release_directory="${RELEASES_DIRECTORY}/${release_id}"
+  if docker image inspect "bulkbite:${release_id}" >/dev/null 2>&1; then
+    printf 'Using existing image bulkbite:%s.\n' "${release_id}"
+    return
+  fi
+
+  ensure_build_capacity
+  printf 'Building image bulkbite:%s. The live runtime remains unchanged during this step.\n' "${release_id}"
+  docker build --file "${release_directory}/deploy/Containerfile" --tag "bulkbite:${release_id}" "${release_directory}"
+}
+
+prepare_secret_permissions() {
+  chown root:root "${GEMINI_SECRET}"
+  chmod 0400 "${GEMINI_SECRET}"
+}
+
+# endregion RELEASE PREPARATION
+
+
+# =============================================================================
+# region RUNTIME ORCHESTRATION
+# =============================================================================
+
+compose_for_release() {
+  local release_id="$1"
+  shift
+  BULKBITE_TAG="${release_id}" \
+  BULKBITE_RELEASE_SCRIPTS="${RELEASES_DIRECTORY}/${release_id}/deploy/scripts" \
+  BULKBITE_GEMINI_SECRET="${GEMINI_SECRET}" \
+    docker compose \
+      --project-name bulkbite \
+      --project-directory "${CONFIG_DIRECTORY}" \
+      --env-file "${RUNTIME_ENVIRONMENT}" \
+      --file "${COMPOSE_FILE}" \
+      "$@"
+}
+
+backup_live_site() {
+  if [[ "$(docker inspect --format '{{.State.Running}}' bulkbite-backend-1 2>/dev/null || true)" == "true" ]]; then
+    printf 'Backing up the live Frappe site before migration.\n'
+    docker exec bulkbite-backend-1 bench --site "${SITE_NAME}" backup --with-files --compress
+  fi
+}
+
+sync_release_assets() {
+  local release_id="$1"
+  compose_for_release "${release_id}" exec -T backend bash -lc '
+    set -euo pipefail
+    for app_name in frappe bulkbite; do
+      source_directory="apps/${app_name}/${app_name}/public"
+      target_directory="assets/${app_name}"
+      if [[ -L "${target_directory}" ]]; then
+        unlink "${target_directory}"
+      fi
+      mkdir -p "${target_directory}"
+      cp -a "${source_directory}/." "${target_directory}/"
+    done
+  '
+  compose_for_release "${release_id}" exec -T backend bench --site "${SITE_NAME}" clear-cache
+  compose_for_release "${release_id}" restart frontend
+}
+
+start_release_runtime() {
+  local release_id="$1"
+  compose_for_release "${release_id}" config --quiet
+  compose_for_release "${release_id}" up -d db redis-cache redis-queue
+  compose_for_release "${release_id}" run --rm configurator
+  compose_for_release "${release_id}" run --rm site-setup
+  ACTIVATION_STARTED=1
+  compose_for_release "${release_id}" up -d --remove-orphans "${APP_SERVICES[@]}"
+  sync_release_assets "${release_id}"
+}
+
+wait_for_loopback_health() {
+  local attempt
+  for attempt in $(seq 1 45); do
+    if curl -fsS --max-time 8 -H "Host: ${SITE_NAME}" http://127.0.0.1:8088/api/method/ping | grep -q pong; then
+      return
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+verify_release() {
+  local release_id="$1"
+  local release_directory="${RELEASES_DIRECTORY}/${release_id}"
+  wait_for_loopback_health || fail "loopback health did not recover within 90 seconds"
+
+  curl -fsS --max-time 15 "https://${SITE_NAME}/api/method/ping" | grep -q pong || fail "public API health failed"
+  curl -fsS --max-time 15 "https://${SITE_NAME}/assets/bulkbite/frontend/index.html" | grep -q '<div id="app">' || fail "public application shell failed"
+
+  local css_path
+  css_path="$(sed -n 's/.*href="\([^\"]*\.css\)".*/\1/p' "${release_directory}/bulkbite/public/frontend/index.html" | head -n 1)"
+  [[ "${css_path}" == /assets/bulkbite/frontend/assets/*.css ]] || fail "built CSS reference is invalid"
+  curl -fsS --max-time 20 -o /dev/null "https://${SITE_NAME}${css_path}" || fail "public CSS asset failed"
+
+  local apk_path
+  apk_path="$(find "${release_directory}/bulkbite/public/downloads" -maxdepth 1 -type f -name 'BulkBite-Admin-*.apk' -printf '%f\n' 2>/dev/null | sort -V | tail -n 1)"
+  if [[ -n "${apk_path}" ]]; then
+    curl -fsS --max-time 45 -o /dev/null "https://${SITE_NAME}/assets/bulkbite/downloads/${apk_path}" || fail "public APK asset failed"
+  fi
+}
+
+activate_release() {
+  local release_id="$1"
+  PREVIOUS_RELEASE="$(cat "${CURRENT_RELEASE_FILE}" 2>/dev/null || true)"
+  if [[ -z "${PREVIOUS_RELEASE}" && -L "${CURRENT_LINK}" ]]; then
+    PREVIOUS_RELEASE="$(basename "$(readlink -f "${CURRENT_LINK}")")"
+  fi
+
+  backup_live_site
+  start_release_runtime "${release_id}"
+  verify_release "${release_id}"
+
+  printf '%s\n' "${release_id}" > "${CURRENT_RELEASE_FILE}.tmp"
+  mv "${CURRENT_RELEASE_FILE}.tmp" "${CURRENT_RELEASE_FILE}"
+  ln -sfn "${RELEASES_DIRECTORY}/${release_id}" "${CURRENT_LINK}"
+  ACTIVATION_COMPLETE=1
+}
+
+# endregion RUNTIME ORCHESTRATION
+
+
+# =============================================================================
+# region RETENTION AND REPORTING
+# =============================================================================
+
+prune_old_bulkbite_images() {
+  local current_release="$1"
+  mapfile -t release_ids < <(find "${RELEASES_DIRECTORY}" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %f\n' | sort -nr | awk '$2 ~ /^[0-9a-f]{12}$/ {print $2}')
+  local kept=0 release_id
+  for release_id in "${release_ids[@]}"; do
+    if [[ "${release_id}" == "${current_release}" || "${release_id}" == "${PREVIOUS_RELEASE}" || ${kept} -lt 3 ]]; then
+      ((kept += 1))
+      continue
+    fi
+    docker image rm "bulkbite:${release_id}" >/dev/null 2>&1 || true
+  done
+}
+
+report_status() {
+  local current_release
+  current_release="$(cat "${CURRENT_RELEASE_FILE}" 2>/dev/null || true)"
+  printf 'Current release: %s\n' "${current_release:-unknown}"
+  curl -fsS --max-time 8 -H "Host: ${SITE_NAME}" http://127.0.0.1:8088/api/method/ping
+  printf '\n'
+}
+
+job_is_running() {
+  local release_id="$1"
+  local pid_file="${JOBS_DIRECTORY}/${release_id}.pid"
+  [[ -s "${pid_file}" ]] || return 1
+  local job_pid
+  job_pid="$(cat "${pid_file}")"
+  [[ "${job_pid}" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "${job_pid}" 2>/dev/null || return 1
+  tr '\0' ' ' < "/proc/${job_pid}/cmdline" 2>/dev/null | grep -Fq "bulkbit" || return 1
+}
+
+start_release_job() {
+  local release_id="$1"
+  validate_release_id "${release_id}"
+
+  if job_is_running "${release_id}"; then
+    printf 'Release %s is already running. Reattaching to it.\n' "${release_id}"
+    return
+  fi
+
+  if [[ "$(cat "${JOBS_DIRECTORY}/${release_id}.status" 2>/dev/null || true)" == "success" ]]; then
+    rm -f "${INCOMING_DIRECTORY}/${release_id}.tar.gz" "${INCOMING_DIRECTORY}/${release_id}.sha256"
+    printf 'Release %s already completed successfully.\n' "${release_id}"
+    return
+  fi
+
+  validate_runtime_before_start
+
+  : > "${JOBS_DIRECTORY}/${release_id}.log"
+  printf 'starting\n' > "${JOBS_DIRECTORY}/${release_id}.status"
+  nohup "$0" run "${release_id}" > "${JOBS_DIRECTORY}/${release_id}.log" 2>&1 < /dev/null &
+  printf '%s\n' "$!" > "${JOBS_DIRECTORY}/${release_id}.pid"
+  printf 'Release %s started as a persistent server job.\n' "${release_id}"
+}
+
+wait_for_release_job() {
+  local release_id="$1"
+  validate_release_id "${release_id}"
+  local log_file="${JOBS_DIRECTORY}/${release_id}.log"
+  local pid_file="${JOBS_DIRECTORY}/${release_id}.pid"
+  [[ -f "${log_file}" && -s "${pid_file}" ]] || fail "release ${release_id} has not been started"
+
+  local job_pid job_status
+  job_pid="$(cat "${pid_file}")"
+  job_status="$(cat "${JOBS_DIRECTORY}/${release_id}.status" 2>/dev/null || true)"
+  if [[ "${job_status}" == "success" ]]; then
+    printf 'Release %s is already verified and live.\n' "${release_id}"
+  elif [[ "${job_status}" == "failed" ]]; then
+    cat "${log_file}"
+  else
+    tail --pid="${job_pid}" -n +1 -f "${log_file}" || true
+  fi
+
+  job_status="$(cat "${JOBS_DIRECTORY}/${release_id}.status" 2>/dev/null || true)"
+  [[ "${job_status}" == "success" ]] || fail "release ${release_id} ended with status ${job_status:-unknown}"
+}
+
+run_release_job() {
+  local release_id="$1"
+  validate_release_id "${release_id}"
+  CURRENT_JOB_ID="${release_id}"
+  trap finish_release_job EXIT
+
+  exec 9>"${DEPLOYMENT_LOCK}"
+  flock -n 9 || fail "another BulkBite deployment is already running"
+  printf 'running\n' > "${JOBS_DIRECTORY}/${release_id}.status"
+  deploy_release "${release_id}"
+}
+
+deploy_release() {
+  local release_id="$1"
+  validate_release_id "${release_id}"
+  claim_release_archive "${release_id}"
+  validate_incoming_archive "${release_id}"
+  prepare_release_directory "${release_id}"
+  build_release_image "${release_id}"
+  prepare_secret_permissions
+  activate_release "${release_id}"
+  prune_old_bulkbite_images "${release_id}"
+  rm -f "${PACKAGES_DIRECTORY}/${release_id}.tar.gz" "${PACKAGES_DIRECTORY}/${release_id}.sha256"
+  rm -f "${INCOMING_DIRECTORY}/${release_id}.tar.gz" "${INCOMING_DIRECTORY}/${release_id}.sha256"
+  printf '\nBulkBite release %s passed production verification.\n' "${release_id}"
+}
+
+main() {
+  validate_host_contract
+  chown root:root "${DEPLOY_ROOT}" "${RELEASES_DIRECTORY}"
+  chmod 0711 "${DEPLOY_ROOT}" "${RELEASES_DIRECTORY}"
+  install -d -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" -m 0700 "${INCOMING_DIRECTORY}"
+  install -d -o root -g root -m 0700 "${STATE_DIRECTORY}" "${JOBS_DIRECTORY}" "${PACKAGES_DIRECTORY}"
+
+  case "${1:-}" in
+    start)
+      [[ "$#" -eq 2 ]] || fail "usage: bulkbite-release start <release-id>"
+      start_release_job "$2"
+      ;;
+    wait)
+      [[ "$#" -eq 2 ]] || fail "usage: bulkbite-release wait <release-id>"
+      wait_for_release_job "$2"
+      ;;
+    run)
+      [[ "$#" -eq 2 ]] || fail "usage: bulkbite-release run <release-id>"
+      run_release_job "$2"
+      ;;
+    status)
+      [[ "$#" -eq 1 ]] || fail "usage: bulkbite-release status"
+      report_status
+      ;;
+    *)
+      fail "usage: bulkbite-release {start <release-id>|wait <release-id>|status}"
+      ;;
+  esac
+}
+
+main "$@"
+
+# endregion RETENTION AND REPORTING
