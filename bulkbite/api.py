@@ -51,6 +51,14 @@ from bulkbite.price_workbook import (
 	preview_price_import,
 	review_price_import,
 )
+from bulkbite.setup_workbook import (
+	apply_workspace_import,
+	build_workspace_workbook,
+	get_workspace_contract,
+	inspect_workspace_file,
+	preview_workspace_import,
+	review_workspace_import,
+)
 
 
 # =============================================================================
@@ -1525,6 +1533,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	)
 	result = {
 		"name": plan.name,
+		"modified": plan.modified,
 		"plan_title": plan.plan_title,
 		"status": plan.status,
 		"period_start": plan.period_start,
@@ -1583,6 +1592,7 @@ def _build_capacity_plan(plan, current_mix, workforce):
 			"week_number": int(row.week_number or 1),
 			"run_number": int(row.run_number or 1),
 			"day_of_week": row.day_of_week,
+			"planned_output_qty": round_operational_quantity(row.planned_output_qty),
 			"scheduled_elapsed_hours": flt(row.scheduled_elapsed_hours),
 			"team_template": row.team_template,
 			"planned_people": int(row.planned_people or 0),
@@ -1704,6 +1714,7 @@ def save_monthly_production_plan(payload=None):
 				"week_number": max(min(int(row.get("week_number") or 1), 4), 1),
 				"run_number": max(int(row.get("run_number") or 1), 1),
 				"day_of_week": row.get("day_of_week") or "Monday",
+				"planned_output_qty": max(flt(row.get("planned_output_qty")), 0),
 				"scheduled_elapsed_hours": max(flt(row.get("scheduled_elapsed_hours")), 0),
 				"team_template": row.get("team_template") or plan.default_team_template,
 				"planned_people": max(int(row.get("planned_people") or 0), 0),
@@ -2569,6 +2580,126 @@ def apply_catalogue_price_workbook(batch_name):
 	return apply_price_import(batch_name)
 
 
+@frappe.whitelist(methods=["GET"])
+def get_spreadsheet_workspace_contract(target="recipes", setup_doctype=None):
+	"""Return the controlled recipe or setup-data spreadsheet contract."""
+	_require_roles("BulkBite Manager")
+	return get_workspace_contract(target, setup_doctype)
+
+
+@frappe.whitelist(methods=["GET"])
+def download_spreadsheet_workspace(target="recipes", fields=None, setup_doctype=None):
+	"""Download one plain, context-aware spreadsheet from an approved target."""
+	_require_roles("BulkBite Manager")
+	contract = get_workspace_contract(target, setup_doctype)
+	frappe.response.filename = f"bulkbite-{contract['label'].lower().replace(' ', '-')}-{nowdate()}.xlsx"
+	frappe.response.filecontent = build_workspace_workbook(target, fields, setup_doctype)
+	frappe.response.type = "binary"
+
+
+@frappe.whitelist(methods=["POST"])
+def inspect_spreadsheet_workspace_file(target, file_url, setup_doctype=None):
+	"""Suggest source-column matches for an approved target without writing records."""
+	_require_roles("BulkBite Manager")
+	return inspect_workspace_file(target, file_url, setup_doctype)
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_spreadsheet_workspace_import(target, file_url, mapping=None, setup_doctype=None):
+	"""Save an editable recipe or setup-data preview without applying it."""
+	_require_roles("BulkBite Manager")
+	return preview_workspace_import(target, file_url, mapping, setup_doctype)
+
+
+@frappe.whitelist(methods=["POST"])
+def review_spreadsheet_workspace_import(batch_name, proposal):
+	"""Revalidate manager edits without changing setup or operational truth."""
+	_require_roles("BulkBite Manager")
+	return review_workspace_import(batch_name, proposal)
+
+
+@frappe.whitelist(methods=["POST"])
+def apply_spreadsheet_workspace_import(batch_name):
+	"""Apply only the reviewed allowlisted records, never stock or ledger movements."""
+	_require_roles("BulkBite Manager")
+	return apply_workspace_import(batch_name)
+
+
+# =============================================================================
+# region OFFLINE DRAFT SYNCHRONIZATION
+# =============================================================================
+
+
+@frappe.whitelist(methods=["POST"])
+def sync_offline_mutation(client_mutation_id, operation, payload, base_modified=None, overwrite_conflict=False):
+	"""Apply one safe draft mutation exactly once and pause on server-version conflicts."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	client_mutation_id = str(client_mutation_id or "").strip()
+	if not client_mutation_id or len(client_mutation_id) > 140:
+		frappe.throw(_("The offline change ID is invalid."))
+	data = _as_dict(payload)
+	payload_hash = hashlib.sha256(json.dumps({"operation": operation, "payload": data}, default=str, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+	existing = frappe.db.get_value("BulkBite Offline Mutation", client_mutation_id, ["requested_by", "payload_hash", "status", "result_json"], as_dict=True)
+	if existing:
+		if existing.requested_by != frappe.session.user or existing.payload_hash != payload_hash:
+			frappe.throw(_("This offline change ID belongs to a different request."), frappe.PermissionError)
+		if existing.status == "Completed":
+			return frappe.parse_json(existing.result_json)
+	frappe.db.sql("select name from `tabBulkBite Offline Mutation` where name = %s for update", (client_mutation_id,))
+	if not existing:
+		frappe.get_doc({"doctype": "BulkBite Offline Mutation", "client_mutation_id": client_mutation_id, "operation": operation, "status": "Processing", "requested_by": frappe.session.user, "payload_hash": payload_hash}).insert(ignore_permissions=True)
+	result = _apply_offline_draft(operation, data, base_modified, bool(overwrite_conflict))
+	response = {"client_mutation_id": client_mutation_id, "operation": operation, "status": "completed", "result": result}
+	frappe.db.set_value("BulkBite Offline Mutation", client_mutation_id, {"status": "Completed", "result_json": frappe.as_json(response), "completed_on": now_datetime()}, update_modified=False)
+	return response
+
+
+def _apply_offline_draft(operation, data, base_modified, overwrite_conflict):
+	"""Dispatch only draft-safe operations. Posted truth is intentionally excluded."""
+	if operation == "save_production_plan":
+		_assert_offline_version("BulkBite Production Plan", data.get("name"), base_modified, overwrite_conflict)
+		return save_monthly_production_plan(data)
+	if operation == "save_production_draft":
+		return _sync_production_draft(data, base_modified, overwrite_conflict)
+	if operation == "create_receipt_draft":
+		if data.get("name"):
+			frappe.throw(_("Existing receipts cannot be overwritten by offline synchronization."))
+		return create_receipt_intake(data)
+	frappe.throw(_("This operation is not allowed through offline synchronization."), frappe.PermissionError)
+
+
+def _sync_production_draft(data, base_modified, overwrite_conflict):
+	"""Create or update the production draft, measurements, and team as one replayable station."""
+	run_name = data.get("name")
+	if run_name:
+		_assert_offline_version("BulkBite Production Run", run_name, base_modified, overwrite_conflict)
+		run = frappe.get_doc("BulkBite Production Run", run_name)
+		if run.docstatus:
+			frappe.throw(_("Posted production cannot be changed by offline synchronization."))
+	else:
+		run = create_run_from_plan(
+			data.get("plan_name"), data.get("plan_row_name"), data.get("production_date"),
+			data.get("source_location"), data.get("target_location"), data.get("recipe"),
+			data.get("planned_output_qty"), data.get("direction_action"),
+		)
+		run_name = run.get("name")
+	run = update_production_actuals(run_name, data.get("actual_output_qty"), data.get("ingredients"), data.get("notes"))
+	run = save_production_employees(run_name, data.get("employees"), data.get("team_template"), data.get("actual_elapsed_hours"), data.get("scheduled_elapsed_hours"))
+	return run
+
+
+def _assert_offline_version(doctype, name, base_modified, overwrite_conflict):
+	"""Reject silent last-write-wins when another session changed the draft."""
+	if not name or not frappe.db.exists(doctype, name):
+		return
+	current = frappe.db.get_value(doctype, name, "modified")
+	if base_modified and str(current) != str(base_modified) and not overwrite_conflict:
+		frappe.throw(_("CONFLICT: The server record changed after this device saved its draft. Review both versions before continuing."), frappe.TimestampMismatchError)
+
+
+# endregion OFFLINE DRAFT SYNCHRONIZATION
+
+
 @frappe.whitelist(methods=["POST"])
 def preview_theory_workbook(file_url):
 	"""Read workbook structure for mapping. This station never writes records."""
@@ -2805,6 +2936,7 @@ def _serialize_run(run):
 	employees = [row.as_dict() for row in run.employees or []]
 	return {
 		"name": run.name,
+		"modified": run.modified,
 		"docstatus": run.docstatus,
 		"production_date": run.production_date,
 		"business_name": run.business_name,

@@ -49,6 +49,13 @@ export const getInventorySnapshot = (location) => call("bulkbite.api.get_invento
 export const getProductionPlanSnapshot = (planName, location) => call("bulkbite.api.get_production_plan_snapshot", { plan_name: planName, location }, "GET")
 export const calculateCapacityScenario = (payload) => call("bulkbite.api.calculate_capacity_scenario", { payload })
 export const saveMonthlyProductionPlan = (payload) => call("bulkbite.api.save_monthly_production_plan", { payload })
+export const syncOfflineMutation = (mutation) => call("bulkbite.api.sync_offline_mutation", {
+  client_mutation_id: mutation.clientMutationId,
+  operation: mutation.operation,
+  payload: mutation.payload,
+  base_modified: mutation.baseModified,
+  overwrite_conflict: Boolean(mutation.overwriteConflict),
+})
 export const cancelProductionPlan = (name) => call("bulkbite.api.cancel_production_plan", { name })
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")
 export const assignScanCode = (itemCode, code) => call("bulkbite.api.assign_scan_code", { item_code: itemCode, code })
@@ -96,6 +103,11 @@ export const startPriceImportImprovement = (batchName) => call("bulkbite.api.sta
 export const getPriceImportImprovementStatus = (jobId) => call("bulkbite.api.get_catalogue_price_improvement_status", { job_id: jobId }, "GET")
 export const reviewPriceWorkbook = (batchName, proposal) => call("bulkbite.api.review_catalogue_price_workbook", { batch_name: batchName, proposal })
 export const applyPriceWorkbook = (batchName) => call("bulkbite.api.apply_catalogue_price_workbook", { batch_name: batchName })
+export const getSpreadsheetWorkspaceContract = (target, setupDoctype) => call("bulkbite.api.get_spreadsheet_workspace_contract", { target, setup_doctype: setupDoctype }, "GET")
+export const inspectSpreadsheetWorkspaceFile = (target, fileUrl, setupDoctype) => call("bulkbite.api.inspect_spreadsheet_workspace_file", { target, file_url: fileUrl, setup_doctype: setupDoctype })
+export const previewSpreadsheetWorkspaceImport = (target, fileUrl, mapping, setupDoctype) => call("bulkbite.api.preview_spreadsheet_workspace_import", { target, file_url: fileUrl, mapping, setup_doctype: setupDoctype })
+export const reviewSpreadsheetWorkspaceImport = (batchName, proposal) => call("bulkbite.api.review_spreadsheet_workspace_import", { batch_name: batchName, proposal })
+export const applySpreadsheetWorkspaceImport = (batchName) => call("bulkbite.api.apply_spreadsheet_workspace_import", { batch_name: batchName })
 export const createCostInvoice = (payload) => call("bulkbite.api.create_cost_invoice", { payload })
 export const postCostInvoice = (name) => call("bulkbite.api.post_cost_invoice", { name })
 export const getFinanceWorkspace = (fromDate, toDate) => call("bulkbite.api.get_finance_workspace", { from_date: fromDate, to_date: toDate }, "GET")
@@ -116,6 +128,14 @@ export const saveProductionEmployees = (name, employees, teamTemplate, actualEla
 
 export function priceWorkbookUrl(fields) {
   return resolveRequestUrl(`/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`)
+}
+
+export function spreadsheetWorkspaceUrl(target, fields, setupDoctype) {
+  return resolveRequestUrl(`/api/method/bulkbite.api.download_spreadsheet_workspace?${new URLSearchParams({
+    target,
+    fields: JSON.stringify(fields || []),
+    setup_doctype: setupDoctype || "",
+  })}`)
 }
 
 export function accountantExportUrl(fromDate, toDate, dataset) {

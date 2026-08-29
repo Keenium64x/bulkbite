@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { SystemFormControl, SystemLogo, SystemOperationalButton } from "@/desyium"
 import bulkbiteIcon from "@/assets/bulkbite-icon.svg"
 import { loginNative } from "@/native/auth"
@@ -11,10 +11,21 @@ import { nativeState } from "@/native/lifecycle"
 // =============================================================================
 
 const emit = defineEmits(["authenticated"])
+const LOGIN_DRAFT_KEY = "bulkbite-native-login-email"
 const email = ref("")
 const password = ref("")
 const busy = ref(false)
 const error = ref("")
+
+onMounted(() => {
+  email.value = window.localStorage.getItem(LOGIN_DRAFT_KEY) || ""
+})
+
+watch(email, value => {
+  const normalized = String(value || "").trim()
+  if (normalized) window.localStorage.setItem(LOGIN_DRAFT_KEY, normalized)
+  else window.localStorage.removeItem(LOGIN_DRAFT_KEY)
+})
 
 async function submit() {
   if (!email.value || !password.value || busy.value) return
@@ -22,6 +33,8 @@ async function submit() {
   error.value = ""
   try {
     await loginNative(email.value.trim(), password.value)
+    window.localStorage.removeItem(LOGIN_DRAFT_KEY)
+    password.value = ""
     emit("authenticated")
   } catch (exception) {
     error.value = exception.message
@@ -35,7 +48,7 @@ async function submit() {
 </script>
 
 <template>
-  <main class="native-login" aria-labelledby="native-login-title">
+  <main class="native-login" data-native-pull-ignore aria-labelledby="native-login-title">
     <section class="native-login__card">
       <SystemLogo class="native-login__logo" name="BulkBite" :src="bulkbiteIcon" href="#/bulkbite" compact />
       <h1 id="native-login-title">Sign in</h1>

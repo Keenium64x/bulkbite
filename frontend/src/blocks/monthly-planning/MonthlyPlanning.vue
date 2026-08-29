@@ -1,17 +1,24 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue"
+import { computed, nextTick, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { SystemBadge, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect } from "@/desyium"
 import { calculateCapacityScenario, cancelProductionPlan, saveMonthlyProductionPlan } from "@/resources/api"
+import { syncOfflineMutation } from "@/resources/api"
+import { clearFormDraft, loadFormDraft, saveFormDraft } from "@/native/offlineStore"
+import { syncDraftMutation } from "@/native/offlineSync"
+import { runtimeConfig } from "@/config/runtime"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null }, mode: { type: String, default: "planning" } })
 const emit = defineEmits(["changed", "open-employees"])
 const router = useRouter()
 const busy = ref(false)
 const error = ref("")
+const offlineNotice = ref("")
+const formDirty = ref(false)
 const form = reactive({ name: "", plan_title: "", status: "Active", customer_mix: [], plan_rows: [], purchase_routes: [], forecast_weeks: 4, default_team_template: "", capacity_windows: [], capacity_runs: [], forecast_customer_mix: [] })
 const scenarioForecast = ref([])
 let scenarioTimer
+let hydrating = false
 const planTypes = computed(() => props.snapshot?.options?.customer_plan_types || [])
 const recipeOptions = computed(() => (props.snapshot?.options?.recipes || []).map(row => ({ label: row.recipe_name, value: row.name })))
 const teamTemplates = computed(() => props.snapshot?.options?.team_templates || [])
@@ -27,18 +34,21 @@ const weeklyKg = computed(() => roundQuantity(form.customer_mix.reduce((sum, row
 const capacitySummary = computed(() => {
   const totals = scenarioForecast.value.reduce((summary, row) => ({
     requiredOutputQty: summary.requiredOutputQty + Number(row.required_output_qty || 0),
+    plannedOutputQty: summary.plannedOutputQty + Number(row.planned_output_qty || 0),
     scheduledElapsedHours: summary.scheduledElapsedHours + Number(row.scheduled_elapsed_hours || 0),
     scheduledTeamHours: summary.scheduledTeamHours + Number(row.scheduled_team_hours || 0),
     requiredTeamHours: summary.requiredTeamHours + Number(row.required_team_hours || 0),
     runCount: summary.runCount + Number(row.run_count || 0),
     underCapacityWeeks: summary.underCapacityWeeks + (row.status === "Under capacity" ? 1 : 0),
-  }), { requiredOutputQty: 0, scheduledElapsedHours: 0, scheduledTeamHours: 0, requiredTeamHours: 0, runCount: 0, underCapacityWeeks: 0 })
+  }), { requiredOutputQty: 0, plannedOutputQty: 0, scheduledElapsedHours: 0, scheduledTeamHours: 0, requiredTeamHours: 0, runCount: 0, underCapacityWeeks: 0 })
   const teamHourDifference = roundQuantity(totals.scheduledTeamHours - totals.requiredTeamHours)
+  const outputDifference = roundQuantity(totals.plannedOutputQty - totals.requiredOutputQty)
   return {
     ...totals,
     weeks: scenarioForecast.value.length,
     teamHourDifference,
-    status: teamHourDifference < 0 ? "Under capacity" : teamHourDifference > 0 ? "Over capacity" : "At capacity",
+    outputDifference,
+    status: outputDifference < 0 || teamHourDifference < 0 ? "Under capacity" : outputDifference > 0 || teamHourDifference > 0 ? "Over capacity" : "At capacity",
   }
 })
 const workforceRows = computed(() => (props.plan?.workforce?.rows || []).map(row => {
@@ -71,8 +81,14 @@ const workforceSummary = computed(() => {
 
 watch(() => [props.plan, props.snapshot], hydrate, { immediate: true, deep: true })
 watch(() => [form.customer_mix, form.forecast_weeks, form.default_team_template, form.forecast_customer_mix, form.capacity_runs, props.mode], queueScenarioCalculation, { deep: true })
+watch(form, value => {
+  if (props.mode !== "planning" || hydrating) return
+  formDirty.value = true
+  if (runtimeConfig.isNative) saveFormDraft("production-plan", structuredClone(value)).catch(() => {})
+}, { deep: true })
 
 function hydrate() {
+  hydrating = true
   Object.assign(form, {
     name: props.plan?.name || "",
     plan_title: props.plan?.plan_title || "Current meal direction",
@@ -96,15 +112,26 @@ function hydrate() {
       return { week_number: index + 1, scheduled_elapsed_hours: Number(saved?.scheduled_elapsed_hours || 4), runs_per_week: Number(saved?.runs_per_week || 1), team_template: saved?.team_template || props.plan?.capacity_plan?.default_team_template || "" }
     }),
     capacity_runs: props.plan?.capacity_plan?.runs?.length
-      ? props.plan.capacity_plan.runs.map(row => ({ ...row }))
-      : Array.from({ length: 4 }, (_, index) => ({ week_number: index + 1, run_number: 1, day_of_week: "Saturday", scheduled_elapsed_hours: Number(props.plan?.capacity_plan?.windows?.[index]?.scheduled_elapsed_hours || 5), team_template: props.plan?.capacity_plan?.windows?.[index]?.team_template || props.plan?.capacity_plan?.default_team_template || "", planned_people: Number(props.plan?.capacity_plan?.windows?.[index]?.team_size || 0) })),
+      ? props.plan.capacity_plan.runs.map(row => ({ ...row, planned_output_qty: Number(row.planned_output_qty || props.plan?.rows?.find(item => Number(item.week_number) === Number(row.week_number))?.planned_output_qty || weeklyKg.value) }))
+      : Array.from({ length: 4 }, (_, index) => ({ week_number: index + 1, run_number: 1, day_of_week: "Saturday", planned_output_qty: Number(props.plan?.rows?.[index]?.planned_output_qty || weeklyKg.value), scheduled_elapsed_hours: Number(props.plan?.capacity_plan?.windows?.[index]?.scheduled_elapsed_hours || 5), team_template: props.plan?.capacity_plan?.windows?.[index]?.team_template || props.plan?.capacity_plan?.default_team_template || "", planned_people: Number(props.plan?.capacity_plan?.windows?.[index]?.team_size || 0) })),
     forecast_customer_mix: planTypes.value.map(type => {
       const base = props.plan?.customer_mix?.find(row => row.plan_type === type.name)
       return { plan_type: type.name, target_customers: Number(base?.customer_count || 0), target_week: 8 }
     }),
   })
   scenarioForecast.value = []
+  formDirty.value = false
+  if (runtimeConfig.isNative && props.mode === "planning") restoreLocalPlanDraft()
+  nextTick(() => { hydrating = false })
   queueScenarioCalculation()
+}
+
+async function restoreLocalPlanDraft() {
+  const draft = await loadFormDraft("production-plan").catch(() => null)
+  if (!draft || draft.name !== form.name) return
+  Object.assign(form, draft)
+  formDirty.value = true
+  offlineNotice.value = "A newer draft saved on this device was restored."
 }
 
 function queueScenarioCalculation() {
@@ -130,7 +157,7 @@ async function calculateScenario() {
 function templateSize(name) { return Number(teamTemplates.value.find(row => row.name === name)?.team_size || 0) }
 function addCapacityRun(weekNumber = 1) {
   const sameWeek = form.capacity_runs.filter(row => Number(row.week_number) === Number(weekNumber))
-  form.capacity_runs.push({ week_number: Number(weekNumber), run_number: sameWeek.length + 1, day_of_week: "Saturday", scheduled_elapsed_hours: 5, team_template: form.default_team_template, planned_people: templateSize(form.default_team_template) })
+  form.capacity_runs.push({ week_number: Number(weekNumber), run_number: sameWeek.length + 1, day_of_week: "Saturday", planned_output_qty: 0, scheduled_elapsed_hours: 5, team_template: form.default_team_template, planned_people: templateSize(form.default_team_template) })
 }
 function removeCapacityRun(index) { form.capacity_runs.splice(index, 1) }
 function applyDefaultTeam(row) {
@@ -148,13 +175,22 @@ async function savePlan() {
   if (form.plan_rows.some(row => !row.recipe)) return (error.value = "Choose all four meals in the repeating cycle.")
   busy.value = true
   try {
-    await saveMonthlyProductionPlan({
+    const payload = {
       ...form,
       forecast_weeks: 4,
       forecast_customer_mix: form.customer_mix.map(row => ({ plan_type: row.plan_type, target_customers: Number(row.customer_count || 0), target_week: 1 })),
       location: "Ingredients",
-      plan_rows: form.plan_rows.map(row => ({ ...row, planned_output_qty: weeklyKg.value })),
-    })
+      plan_rows: form.plan_rows.map(row => ({
+        ...row,
+        planned_output_qty: roundQuantity(form.capacity_runs.filter(run => Number(run.week_number) === Number(row.week_number)).reduce((sum, run) => sum + Number(run.planned_output_qty || 0), 0) || weeklyKg.value),
+      })),
+    }
+    if (runtimeConfig.isNative) {
+      const synced = await syncDraftMutation(syncOfflineMutation, "save_production_plan", payload, props.plan?.modified || null)
+      offlineNotice.value = synced.queued ? "Direction saved on this device. It will sync when BulkBite reconnects." : ""
+    } else await saveMonthlyProductionPlan(payload)
+    await clearFormDraft("production-plan").catch(() => {})
+    formDirty.value = false
     emit("changed")
   } catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
@@ -174,9 +210,10 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
 </script>
 
 <template>
-  <section data-block="monthly-planning" class="workflow-block">
+  <section data-block="monthly-planning" class="workflow-block" :data-offline-draft-dirty="formDirty || undefined">
     <header class="workflow-header"><div><p class="eyebrow">{{ mode === 'forecasting' ? 'Forecasting' : 'Planning' }}</p><h1>{{ mode === 'forecasting' ? 'Test future production capacity' : 'Set the current meal direction' }}</h1><p>{{ mode === 'forecasting' ? 'Try customer growth, cooking days, hours, and crew sizes before changing the active plan.' : 'Keep customer numbers current and choose the four meals that repeat. Future buying and production recalculate whenever this direction changes.' }}</p></div><SystemBadge>{{ mode === 'forecasting' ? 'SCENARIO' : form.name ? 'ACTIVE DIRECTION' : 'NEW DIRECTION' }}</SystemBadge></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
+    <div v-if="offlineNotice" class="state-message" role="status">{{ offlineNotice }}</div>
 
     <section v-if="mode === 'planning'" class="form-section">
       <div class="section-heading"><div><p class="eyebrow">Customers</p><h2>Current customer mix</h2><p>Update these counts whenever customers change. Serving sizes and meal frequency come from customer plan records.</p></div><SystemBadge>{{ totalCustomers }} customers</SystemBadge></div>
@@ -220,6 +257,7 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
           <article v-for="(row, index) in form.capacity_runs" :key="index">
             <SystemFormControl v-model="row.week_number" type="number" min="1" max="4" step="1" label="Cycle week" />
             <SystemSelect v-model="row.day_of_week" label="Day" :options="dayOptions" />
+            <SystemFormControl v-model="row.planned_output_qty" type="number" min="0.1" step="0.1" label="Expected output (kg)" />
             <SystemFormControl v-model="row.scheduled_elapsed_hours" type="number" min="0.1" step="0.1" label="Cooking hours" />
             <SystemLinkedRecordField :model-value="row.team_template" label="Team template" :options="teamTemplateOptions" placeholder="Use default team" create-label="Create team template" manage-label="Manage team templates" @create="openLinked('create', 'BulkBite Team Template')" @manage="openLinked('list', 'BulkBite Team Template')" @update:model-value="changeCapacityRunTeam(row, $event)" />
             <SystemFormControl v-model="row.planned_people" type="number" min="1" step="1" label="People working" />
@@ -232,17 +270,17 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
         <div class="section-heading"><div><p class="eyebrow">{{ mode === 'planning' ? 'Current theoretical capacity' : 'Hypothetical capacity' }}</p><h2>{{ mode === 'planning' ? 'Can the current plan make enough food?' : 'Would this future schedule make enough food?' }}</h2><p>The overall result compares all food and team-hours across the full period. The weekly breakdown then shows where the time is available or short.</p></div><SystemBadge :theme="capacitySummary.status === 'Under capacity' ? 'red' : 'green'">{{ capacitySummary.status === 'Under capacity' ? 'Overall capacity gap' : 'Overall capacity ready' }}</SystemBadge></div>
         <article class="capacity-period-summary" :class="capacitySummary.status === 'Under capacity' ? 'is-under' : 'is-ready'">
           <div class="forecast-week-heading"><div><span>{{ mode === 'planning' ? 'Full four-week cycle' : `${capacitySummary.weeks}-week scenario` }}</span><strong>{{ capacitySummary.status }}</strong></div><SystemBadge :theme="capacitySummary.status === 'Under capacity' ? 'red' : 'green'">{{ capacitySummary.weeks }} {{ capacitySummary.weeks === 1 ? 'week' : 'weeks' }}</SystemBadge></div>
-          <div class="capacity-equation"><strong>{{ number(capacitySummary.scheduledTeamHours) }} team-hours planned</strong><span>·</span><strong>{{ number(capacitySummary.requiredTeamHours) }} team-hours needed</strong><span>·</span><strong>{{ number(Math.abs(capacitySummary.teamHourDifference)) }} team-hours {{ capacitySummary.teamHourDifference < 0 ? 'missing' : capacitySummary.teamHourDifference > 0 ? 'spare' : 'balanced' }}</strong></div>
-          <div class="metric-board"><div><strong>{{ number(capacitySummary.requiredOutputQty) }} kg</strong><span>total food needed</span></div><div><strong>{{ number(capacitySummary.scheduledElapsedHours) }} h</strong><span>planned cooking time</span></div><div><strong>{{ number(capacitySummary.scheduledTeamHours) }} h</strong><span>total team-hours planned</span></div><div><strong>{{ number(capacitySummary.requiredTeamHours) }} h</strong><span>total team-hours needed</span></div><div><strong>{{ capacitySummary.runCount }}</strong><span>production runs</span></div><div><strong>{{ capacitySummary.underCapacityWeeks }}</strong><span>weeks with a gap</span></div></div>
+          <div class="capacity-equation"><strong>{{ number(capacitySummary.plannedOutputQty) }} kg assigned</strong><span>−</span><strong>{{ number(capacitySummary.requiredOutputQty) }} kg needed</strong><span>=</span><strong>{{ number(Math.abs(capacitySummary.outputDifference)) }} kg {{ capacitySummary.outputDifference < 0 ? 'short' : capacitySummary.outputDifference > 0 ? 'spare' : 'balanced' }}</strong></div>
+          <div class="metric-board"><div><strong>{{ number(capacitySummary.requiredOutputQty) }} kg</strong><span>total food needed</span></div><div><strong>{{ number(capacitySummary.plannedOutputQty) }} kg</strong><span>food assigned to runs</span></div><div><strong>{{ number(capacitySummary.scheduledElapsedHours) }} h</strong><span>planned cooking time</span></div><div><strong>{{ number(capacitySummary.scheduledTeamHours) }} h</strong><span>total team-hours planned</span></div><div><strong>{{ number(capacitySummary.requiredTeamHours) }} h</strong><span>total team-hours needed</span></div><div><strong>{{ capacitySummary.runCount }}</strong><span>production runs</span></div><div><strong>{{ capacitySummary.underCapacityWeeks }}</strong><span>weeks with a gap</span></div></div>
           <p v-if="capacitySummary.status === 'Under capacity'">The full period is {{ number(Math.abs(capacitySummary.teamHourDifference)) }} team-hours short. Use the weekly breakdown to see where more time or people are needed.</p><p v-else-if="capacitySummary.underCapacityWeeks">The full period has {{ number(capacitySummary.teamHourDifference) }} spare team-hours overall, but {{ capacitySummary.underCapacityWeeks }} {{ capacitySummary.underCapacityWeeks === 1 ? 'week is' : 'weeks are' }} still under capacity. Move or add time in the weekly schedule.</p><p v-else-if="capacitySummary.status === 'Over capacity'">The full period has {{ number(capacitySummary.teamHourDifference) }} spare team-hours and every displayed week is covered.</p><p v-else>The available team-hours match the total food requirement.</p>
         </article>
         <div class="capacity-breakdown-heading"><div><p class="eyebrow">Weekly breakdown</p><h3>Where the total comes from</h3></div><SystemBadge>{{ capacitySummary.weeks }} {{ capacitySummary.weeks === 1 ? 'week' : 'weeks' }}</SystemBadge></div>
         <div class="forecast-week-list">
           <article v-for="row in scenarioForecast" :key="row.week_number" :class="row.capacity_state === 'idle' ? 'is-idle' : row.capacity_state === 'under' ? 'is-under' : 'is-ready'">
             <div class="forecast-week-heading"><div><span>Week {{ row.week_number }}</span><strong>{{ row.status }}</strong></div><SystemBadge :theme="row.capacity_state === 'under' ? 'red' : row.capacity_state === 'ready' ? 'green' : undefined">{{ row.run_count ? `${row.run_count} ${row.run_count === 1 ? 'run' : 'runs'}` : 'No run needed' }}</SystemBadge></div>
-            <div class="capacity-equation"><strong v-if="row.opening_team_hour_balance">Opening balance {{ row.opening_team_hour_balance < 0 ? '−' : '+' }}{{ number(Math.abs(row.opening_team_hour_balance)) }} team-hours</strong><span v-if="row.opening_team_hour_balance">+</span><strong>{{ number(row.scheduled_team_hours) }} team-hours scheduled</strong><span>−</span><strong>{{ number(row.required_team_hours) }} team-hours required</strong><span>=</span><strong>{{ number(Math.abs(row.closing_team_hour_balance)) }} team-hours {{ row.closing_team_hour_balance < 0 ? 'short' : row.closing_team_hour_balance > 0 ? 'spare' : 'balanced' }} after week</strong></div>
-            <div class="metric-board"><div><strong>{{ number(row.required_output_qty) }} kg</strong><span>food required</span></div><div><strong>{{ number(row.scheduled_elapsed_hours) }} h</strong><span>cooking time planned</span></div><div><strong>{{ number(row.scheduled_team_hours) }} h</strong><span>team-hours planned</span></div><div><strong>{{ number(row.required_team_hours) }} h</strong><span>team-hours needed</span></div><div><strong>{{ number(row.expected_elapsed_hours) }} h</strong><span>time needed with current crew</span></div><div><strong>{{ number(row.current_labour_minutes_per_kg) }} min/kg</strong><span>current demonstrated rate</span></div></div>
-            <p v-if="row.capacity_state === 'under'">After using all effort carried from earlier weeks and all runs available this week, the plan is {{ number(Math.abs(row.closing_team_hour_balance)) }} team-hours short by the end of Week {{ row.week_number }}. Add {{ row.additional_people_needed }} {{ row.additional_people_needed === 1 ? 'person' : 'people' }} to this week's runs to clear the cumulative gap.</p><p v-else-if="row.capacity_state === 'idle'">Earlier production already covers Week {{ row.week_number }}, so no production run is planned. {{ number(row.closing_team_hour_balance) }} team-hours remain for the following week.</p><p v-else-if="row.status === 'Over capacity'">This week's production covers demand through Week {{ row.week_number }}. {{ number(row.closing_team_hour_balance) }} team-hours remain for the next week.</p><p v-else>This week's production exactly covers demand through Week {{ row.week_number }}.</p>
+            <div class="capacity-equation"><strong v-if="row.opening_output_balance_qty">Opening food balance {{ row.opening_output_balance_qty < 0 ? '−' : '+' }}{{ number(Math.abs(row.opening_output_balance_qty)) }} kg</strong><span v-if="row.opening_output_balance_qty">+</span><strong>{{ number(row.planned_output_qty) }} kg assigned</strong><span>−</span><strong>{{ number(row.required_output_qty) }} kg required</strong><span>=</span><strong>{{ number(Math.abs(row.closing_output_balance_qty)) }} kg {{ row.closing_output_balance_qty < 0 ? 'short' : row.closing_output_balance_qty > 0 ? 'spare' : 'balanced' }} after week</strong></div>
+            <div class="metric-board"><div><strong>{{ number(row.required_output_qty) }} kg</strong><span>food required</span></div><div><strong>{{ number(row.planned_output_qty) }} kg</strong><span>food assigned</span></div><div><strong>{{ number(row.scheduled_elapsed_hours) }} h</strong><span>cooking time planned</span></div><div><strong>{{ number(row.scheduled_team_hours) }} h</strong><span>team-hours available</span></div><div><strong>{{ number(row.required_team_hours) }} h</strong><span>team-hours needed for assigned food</span></div><div><strong>{{ number(row.current_labour_minutes_per_kg) }} min/kg</strong><span>current demonstrated rate</span></div></div>
+            <p v-if="row.capacity_state === 'under' && row.closing_output_balance_qty < 0">After using food carried from earlier weeks and all assigned runs this week, the plan is {{ number(Math.abs(row.closing_output_balance_qty)) }} kg short by the end of Week {{ row.week_number }}.</p><p v-else-if="row.capacity_state === 'under'">The assigned food is covered, but the team is {{ number(Math.abs(row.team_hour_difference)) }} team-hours short. Add {{ row.additional_people_needed }} {{ row.additional_people_needed === 1 ? 'person' : 'people' }} or extend the cooking time.</p><p v-else-if="row.capacity_state === 'idle'">Earlier production already covers Week {{ row.week_number }}, so no production run is needed. {{ number(row.closing_output_balance_qty) }} kg remains for the following week.</p><p v-else-if="row.status === 'Over capacity'">This week's schedule covers demand through Week {{ row.week_number }}. {{ number(row.closing_output_balance_qty) }} kg remains for the next week.</p><p v-else>This week's production exactly covers demand through Week {{ row.week_number }}.</p>
           </article>
         </div>
       </section>

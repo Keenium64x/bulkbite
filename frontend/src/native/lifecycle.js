@@ -5,6 +5,8 @@ import { Network } from "@capacitor/network"
 import { reactive } from "vue"
 import { checkNativeProductionAvailability, markNativeOffline } from "@/native/availability"
 import { nativeSession, restoreNativeSession } from "@/native/auth"
+import { flushOfflineMutations } from "@/native/offlineSync"
+import { syncOfflineMutation } from "@/resources/api"
 
 
 // =============================================================================
@@ -51,10 +53,11 @@ export async function handleNativeBack(router, exitApp = () => CapacitorApp.exit
 }
 
 async function restoreSessionAfterResume() {
-  if (!nativeState.connected) return
-  const available = await checkNativeProductionAvailability({ force: true })
-  if (!available) return
-  await restoreNativeSession().catch(() => {})
+	if (!nativeState.connected) return
+	const available = await checkNativeProductionAvailability({ force: true, announce: nativeSession.authenticated })
+	if (!available) return
+	if (nativeSession.authenticated) await restoreNativeSession().catch(() => {})
+	if (nativeSession.authenticated) await flushOfflineMutations(syncOfflineMutation).catch(() => {})
 }
 
 export async function initialiseNativeLifecycle(router) {
@@ -63,11 +66,13 @@ export async function initialiseNativeLifecycle(router) {
   const network = await Network.getStatus()
   nativeState.connected = network.connected
   nativeState.connectionType = network.connectionType
-  Network.addListener("networkStatusChange", status => {
-    Object.assign(nativeState, status)
-    if (!status.connected) markNativeOffline()
-    else checkNativeProductionAvailability({ force: true })
-  })
+	Network.addListener("networkStatusChange", status => {
+		Object.assign(nativeState, status)
+		if (!status.connected) markNativeOffline()
+		else checkNativeProductionAvailability({ force: true, announce: nativeSession.authenticated }).then(available => {
+			if (available && nativeSession.authenticated) flushOfflineMutations(syncOfflineMutation).catch(() => {})
+		})
+	})
   CapacitorApp.addListener("appUrlOpen", ({ url }) => handleAppUrl(url, router))
   CapacitorApp.addListener("appStateChange", ({ isActive }) => {
     if (isActive) restoreSessionAfterResume()

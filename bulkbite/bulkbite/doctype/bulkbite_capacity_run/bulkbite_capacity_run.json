@@ -5,11 +5,12 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["week_number", "run_number", "day_of_week", "scheduled_elapsed_hours", "team_template", "planned_people"],
+ "field_order": ["week_number", "run_number", "day_of_week", "planned_output_qty", "scheduled_elapsed_hours", "team_template", "planned_people"],
  "fields": [
   {"fieldname": "week_number", "fieldtype": "Int", "in_list_view": 1, "label": "Cycle Week", "reqd": 1},
   {"fieldname": "run_number", "fieldtype": "Int", "in_list_view": 1, "label": "Run Number", "reqd": 1},
   {"fieldname": "day_of_week", "fieldtype": "Select", "in_list_view": 1, "label": "Day", "options": "Monday\nTuesday\nWednesday\nThursday\nFriday\nSaturday\nSunday", "reqd": 1},
+  {"fieldname": "planned_output_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Expected Food Output (Kg)", "non_negative": 1, "reqd": 1},
   {"fieldname": "scheduled_elapsed_hours", "fieldtype": "Float", "in_list_view": 1, "label": "Cooking Hours", "non_negative": 1, "reqd": 1},
   {"fieldname": "team_template", "fieldtype": "Link", "label": "Team Template", "options": "BulkBite Team Template"},
   {"fieldname": "planned_people", "fieldtype": "Int", "in_list_view": 1, "label": "People", "non_negative": 1, "reqd": 1}

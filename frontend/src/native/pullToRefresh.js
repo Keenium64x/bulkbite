@@ -32,8 +32,8 @@ export function createNativePullController(refresh) {
   let tracking = false
   let scrollSurface = null
 
-  function handleTouchStart(event) {
-    if (!runtimeConfig.isNative || pullToRefreshState.refreshing || event.touches.length !== 1 || shouldIgnoreTarget(event.target)) return
+	function handleTouchStart(event) {
+		if (!runtimeConfig.isNative || pullToRefreshState.refreshing || event.touches.length !== 1 || shouldIgnoreRefresh(event.target)) return
     scrollSurface = resolveScrollSurface(event.target)
     if (!isScrollSurfaceAtTop(scrollSurface)) return
     clearOutcome()
@@ -134,8 +134,11 @@ function isScrollSurfaceAtTop(scrollSurface) {
   return (isRoot ? window.scrollY : scrollSurface.scrollTop) <= 1
 }
 
-function shouldIgnoreTarget(target) {
-  return target instanceof Element && Boolean(target.closest("[data-native-pull-ignore]"))
+function shouldIgnoreRefresh(target) {
+	if (!(target instanceof Element)) return true
+	if (target.closest("[data-native-pull-ignore], .native-login, input, textarea, select, [contenteditable='true']")) return true
+	if (document.activeElement instanceof Element && document.activeElement.matches("input, textarea, select, [contenteditable='true']")) return true
+	return Boolean(document.querySelector("form[data-form-dirty='true'], [data-offline-draft-dirty='true']"))
 }
 
 function showOutcome(outcome) {

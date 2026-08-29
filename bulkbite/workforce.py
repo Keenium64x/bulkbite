@@ -314,7 +314,7 @@ def calculate_run_performance(actual_output_qty, actual_elapsed_hours, employees
 
 
 def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg, capacity_runs=None):
-	"""Forecast demand against an explicit repeating production schedule."""
+	"""Compare food coverage and labour capacity for an explicit repeating schedule."""
 	forecast_weeks = max(int(forecast_weeks or 4), 1)
 	current_by_plan = {row.get("plan_type"): row for row in current_mix or []}
 	target_by_plan = {row.get("plan_type"): row for row in target_mix or []}
@@ -322,7 +322,7 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 	runs_by_week = _group_capacity_runs(capacity_runs)
 	has_explicit_run_schedule = bool(runs_by_week)
 	rows = []
-	carried_team_hours = 0
+	carried_output_qty = 0
 	for week in range(1, forecast_weeks + 1):
 		mix = []
 		for plan_type, current in current_by_plan.items():
@@ -339,62 +339,84 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			if has_explicit_run_schedule
 			else _expand_capacity_window(windows.get(cycle_week) or {})
 		)
-		required_hours = flt(demand["weekly_output_qty"]) * flt(labour_minutes_per_kg) / 60
-		net_required_hours = max(required_hours - carried_team_hours, 0)
-		schedule = _select_required_capacity_runs(available_schedule, carried_team_hours, required_hours)
+		schedule = _select_required_output_runs(
+			available_schedule,
+			carried_output_qty,
+			flt(demand["weekly_output_qty"]),
+			labour_minutes_per_kg,
+		)
+		planned_output_qty = sum(flt(run.get("planned_output_qty")) for run in schedule)
+		required_output_qty = flt(demand["weekly_output_qty"])
+		opening_output_balance = round(carried_output_qty, 3)
+		closing_output_balance = round(opening_output_balance + planned_output_qty - required_output_qty, 3)
+		carried_output_qty = closing_output_balance
+		required_hours = planned_output_qty * flt(labour_minutes_per_kg) / 60
 		elapsed_hours = sum(flt(run.get("scheduled_elapsed_hours")) for run in schedule)
 		team_hours = sum(flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0) for run in schedule)
 		team_size = round(team_hours / elapsed_hours, 1) if elapsed_hours else 0
-		required_average_crew = net_required_hours / elapsed_hours if net_required_hours and elapsed_hours else 0
-		required_people = math.ceil(net_required_hours / elapsed_hours) if net_required_hours and elapsed_hours else 0
-		balance = calculate_capacity_balance(carried_team_hours, team_hours, required_hours)
-		carried_team_hours = balance["closing_team_hour_balance"]
-		idle_week = not schedule and balance["opening_team_hour_balance"] >= required_hours
-		capacity_state = "idle" if idle_week else "under" if carried_team_hours < 0 else "ready"
-		additional_people = math.ceil(abs(carried_team_hours) / elapsed_hours) if carried_team_hours < 0 and elapsed_hours else 0
-		people_above = math.floor(carried_team_hours / elapsed_hours) if carried_team_hours > 0 and elapsed_hours else 0
-		people_difference = people_above if carried_team_hours >= 0 else -additional_people
+		required_average_crew = required_hours / elapsed_hours if required_hours and elapsed_hours else 0
+		required_people = math.ceil(required_hours / elapsed_hours) if required_hours and elapsed_hours else 0
+		team_hour_difference = round(team_hours - required_hours, 2)
+		idle_week = not schedule and opening_output_balance >= required_output_qty
+		under_capacity = closing_output_balance < 0 or team_hour_difference < 0
+		capacity_state = "idle" if idle_week else "under" if under_capacity else "ready"
+		additional_people = math.ceil(abs(team_hour_difference) / elapsed_hours) if team_hour_difference < 0 and elapsed_hours else 0
+		people_above = math.floor(team_hour_difference / elapsed_hours) if team_hour_difference > 0 and elapsed_hours else 0
+		people_difference = people_above if team_hour_difference >= 0 else -additional_people
+		status = "Covered by earlier production" if idle_week else "Under capacity" if under_capacity else "Over capacity" if closing_output_balance > 0 or team_hour_difference > 0 else "At capacity"
 		rows.append({
 			"week_number": week,
 			"cycle_week": cycle_week,
 			"customers": demand["total_customers"],
-			"required_output_qty": demand["weekly_output_qty"],
+			"required_output_qty": required_output_qty,
+			"planned_output_qty": round(planned_output_qty, 3),
+			"opening_output_balance_qty": opening_output_balance,
+			"week_output_difference_qty": round(planned_output_qty - required_output_qty, 3),
+			"closing_output_balance_qty": closing_output_balance,
+			"output_difference_qty": closing_output_balance,
 			"scheduled_elapsed_hours": round(elapsed_hours, 2),
 			"scheduled_team_hours": round(team_hours, 2),
-			"planned_takt_minutes_per_kg": round(team_hours * 60 / demand["weekly_output_qty"], 2) if demand["weekly_output_qty"] else 0,
+			"planned_takt_minutes_per_kg": round(team_hours * 60 / planned_output_qty, 2) if planned_output_qty else 0,
 			"current_labour_minutes_per_kg": round(flt(labour_minutes_per_kg), 2),
 			"required_team_hours": round(required_hours, 2),
-			"expected_elapsed_hours": round(net_required_hours / team_size, 2) if team_size else 0,
+			"expected_elapsed_hours": round(required_hours / team_size, 2) if team_size else 0,
 			"team_size": team_size,
 			"required_average_crew": round(required_average_crew, 2),
 			"required_people": required_people,
 			"people_difference": people_difference,
 			"additional_people_needed": additional_people,
 			"people_above_requirement": people_above,
-			**balance,
-			"status": "Covered by earlier production" if idle_week else balance["status"],
+			"opening_team_hour_balance": 0,
+			"week_team_hour_difference": team_hour_difference,
+			"closing_team_hour_balance": team_hour_difference,
+			"status": status,
 			"capacity_state": capacity_state,
 			"available_run_count": len(available_schedule),
-			"team_hour_difference": balance["week_team_hour_difference"],
+			"team_hour_difference": team_hour_difference,
 			"run_count": len(schedule),
 			"schedule": schedule,
 		})
 	return rows
 
 
-def _select_required_capacity_runs(schedule, opening_team_hours, required_team_hours):
-	"""Use ordered production slots only until carried and scheduled effort cover the period."""
-	remaining_hours = max(flt(required_team_hours) - flt(opening_team_hours), 0)
-	if remaining_hours <= 0:
+def _select_required_output_runs(schedule, opening_output_qty, required_output_qty, labour_minutes_per_kg):
+	"""Use ordered cooking sessions only until carried and planned food cover demand."""
+	remaining_output = max(flt(required_output_qty) - flt(opening_output_qty), 0)
+	if remaining_output <= 0:
 		return []
 	selected = []
-	for run in schedule or []:
-		run_team_hours = flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0)
-		if run_team_hours <= 0:
+	for supplied in schedule or []:
+		run = dict(supplied)
+		planned_output = flt(run.get("planned_output_qty"))
+		if planned_output <= 0 and flt(labour_minutes_per_kg) > 0:
+			team_hours = flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0)
+			planned_output = team_hours * 60 / flt(labour_minutes_per_kg)
+		if planned_output <= 0:
 			continue
+		run["planned_output_qty"] = round(planned_output, 3)
 		selected.append(run)
-		remaining_hours -= run_team_hours
-		if remaining_hours <= 0:
+		remaining_output -= planned_output
+		if remaining_output <= 0:
 			break
 	return selected
 
@@ -420,6 +442,7 @@ def _expand_capacity_window(window):
 			"run_number": index + 1,
 			"day_of_week": "Unscheduled",
 			"scheduled_elapsed_hours": elapsed,
+			"planned_output_qty": flt(window.get("planned_output_qty")) / count if count else 0,
 			"planned_people": int(window.get("team_size") or 0),
 			"team_template": window.get("team_template"),
 		}

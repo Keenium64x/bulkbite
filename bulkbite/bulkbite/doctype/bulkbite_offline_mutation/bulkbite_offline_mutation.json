@@ -1,0 +1,34 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:client_mutation_id",
+ "creation": "2026-08-29 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["client_mutation_id", "operation", "status", "requested_by", "payload_hash", "result_json", "completed_on"],
+ "fields": [
+  {"fieldname": "client_mutation_id", "fieldtype": "Data", "in_list_view": 1, "label": "Client Mutation ID", "read_only": 1, "reqd": 1, "unique": 1},
+  {"fieldname": "operation", "fieldtype": "Data", "in_list_view": 1, "label": "Operation", "read_only": 1, "reqd": 1},
+  {"default": "Processing", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Processing\nCompleted\nFailed", "read_only": 1, "reqd": 1},
+  {"fieldname": "requested_by", "fieldtype": "Link", "label": "Requested By", "options": "User", "read_only": 1, "reqd": 1},
+  {"fieldname": "payload_hash", "fieldtype": "Data", "label": "Payload Hash", "read_only": 1, "reqd": 1},
+  {"fieldname": "result_json", "fieldtype": "Long Text", "hidden": 1, "label": "Result", "read_only": 1},
+  {"fieldname": "completed_on", "fieldtype": "Datetime", "label": "Completed On", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-29 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Offline Mutation",
+ "owner": "Administrator",
+ "permissions": [
+  {"read": 1, "role": "System Manager"},
+  {"read": 1, "role": "BulkBite Manager"},
+  {"read": 1, "role": "BulkBite Worker"}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

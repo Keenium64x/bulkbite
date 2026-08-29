@@ -1,8 +1,13 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue"
+import { computed, nextTick, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { SystemBadge, SystemCheckboxShadcn, SystemDatePicker, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect, SystemTextarea } from "@/desyium"
 import { createRunFromPlan, discardProductionRun, getRecipeExpectation, saveProductionEmployees, submitProductionRun, updateProductionActuals } from "@/resources/api"
+import { syncOfflineMutation } from "@/resources/api"
+import { clearFormDraft, loadFormDraft, saveFormDraft } from "@/native/offlineStore"
+import { syncDraftMutation } from "@/native/offlineSync"
+import { runtimeConfig } from "@/config/runtime"
+import { nativeState } from "@/native/lifecycle"
 
 // =============================================================================
 // region PLANNED PRODUCTION STATION
@@ -25,7 +30,9 @@ const directionAction = ref("Advance Direction")
 const run = ref(null)
 const busy = ref(false)
 const error = ref("")
+const offlineNotice = ref("")
 const dirtySinceSave = ref(false)
+let hydrating = false
 const station = computed(() => props.plan?.next_production || { state: "complete", row: null, run: null })
 const selectedRow = computed(() => station.value.row)
 const selectedCapacityWindow = computed(() => props.plan?.capacity_plan?.windows?.find(row => Number(row.week_number) === Number(selectedRow.value?.week_number)) || null)
@@ -36,12 +43,18 @@ watch([actualOutput, notes, () => measurements.map(item => [item.measurement_met
 }, { deep: true })
 watch(employeeRows, () => { if (run.value) dirtySinceSave.value = true }, { deep: true })
 watch([teamTemplate, actualElapsedHours], () => { if (run.value) dirtySinceSave.value = true })
+watch([actualOutput, notes, measurements, employeeRows, teamTemplate, actualElapsedHours], () => {
+  if (!runtimeConfig.isNative || !selectedRow.value || hydrating) return
+  dirtySinceSave.value = true
+  saveFormDraft("production-run", productionDraftPayload()).catch(() => {})
+}, { deep: true })
 
 function hydrateStation(value) {
+  hydrating = true
   const row = value?.row
   run.value = value?.run || null
   measurements.splice(0)
-  if (!row) return
+  if (!row) { nextTick(() => { hydrating = false }); return }
   productionDate.value = run.value?.production_date || row.planned_date || localToday()
   actualOutput.value = roundQuantity(run.value?.actual_output_qty ?? row.planned_output_qty)
   plannedOutput.value = roundQuantity(run.value?.planned_output_qty ?? row.planned_output_qty)
@@ -57,6 +70,42 @@ function hydrateStation(value) {
   teamTemplate.value = run.value?.team_template || props.plan?.capacity_plan?.default_team_template || ""
   actualElapsedHours.value = Number(run.value?.actual_elapsed_hours || run.value?.scheduled_elapsed_hours || selectedCapacityWindow.value?.scheduled_elapsed_hours || 0)
   dirtySinceSave.value = false
+  if (runtimeConfig.isNative) restoreLocalProductionDraft()
+  nextTick(() => { hydrating = false })
+}
+
+async function restoreLocalProductionDraft() {
+  const draft = await loadFormDraft("production-run").catch(() => null)
+  if (!draft || draft.plan_row_name !== selectedRow.value?.name) return
+  actualOutput.value = draft.actual_output_qty
+  notes.value = draft.notes || ""
+  measurements.splice(0, measurements.length, ...(draft.ingredients || []))
+  employeeRows.splice(0, employeeRows.length, ...(draft.employees || []))
+  teamTemplate.value = draft.team_template || ""
+  actualElapsedHours.value = draft.actual_elapsed_hours || 0
+  dirtySinceSave.value = true
+  offlineNotice.value = "A production draft saved on this device was restored."
+}
+
+function productionDraftPayload() {
+  return {
+    name: run.value?.name || "",
+    plan_name: props.plan?.name,
+    plan_row_name: selectedRow.value?.name,
+    production_date: productionDate.value,
+    source_location: props.plan?.location,
+    target_location: "Finished Meals",
+    recipe: selectedRecipe.value,
+    planned_output_qty: roundQuantity(plannedOutput.value),
+    actual_output_qty: roundQuantity(actualOutput.value),
+    direction_action: directionAction.value,
+    ingredients: measurements.map(item => ({ item_code: item.item_code, measurement_method: item.measurement_method, actual_qty: roundQuantity(item.actual_qty), remaining_qty: roundQuantity(item.remaining_qty) })),
+    notes: notes.value,
+    employees: employeeRows.map(row => ({ ...row })),
+    team_template: teamTemplate.value,
+    actual_elapsed_hours: Number(actualElapsedHours.value || 0),
+    scheduled_elapsed_hours: selectedCapacityWindow.value?.scheduled_elapsed_hours,
+  }
 }
 
 async function saveRun() {
@@ -69,9 +118,16 @@ async function saveRun() {
     if (measurements.some(item => Number(item.measurement_method === "Remaining" ? item.remaining_qty : item.actual_qty) < 0)) throw new Error("Ingredient measurements cannot be negative.")
     if (!selectedRecipe.value) throw new Error("Choose the meal that was made.")
     if (Number(plannedOutput.value) <= 0) throw new Error("Planned output must be greater than zero.")
-    if (!run.value) run.value = await createRunFromPlan(props.plan.name, selectedRow.value.name, productionDate.value, props.plan.location, "Finished Meals", selectedRecipe.value, plannedOutput.value, directionAction.value)
-    run.value = await updateProductionActuals(run.value.name, roundQuantity(actualOutput.value), measurements.map(item => ({ item_code: item.item_code, measurement_method: item.measurement_method, actual_qty: roundQuantity(item.actual_qty), remaining_qty: roundQuantity(item.remaining_qty) })), notes.value)
-    run.value = await saveProductionEmployees(run.value.name, employeeRows, teamTemplate.value, actualElapsedHours.value, selectedCapacityWindow.value?.scheduled_elapsed_hours)
+    if (runtimeConfig.isNative) {
+      const synced = await syncDraftMutation(syncOfflineMutation, "save_production_draft", productionDraftPayload(), run.value?.modified || null)
+      if (synced.queued) offlineNotice.value = "Production draft saved on this device. Connect before posting it to stock."
+      else { run.value = synced.result; offlineNotice.value = "" }
+    } else {
+      if (!run.value) run.value = await createRunFromPlan(props.plan.name, selectedRow.value.name, productionDate.value, props.plan.location, "Finished Meals", selectedRecipe.value, plannedOutput.value, directionAction.value)
+      run.value = await updateProductionActuals(run.value.name, roundQuantity(actualOutput.value), measurements.map(item => ({ item_code: item.item_code, measurement_method: item.measurement_method, actual_qty: roundQuantity(item.actual_qty), remaining_qty: roundQuantity(item.remaining_qty) })), notes.value)
+      run.value = await saveProductionEmployees(run.value.name, employeeRows, teamTemplate.value, actualElapsedHours.value, selectedCapacityWindow.value?.scheduled_elapsed_hours)
+    }
+    await clearFormDraft("production-run").catch(() => {})
     dirtySinceSave.value = false
   } catch (exception) {
     error.value = exception.message
@@ -84,6 +140,7 @@ async function postRun() {
   busy.value = true
   error.value = ""
   try {
+    if (runtimeConfig.isNative && !nativeState.connected) throw new Error("Connect to BulkBite before posting production to stock.")
     if (dirtySinceSave.value) throw new Error("Save the changed measurements before posting.")
     run.value = await submitProductionRun(run.value.name)
     emit("changed")
@@ -152,9 +209,10 @@ function openRecipeRecords(create = false) { router.push({ name: create ? "Auxil
 </script>
 
 <template>
-  <section data-block="production-measurement" class="workflow-block">
+  <section data-block="production-measurement" class="workflow-block" :data-offline-draft-dirty="dirtySinceSave || undefined">
     <header class="workflow-header"><div><p class="eyebrow">Production</p><h1>Record the next meal</h1><p>The current direction chooses the next meal. Saving keeps a draft; posting moves stock once.</p></div><div class="button-row"><SystemOperationalButton variant="outline" @click="emit('open-employees')">Manage employees</SystemOperationalButton><SystemOperationalButton variant="outline" @click="emit('open-worker-sheets')">Worker sheets</SystemOperationalButton><SystemBadge v-if="selectedRow">Cycle {{ station.cycle_number || 1 }} · Meal {{ selectedRow.week_number }}</SystemBadge></div></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
+    <div v-if="offlineNotice" class="state-message" role="status">{{ offlineNotice }}</div>
     <div v-if="!plan" class="state-message">Set the current meal direction before recording production.</div>
     <template v-else-if="selectedRow">
       <section class="form-section">

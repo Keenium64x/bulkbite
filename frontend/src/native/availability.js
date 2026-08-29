@@ -47,22 +47,24 @@ export function noteNativeResponse(response) {
   else markNativeServerReachable()
 }
 
-export async function checkNativeProductionAvailability({ force = false } = {}) {
-  if (!runtimeConfig.isNative) return true
-  if (activeHealthCheck && !force) return activeHealthCheck
+export async function checkNativeProductionAvailability({ force = false, announce = true } = {}) {
+	if (!runtimeConfig.isNative) return true
+	if (activeHealthCheck && !force) return activeHealthCheck
 
-  nativeAvailability.checking = true
-  nativeAvailability.status = "checking"
-  activeHealthCheck = runHealthCheck().finally(() => { activeHealthCheck = null })
-  return activeHealthCheck
+	if (announce) {
+		nativeAvailability.checking = true
+		nativeAvailability.status = "checking"
+	}
+	activeHealthCheck = runHealthCheck({ announce }).finally(() => { activeHealthCheck = null })
+	return activeHealthCheck
 }
 
-async function runHealthCheck() {
-  const network = await Network.getStatus().catch(() => ({ connected: true }))
-  if (!network.connected) {
-    markNativeOffline()
-    return false
-  }
+async function runHealthCheck({ announce = true } = {}) {
+	const network = await Network.getStatus().catch(() => ({ connected: true }))
+	if (!network.connected) {
+		if (announce) markNativeOffline()
+		return false
+	}
 
   try {
     const response = await fetch(absoluteApiUrl("/api/method/ping"), {
@@ -70,17 +72,17 @@ async function runHealthCheck() {
       headers: { Accept: "application/json" },
       cache: "no-store",
     })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok || payload.message !== "pong") {
-      markNativeServerUnavailable()
-      return false
-    }
-    markNativeServerReachable()
-    return true
-  } catch {
-    markNativeServerUnavailable()
-    return false
-  }
+		const payload = await response.json().catch(() => ({}))
+		if (!response.ok || payload.message !== "pong") {
+			if (announce) markNativeServerUnavailable()
+			return false
+		}
+		markNativeServerReachable()
+		return true
+	} catch {
+		if (announce) markNativeServerUnavailable()
+		return false
+	}
 }
 
 
