@@ -4,9 +4,10 @@ import { useRouter } from "vue-router"
 import { SystemBadge, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemSelect } from "@/desyium"
 import { calculateCapacityScenario, cancelProductionPlan, saveMonthlyProductionPlan } from "@/resources/api"
 import { syncOfflineMutation } from "@/resources/api"
-import { clearFormDraft, loadFormDraft, saveFormDraft } from "@/native/offlineStore"
+import { clearFormDraft, clearSyncOutcome, listQueuedMutations, loadFormDraft, loadSyncOutcome, offlineState, saveFormDraft } from "@/native/offlineStore"
 import { syncDraftMutation } from "@/native/offlineSync"
 import { runtimeConfig } from "@/config/runtime"
+import { nativeState } from "@/native/lifecycle"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null }, mode: { type: String, default: "planning" } })
 const emit = defineEmits(["changed", "open-employees"])
@@ -15,6 +16,9 @@ const busy = ref(false)
 const error = ref("")
 const offlineNotice = ref("")
 const formDirty = ref(false)
+const queuedMutationId = ref("")
+const queuedMutation = ref(null)
+const draftLocked = computed(() => Boolean(queuedMutationId.value))
 const form = reactive({ name: "", plan_title: "", status: "Active", customer_mix: [], plan_rows: [], purchase_routes: [], forecast_weeks: 4, default_team_template: "", capacity_windows: [], capacity_runs: [], forecast_customer_mix: [] })
 const scenarioForecast = ref([])
 let scenarioTimer
@@ -82,10 +86,14 @@ const workforceSummary = computed(() => {
 watch(() => [props.plan, props.snapshot], hydrate, { immediate: true, deep: true })
 watch(() => [form.customer_mix, form.forecast_weeks, form.default_team_template, form.forecast_customer_mix, form.capacity_runs, props.mode], queueScenarioCalculation, { deep: true })
 watch(form, value => {
-  if (props.mode !== "planning" || hydrating) return
+  if (props.mode !== "planning" || hydrating || draftLocked.value) return
   formDirty.value = true
-  if (runtimeConfig.isNative) saveFormDraft("production-plan", structuredClone(value)).catch(() => {})
+  if (runtimeConfig.isNative) persistLocalPlanDraft().catch(() => {})
 }, { deep: true })
+watch(() => nativeState.connected, connected => {
+  if (connected) window.setTimeout(() => reconcileQueuedPlan().catch(() => {}), 1500)
+})
+watch(() => offlineState.lastSyncedAt, () => reconcileQueuedPlan().catch(() => {}))
 
 function hydrate() {
   hydrating = true
@@ -121,17 +129,57 @@ function hydrate() {
   })
   scenarioForecast.value = []
   formDirty.value = false
-  if (runtimeConfig.isNative && props.mode === "planning") restoreLocalPlanDraft()
+  if (runtimeConfig.isNative && props.mode === "planning") {
+    restoreLocalPlanDraft().then(() => reconcileQueuedPlan()).catch(() => {})
+  }
   nextTick(() => { hydrating = false })
   queueScenarioCalculation()
 }
 
 async function restoreLocalPlanDraft() {
   const draft = await loadFormDraft("production-plan").catch(() => null)
-  if (!draft || draft.name !== form.name) return
-  Object.assign(form, draft)
+  const payload = draft?.payload || draft
+  if (!payload || payload.name !== form.name) return
+  Object.assign(form, payload)
+  queuedMutationId.value = draft.queuedMutationId || ""
+  queuedMutation.value = draft.queuedMutation || null
   formDirty.value = true
-  offlineNotice.value = "A newer draft saved on this device was restored."
+  offlineNotice.value = queuedMutationId.value ? "Direction is saved on this device and waiting to sync." : "A newer draft saved on this device was restored."
+}
+
+async function persistLocalPlanDraft(payload = structuredClone(form)) {
+  if (!runtimeConfig.isNative) return
+  await saveFormDraft("production-plan", {
+    payload,
+    queuedMutationId: queuedMutationId.value,
+    queuedMutation: queuedMutation.value,
+  })
+}
+
+async function reconcileQueuedPlan(attempt = 0) {
+  if (!queuedMutationId.value || !nativeState.connected) return
+  const queue = await listQueuedMutations().catch(() => [])
+  if (queue.some(mutation => mutation.clientMutationId === queuedMutationId.value)) {
+    if (attempt < 8) window.setTimeout(() => reconcileQueuedPlan(attempt + 1).catch(() => {}), 1500)
+    return
+  }
+  const resolution = offlineState.lastResolution?.clientMutationId === queuedMutationId.value ? offlineState.lastResolution : null
+  const completed = offlineState.completedResults[queuedMutationId.value]
+  const persisted = await loadSyncOutcome(queuedMutationId.value).catch(() => null)
+  const serverWon = resolution?.action === "server" || persisted?.action === "server"
+  let synchronized = resolution?.result || persisted?.result || completed || null
+  if (!serverWon && !synchronized && queuedMutation.value) {
+    const response = await syncOfflineMutation(queuedMutation.value)
+    synchronized = response?.result || null
+  }
+  delete offlineState.completedResults[queuedMutationId.value]
+  await clearSyncOutcome(queuedMutationId.value).catch(() => {})
+  await clearFormDraft("production-plan").catch(() => {})
+  queuedMutationId.value = ""
+  queuedMutation.value = null
+  formDirty.value = false
+  offlineNotice.value = serverWon ? "The server direction was kept. Local changes were discarded." : synchronized ? "Direction synchronized with BulkBite." : "Direction synchronization finished."
+  emit("changed")
 }
 
 function queueScenarioCalculation() {
@@ -187,11 +235,23 @@ async function savePlan() {
     }
     if (runtimeConfig.isNative) {
       const synced = await syncDraftMutation(syncOfflineMutation, "save_production_plan", payload, props.plan?.modified || null)
-      offlineNotice.value = synced.queued ? "Direction saved on this device. It will sync when BulkBite reconnects." : ""
+      if (synced.queued) {
+        queuedMutationId.value = synced.mutation.clientMutationId
+        queuedMutation.value = synced.mutation
+        await persistLocalPlanDraft(payload)
+        offlineNotice.value = synced.conflict ? "The server direction changed. Choose which version to keep." : "Direction saved on this device. It will sync when BulkBite reconnects."
+      } else {
+        await clearFormDraft("production-plan").catch(() => {})
+        formDirty.value = false
+        offlineNotice.value = ""
+        emit("changed")
+      }
     } else await saveMonthlyProductionPlan(payload)
-    await clearFormDraft("production-plan").catch(() => {})
-    formDirty.value = false
-    emit("changed")
+    if (!runtimeConfig.isNative) {
+      await clearFormDraft("production-plan").catch(() => {})
+      formDirty.value = false
+      emit("changed")
+    }
   } catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
 
@@ -210,7 +270,7 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
 </script>
 
 <template>
-  <section data-block="monthly-planning" class="workflow-block" :data-offline-draft-dirty="formDirty || undefined">
+  <section data-block="monthly-planning" class="workflow-block" :data-offline-draft-dirty="formDirty || undefined" :inert="draftLocked || undefined" :aria-busy="draftLocked || undefined">
     <header class="workflow-header"><div><p class="eyebrow">{{ mode === 'forecasting' ? 'Forecasting' : 'Planning' }}</p><h1>{{ mode === 'forecasting' ? 'Test future production capacity' : 'Set the current meal direction' }}</h1><p>{{ mode === 'forecasting' ? 'Try customer growth, cooking days, hours, and crew sizes before changing the active plan.' : 'Keep customer numbers current and choose the four meals that repeat. Future buying and production recalculate whenever this direction changes.' }}</p></div><SystemBadge>{{ mode === 'forecasting' ? 'SCENARIO' : form.name ? 'ACTIVE DIRECTION' : 'NEW DIRECTION' }}</SystemBadge></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <div v-if="offlineNotice" class="state-message" role="status">{{ offlineNotice }}</div>
@@ -288,7 +348,7 @@ function number(value) { return Number(value || 0).toLocaleString("en-ZA", { max
       <footer v-if="mode === 'forecasting'" class="posting-bar"><div><SystemBadge>HYPOTHETICAL ONLY</SystemBadge><p>This scenario is not saved and cannot change the current direction. Return to Planning to change real customers, meals, or capacity.</p></div></footer>
     </template>
 
-    <footer v-if="mode === 'planning'" class="posting-bar"><div><SystemBadge>{{ form.name ? "DIRECTION READY TO UPDATE" : "NEW DIRECTION" }}</SystemBadge><p>Saving recalculates future ingredient demand, shortages, supplier packs, and expected cost. Existing production drafts keep their saved theory.</p></div><div class="button-row"><SystemOperationalButton v-if="form.name" variant="ghost" size="lg" :disabled="busy" @click="cancelDirection">Cancel direction</SystemOperationalButton><SystemOperationalButton variant="solid" size="lg" :loading="busy" @click="savePlan">{{ form.name ? "Update direction" : "Save direction" }}</SystemOperationalButton></div></footer>
+    <footer v-if="mode === 'planning'" class="posting-bar"><div><SystemBadge>{{ queuedMutationId ? "WAITING TO SYNC" : form.name ? "DIRECTION READY TO UPDATE" : "NEW DIRECTION" }}</SystemBadge><p>Saving recalculates future ingredient demand, shortages, supplier packs, and expected cost. Existing production drafts keep their saved theory.</p></div><div class="button-row"><SystemOperationalButton v-if="form.name" variant="ghost" size="lg" :disabled="busy || draftLocked" @click="cancelDirection">Cancel direction</SystemOperationalButton><SystemOperationalButton variant="solid" size="lg" :loading="busy" :disabled="draftLocked" @click="savePlan">{{ draftLocked ? "Waiting to sync" : form.name ? "Update direction" : "Save direction" }}</SystemOperationalButton></div></footer>
   </section>
 </template>
 
