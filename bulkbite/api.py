@@ -2844,10 +2844,22 @@ def _assert_offline_version(doctype, name, base_modified, overwrite_conflict):
 		)
 
 
-def _offline_conflict_fields(document):
-	"""Return mutable business fields only, excluding framework and immutable posting state."""
-	excluded = {"doctype", "owner", "creation", "modified", "modified_by", "docstatus", "idx", "stock_events_posted", "employee_costs_posted", "truth_event", "output_stock_event"}
-	return {key: value for key, value in document.items() if key not in excluded}
+def _offline_conflict_fields(document, top_level=True):
+	"""Return nested mutable business values without framework or posting metadata."""
+	excluded = {
+		"doctype", "owner", "creation", "modified", "modified_by", "docstatus", "idx",
+		"parent", "parentfield", "parenttype", "stock_events_posted", "employee_costs_posted",
+		"truth_event", "output_stock_event",
+	}
+	if isinstance(document, (list, tuple)):
+		return [_offline_conflict_fields(value, top_level=False) for value in document]
+	if isinstance(document, dict):
+		return {
+			key: _offline_conflict_fields(value, top_level=False)
+			for key, value in document.items()
+			if key not in excluded and (top_level or key != "name")
+		}
+	return document
 
 
 # endregion OFFLINE DRAFT SYNCHRONIZATION

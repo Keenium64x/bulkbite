@@ -3,7 +3,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bulkbite.api import _assert_offline_version, sync_offline_mutation
+from bulkbite.api import _assert_offline_version, _offline_conflict_fields, sync_offline_mutation
 
 
 # =============================================================================
@@ -63,6 +63,23 @@ class TestOfflineSynchronization(IntegrationTestCase):
 		self.assertEqual(failure.status, "Failed")
 		self.assertIn("Proof failure", failure.result_json)
 		commit.assert_called_once()
+
+	def test_conflict_payload_removes_nested_framework_metadata(self):
+		result = _offline_conflict_fields({
+			"name": "PLAN-001",
+			"modified_by": "Administrator",
+			"customer_mix": [{
+				"name": "ROW-001",
+				"parent": "PLAN-001",
+				"parentfield": "customer_mix",
+				"plan_type": "Standard",
+				"customer_count": 30,
+			}],
+		})
+
+		self.assertEqual(result["name"], "PLAN-001")
+		self.assertEqual(result["customer_mix"], [{"plan_type": "Standard", "customer_count": 30}])
+		self.assertNotIn("modified_by", result)
 
 	def test_posting_operations_are_never_available_offline(self):
 		with self.assertRaises(frappe.PermissionError):
