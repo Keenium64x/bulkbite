@@ -9,7 +9,7 @@
   {"fieldname":"supplier","fieldtype":"Link","label":"Supplier","options":"BulkBite Supplier"},
   {"fieldname":"item_code","fieldtype":"Link","label":"Item","options":"BulkBite Item"},
   {"fieldname":"item_category","fieldtype":"Link","label":"Item Category","options":"BulkBite Item Category"},
-  {"fieldname":"adjustment_type","fieldtype":"Select","in_list_view":1,"label":"Adjustment Type","options":"Percentage Discount\nFixed Discount\nRebate\nDelivery Fee\nFree Delivery\nService Fee\nVAT Adjustment\nOther Saving\nOther Cost","reqd":1},
+  {"fieldname":"adjustment_type","fieldtype":"Select","in_list_view":1,"label":"Adjustment Type","options":"Percentage Discount\nFixed Discount\nRebate\nDelivery Fee\nFree Delivery\nMinimum Order\nService Fee\nVAT Adjustment\nOther Saving\nOther Cost","reqd":1},
   {"default":"Pack Price","fieldname":"calculation_basis","fieldtype":"Select","label":"Calculation Basis","options":"Pack Price\nBasket Subtotal\nFixed","reqd":1},
   {"default":"0","fieldname":"value","fieldtype":"Currency","label":"Rate or Amount","non_negative":1},
   {"default":"0","fieldname":"threshold_amount","fieldtype":"Currency","label":"Minimum Basket Amount","non_negative":1},

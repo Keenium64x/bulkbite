@@ -248,6 +248,22 @@ def get_finance_workspace(from_date=None, to_date=None):
 				if row.get("effect") == "saving"
 			), 2),
 		},
+		"forecast": {
+			"revenue": spend.get("profit", {}).get("revenue", 0),
+			"food_cost": spend["summary"].get("expected_spend", 0),
+			"operating_cost": operating["expected_total"],
+			"discounts_and_savings": spend["summary"].get("expected_savings", 0),
+			"added_buying_costs": spend["summary"].get("expected_added_buying_costs", 0),
+			"operating_profit": spend.get("profit", {}).get("expected_operating_result", 0),
+			"margin_percent": round(
+				flt(spend.get("profit", {}).get("expected_operating_result")) / flt(spend.get("profit", {}).get("revenue")) * 100,
+				1,
+			) if flt(spend.get("profit", {}).get("revenue")) else 0,
+			"actual_revenue_basis": spend.get("profit", {}).get("revenue_basis"),
+			"actual_food_cost": spend["summary"].get("actual_spend", 0),
+			"actual_operating_cost": operating["actual_total"],
+			"actual_operating_result": spend.get("profit", {}).get("actual_operating_result", 0),
+		},
 		"breakdown": operating["breakdown"],
 		"workforce": workforce,
 		"expected_costs": rules,
@@ -1445,6 +1461,90 @@ def create_production_run(payload=None):
 
 
 @frappe.whitelist(methods=["POST"])
+def create_ad_hoc_production_run(recipe, planned_output_qty, production_date, source_location="Ingredients", target_location="Finished Meals"):
+	"""Create an explicit off-plan production draft without advancing the meal direction."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	planned_output = round_operational_quantity(planned_output_qty)
+	if planned_output <= 0:
+		frappe.throw(_("Target output must be greater than zero."))
+	return create_production_run(
+		{
+			"production_date": getdate(production_date),
+			"business_name": "BulkBite",
+			"direction_action": "Off Plan",
+			"recipe": recipe,
+			"planned_output_qty": planned_output,
+			"actual_output_qty": planned_output,
+			"source_location": source_location,
+			"target_location": target_location,
+			"notes": _("Created as an ad hoc production draft outside the current meal direction."),
+		}
+	)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_finished_food_position(item_code=None, location="Finished Meals"):
+	"""Return physical stock, reservations, and recent explicit finished-food allocations."""
+	_require_app_user()
+	from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation import get_unallocated_finished_food
+
+	items = [item_code] if item_code else frappe.get_all("BulkBite Item", filters={"item_type": "Finished Meal", "enabled": 1}, pluck="name")
+	positions = []
+	for code in items:
+		physical = round_operational_quantity(get_available_stock(code, location))
+		available = round_operational_quantity(get_unallocated_finished_food(code, location))
+		positions.append(
+			{
+				"item_code": code,
+				"item_name": frappe.get_cached_value("BulkBite Item", code, "item_name"),
+				"uom": frappe.get_cached_value("BulkBite Item", code, "stock_uom"),
+				"physical_qty": physical,
+				"reserved_qty": round_operational_quantity(physical - available),
+				"unallocated_qty": available,
+			}
+		)
+	recent_allocations = frappe.get_all(
+		"BulkBite Finished Food Allocation",
+		filters={"finished_item": item_code} if item_code else None,
+		fields=["name", "posting_date", "finished_item", "source_production_run", "allocation_type", "source_reservation", "demand_period", "quantity", "uom", "status", "docstatus"],
+		order_by="posting_date desc, creation desc",
+		limit=40,
+	)
+	from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation import get_reservation_remaining
+	for allocation in recent_allocations:
+		allocation["remaining_qty"] = round_operational_quantity(get_reservation_remaining(allocation.name)) if allocation.allocation_type == "Future Customers" else 0
+	return {
+		"location": location,
+		"items": positions,
+		"recent_allocations": recent_allocations,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def allocate_finished_food(payload=None):
+	"""Submit one explicit customer, future, internal, or waste allocation exactly once."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	data = _as_dict(payload)
+	doc = frappe.get_doc(
+		{
+			"doctype": "BulkBite Finished Food Allocation",
+			"posting_date": getdate(data.get("posting_date") or nowdate()),
+			"finished_item": data.get("finished_item"),
+			"source_location": data.get("source_location") or "Finished Meals",
+			"source_production_run": data.get("source_production_run"),
+			"allocation_type": data.get("allocation_type"),
+			"source_reservation": data.get("source_reservation"),
+			"demand_period": data.get("demand_period"),
+			"quantity": round_operational_quantity(data.get("quantity")),
+			"notes": data.get("notes"),
+		}
+	)
+	doc.insert()
+	doc.submit()
+	return get_finished_food_position(doc.finished_item, doc.source_location)
+
+
+@frappe.whitelist(methods=["POST"])
 def update_production_actuals(name, actual_output_qty, ingredients, notes=None):
 	_require_roles("BulkBite Worker", "BulkBite Manager")
 	run = frappe.get_doc("BulkBite Production Run", name)
@@ -1523,7 +1623,9 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
 	location = location or "Ingredients"
 	rows, requirements = build_plan_snapshot(plan, location)
-	buying = build_buying_plan(plan, requirements)
+	buying_rows, buying_requirements = build_plan_snapshot(plan, location, cover_with_finished_stock=True)
+	buying = build_buying_plan(plan, buying_requirements)
+	buying["planned_sessions"] = buying_rows
 	demand = calculate_customer_demand(plan.customer_mix)
 	runs = frappe.get_all(
 		"BulkBite Production Run",
@@ -1561,6 +1663,22 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	result["capacity_plan"] = _build_capacity_plan(plan, result["customer_mix"], result["workforce"])
 	result["next_production"] = _next_production_station(result["rows"], runs)
 	return result
+
+
+@frappe.whitelist(methods=["GET"])
+def get_buying_recommendation(plan_name=None, location="Ingredients", horizon_weeks=4):
+	"""Build a current advisory basket for the selected future horizon."""
+	_require_app_user()
+	plan_name = plan_name or frappe.db.get_value("BulkBite Production Plan", {"status": "Active"}, "name", order_by="modified desc")
+	if not plan_name:
+		return None
+	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
+	weeks = max(min(int(horizon_weeks or 4), 12), 1)
+	rows, requirements = build_plan_snapshot(plan, location, weeks, cover_with_finished_stock=True)
+	buying = build_buying_plan(plan, requirements, horizon_weeks=weeks)
+	buying["planned_sessions"] = rows
+	buying["advisory_only"] = True
+	return buying
 
 
 def _build_capacity_plan(plan, current_mix, workforce):
@@ -2639,16 +2757,29 @@ def sync_offline_mutation(client_mutation_id, operation, payload, base_modified=
 		frappe.throw(_("The offline change ID is invalid."))
 	data = _as_dict(payload)
 	payload_hash = hashlib.sha256(json.dumps({"operation": operation, "payload": data}, default=str, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+	frappe.db.sql("select name from `tabDocType` where name = %s for update", ("BulkBite Offline Mutation",))
 	existing = frappe.db.get_value("BulkBite Offline Mutation", client_mutation_id, ["requested_by", "payload_hash", "status", "result_json"], as_dict=True)
 	if existing:
 		if existing.requested_by != frappe.session.user or existing.payload_hash != payload_hash:
 			frappe.throw(_("This offline change ID belongs to a different request."), frappe.PermissionError)
 		if existing.status == "Completed":
 			return frappe.parse_json(existing.result_json)
-	frappe.db.sql("select name from `tabBulkBite Offline Mutation` where name = %s for update", (client_mutation_id,))
+		frappe.db.set_value("BulkBite Offline Mutation", client_mutation_id, {"status": "Processing", "result_json": None}, update_modified=False)
 	if not existing:
 		frappe.get_doc({"doctype": "BulkBite Offline Mutation", "client_mutation_id": client_mutation_id, "operation": operation, "status": "Processing", "requested_by": frappe.session.user, "payload_hash": payload_hash}).insert(ignore_permissions=True)
-	result = _apply_offline_draft(operation, data, base_modified, bool(overwrite_conflict))
+	savepoint = f"offline_mutation_{hashlib.sha256(client_mutation_id.encode('utf-8')).hexdigest()[:12]}"
+	frappe.db.savepoint(savepoint)
+	try:
+		result = _apply_offline_draft(operation, data, base_modified, bool(overwrite_conflict))
+	except Exception as exception:
+		frappe.db.rollback(save_point=savepoint)
+		frappe.db.set_value(
+			"BulkBite Offline Mutation", client_mutation_id,
+			{"status": "Failed", "result_json": frappe.as_json({"error": str(exception)})},
+			update_modified=False,
+		)
+		frappe.db.commit()
+		raise
 	response = {"client_mutation_id": client_mutation_id, "operation": operation, "status": "completed", "result": result}
 	frappe.db.set_value("BulkBite Offline Mutation", client_mutation_id, {"status": "Completed", "result_json": frappe.as_json(response), "completed_on": now_datetime()}, update_modified=False)
 	return response
@@ -2676,6 +2807,12 @@ def _sync_production_draft(data, base_modified, overwrite_conflict):
 		run = frappe.get_doc("BulkBite Production Run", run_name)
 		if run.docstatus:
 			frappe.throw(_("Posted production cannot be changed by offline synchronization."))
+	elif data.get("direction_action") == "Off Plan" and not data.get("plan_row_name"):
+		run = create_ad_hoc_production_run(
+			data.get("recipe"), data.get("planned_output_qty"), data.get("production_date"),
+			data.get("source_location") or "Ingredients", data.get("target_location") or "Finished Meals",
+		)
+		run_name = run.get("name")
 	else:
 		run = create_run_from_plan(
 			data.get("plan_name"), data.get("plan_row_name"), data.get("production_date"),
@@ -2694,7 +2831,23 @@ def _assert_offline_version(doctype, name, base_modified, overwrite_conflict):
 		return
 	current = frappe.db.get_value(doctype, name, "modified")
 	if base_modified and str(current) != str(base_modified) and not overwrite_conflict:
-		frappe.throw(_("CONFLICT: The server record changed after this device saved its draft. Review both versions before continuing."), frappe.TimestampMismatchError)
+		server = frappe.get_doc(doctype, name).as_dict(no_nulls=True)
+		frappe.throw(
+			_("CONFLICT: {0}").format(frappe.as_json({
+				"doctype": doctype,
+				"name": name,
+				"base_modified": base_modified,
+				"server_modified": current,
+				"server": _offline_conflict_fields(server),
+			})),
+			frappe.TimestampMismatchError,
+		)
+
+
+def _offline_conflict_fields(document):
+	"""Return mutable business fields only, excluding framework and immutable posting state."""
+	excluded = {"doctype", "owner", "creation", "modified", "modified_by", "docstatus", "idx", "stock_events_posted", "employee_costs_posted", "truth_event", "output_stock_event"}
+	return {key: value for key, value in document.items() if key not in excluded}
 
 
 # endregion OFFLINE DRAFT SYNCHRONIZATION

@@ -5,7 +5,7 @@
  "creation": "2026-08-20 18:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["item_code", "item_name", "item_type", "item_category", "stock_uom", "track_stock", "purchasable", "enabled", "scan_codes", "theory_valuation_rate", "description"],
+ "field_order": ["item_code", "item_name", "item_type", "item_category", "stock_uom", "track_stock", "purchasable", "enabled", "scan_codes", "theory_valuation_rate", "pull_forward_allowed", "shelf_life_days", "maximum_preferred_stock_qty", "description"],
  "fields": [
   {"fieldname": "item_code", "fieldtype": "Data", "in_list_view": 1, "label": "Item Code", "reqd": 1, "unique": 1},
   {"fieldname": "item_name", "fieldtype": "Data", "in_list_view": 1, "label": "Item Name", "reqd": 1},
@@ -17,6 +17,9 @@
   {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
   {"description": "One code per line. Supports supplier barcodes and internal QR values.", "fieldname": "scan_codes", "fieldtype": "Small Text", "label": "Scan Codes"},
   {"default": "0", "fieldname": "theory_valuation_rate", "fieldtype": "Currency", "label": "Theory Rate per Stock Unit", "non_negative": 1},
+  {"default": "0", "description": "Allows Buying to recommend an extra supplier pack when it is cheaper than paying delivery and safe to hold.", "fieldname": "pull_forward_allowed", "fieldtype": "Check", "label": "Allow Buying Ahead"},
+  {"default": "0", "description": "Expected usable life from purchase. Zero means the shelf life has not been confirmed.", "fieldname": "shelf_life_days", "fieldtype": "Int", "label": "Shelf Life (Days)", "non_negative": 1},
+  {"default": "0", "description": "Maximum preferred stock after the order. Zero means Buying must not recommend extra stock.", "fieldname": "maximum_preferred_stock_qty", "fieldtype": "Float", "label": "Maximum Preferred Stock", "non_negative": 1},
   {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
  ],
  "index_web_pages_for_search": 0,

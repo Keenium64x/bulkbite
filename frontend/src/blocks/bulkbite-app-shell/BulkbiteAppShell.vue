@@ -23,6 +23,12 @@ import {
 } from "lucide-vue-next"
 import {
   SystemCard,
+  SystemDialog,
+  SystemDialogContent,
+  SystemDialogDescription,
+  SystemDialogFooter,
+  SystemDialogHeader,
+  SystemDialogTitle,
   SystemDrawer,
   SystemDrawerClose,
   SystemDrawerContent,
@@ -40,7 +46,10 @@ import bulkbiteWordmark from "@/assets/bulkbite-logo-wordmark.svg"
 import { mountFlipLayoutTransition } from "@/experiences/bulkbite-nav-expand"
 import NativePullToRefresh from "@/components/native/NativePullToRefresh.vue"
 import { registerNativeBackConsumer } from "@/native/lifecycle"
+import { offlineState } from "@/native/offlineStore"
+import { offlineConflictDetails, resolveOfflineConflict } from "@/native/offlineSync"
 import { useNativePullToRefresh } from "@/native/pullToRefresh"
+import { syncOfflineMutation } from "@/resources/api"
 
 // =============================================================================
 // region SHELL CONTRACT
@@ -94,6 +103,9 @@ const primarySidebarGroup = computed(() => props.sidebarGroups[0] || null)
 const secondarySidebarGroups = computed(() => props.sidebarGroups.slice(1))
 const mobileDrawerOpen = ref(false)
 const mobileCloseButton = ref(null)
+const conflictBusy = ref(false)
+const conflictError = ref("")
+const conflictDetails = computed(() => offlineConflictDetails())
 const mobilePrimaryIds = ["overview", "receipts", "production"]
 const mobileSectionIcons = { overview: LayoutDashboard, receipts: ReceiptText, production: CookingPot }
 const mobilePrimarySections = computed(() => mobilePrimaryIds
@@ -148,6 +160,25 @@ function closeTransientMobileUi() {
   if (!mobileDrawerOpen.value) return false
   mobileDrawerOpen.value = false
   return true
+}
+
+function formatConflictValue(value) {
+  if (value === undefined || value === null || value === "") return "Not set"
+  if (typeof value === "object") return JSON.stringify(value, null, 2)
+  return String(value)
+}
+
+async function chooseConflictVersion(action) {
+  if (conflictBusy.value) return
+  conflictBusy.value = true
+  conflictError.value = ""
+  try {
+    await resolveOfflineConflict(syncOfflineMutation, action)
+  } catch (error) {
+    conflictError.value = error?.message || "BulkBite could not reconcile this draft."
+  } finally {
+    conflictBusy.value = false
+  }
 }
 
 async function refreshCurrentWorkflow() {
@@ -401,6 +432,39 @@ useNativePullToRefresh(refreshCurrentWorkflow)
         </footer>
       </SystemDrawerContent>
     </SystemDrawer>
+
+    <SystemDialog :open="Boolean(offlineState.conflict)">
+      <SystemDialogContent class="app-shell__conflict-dialog" @escape-key-down.prevent @pointer-down-outside.prevent>
+        <SystemDialogHeader>
+          <SystemDialogTitle>Choose which draft to keep</SystemDialogTitle>
+          <SystemDialogDescription>
+            This device and the server both changed the same editable draft. Posted records, receipts, stock events, and immutable ledger entries are never overwritten here.
+          </SystemDialogDescription>
+        </SystemDialogHeader>
+
+        <div class="app-shell__conflict-body">
+          <p v-if="conflictDetails?.name" class="app-shell__conflict-record">
+            {{ conflictDetails.doctype }} · {{ conflictDetails.name }}
+          </p>
+          <div v-if="conflictDetails?.changedFields?.length" class="app-shell__conflict-differences" role="list" aria-label="Conflicting draft fields">
+            <article v-for="difference in conflictDetails.changedFields" :key="difference.field" class="app-shell__conflict-row" role="listitem">
+              <h3>{{ difference.field.replaceAll('_', ' ') }}</h3>
+              <div class="app-shell__conflict-versions">
+                <section><p>This device</p><pre>{{ formatConflictValue(difference.local) }}</pre></section>
+                <section><p>Server</p><pre>{{ formatConflictValue(difference.server) }}</pre></section>
+              </div>
+            </article>
+          </div>
+          <p v-else class="app-shell__conflict-empty">The server reported a version conflict but did not return field-level differences.</p>
+          <p v-if="conflictError" class="app-shell__conflict-error" role="alert">{{ conflictError }}</p>
+        </div>
+
+        <SystemDialogFooter class="app-shell__conflict-actions">
+          <SystemOperationalButton variant="subtle" :disabled="conflictBusy" @click="chooseConflictVersion('server')">Keep server version</SystemOperationalButton>
+          <SystemOperationalButton variant="solid" :loading="conflictBusy" loading-text="Reconciling" @click="chooseConflictVersion('local')">Use this device</SystemOperationalButton>
+        </SystemDialogFooter>
+      </SystemDialogContent>
+    </SystemDialog>
   </section>
 </template>
 
@@ -487,4 +551,18 @@ useNativePullToRefresh(refreshCurrentWorkflow)
 }
 @media(max-width:30rem){.app-shell__mobile-drawer-group{grid-template-columns:1fr}.app-shell__mobile-nav{padding-inline:var(--spacing-2xs)}.app-shell__mobile-nav :deep(.app-shell__mobile-nav-action){font-size:.68rem!important}}
 @media(prefers-reduced-motion:reduce){.app-shell,.app-shell__mobile-nav :deep(button){transition:none!important}}
+:global(.app-shell__conflict-dialog){display:grid!important;width:min(46rem,calc(100vw - 2rem))!important;max-width:46rem!important;max-height:min(88dvh,52rem)!important;overflow:hidden!important;padding:var(--spacing-m)!important;background:var(--theme-surface-raised)!important;color:var(--theme-text)!important}
+.app-shell__conflict-body{display:grid;min-height:0;gap:var(--spacing-s);overflow:hidden}
+.app-shell__conflict-record,.app-shell__conflict-empty,.app-shell__conflict-error{margin:0;font-size:var(--font-size--1)}
+.app-shell__conflict-record{color:var(--theme-text-muted);font-weight:var(--font-weight-600)}
+.app-shell__conflict-differences{display:grid;min-height:0;max-height:52dvh;gap:var(--spacing-xs);overflow-y:auto;overscroll-behavior:contain;padding-right:var(--spacing-2xs);scrollbar-color:var(--theme-border) transparent;scrollbar-width:thin}
+.app-shell__conflict-row{display:grid;gap:var(--spacing-2xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}
+.app-shell__conflict-row h3,.app-shell__conflict-versions p{margin:0;font-size:var(--font-size--1);text-transform:capitalize}
+.app-shell__conflict-versions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-xs)}
+.app-shell__conflict-versions section{min-width:0}
+.app-shell__conflict-versions p{margin-bottom:var(--spacing-3xs);color:var(--theme-text-muted);font-size:var(--font-size--2);font-weight:var(--font-weight-700)}
+.app-shell__conflict-versions pre{max-width:100%;max-height:10rem;overflow:auto;margin:0;padding:var(--spacing-xs);border-radius:var(--component-radius-button);background:var(--theme-canvas);font:inherit;font-size:var(--font-size--2);white-space:pre-wrap;overflow-wrap:anywhere}
+.app-shell__conflict-error{color:var(--theme-danger-text,#8f1d18)}
+.app-shell__conflict-actions{display:flex!important;flex-wrap:wrap;justify-content:flex-end;gap:var(--spacing-xs)}
+@media(max-width:36rem){:global(.app-shell__conflict-dialog){width:calc(100vw - 1rem)!important;max-height:92dvh!important;padding:var(--spacing-s)!important}.app-shell__conflict-versions{grid-template-columns:1fr}.app-shell__conflict-actions{display:grid!important;grid-template-columns:1fr}.app-shell__conflict-actions :deep(button){width:100%!important}}
 </style>

@@ -10,8 +10,9 @@ const DATABASE_NAME = "bulkbite-offline"
 const DATABASE_VERSION = 1
 const QUEUE_STORE = "mutation-queue"
 const DRAFT_STORE = "form-drafts"
+const SYNC_OUTCOME_PREFIX = "sync-outcome:"
 
-export const offlineState = reactive({ pending: 0, syncing: false, conflict: null, lastSyncedAt: null, error: "" })
+export const offlineState = reactive({ pending: 0, syncing: false, conflict: null, lastResolution: null, completedResults: {}, lastSyncedAt: null, error: "" })
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -47,6 +48,18 @@ export async function loadFormDraft(key) {
 
 export async function clearFormDraft(key) {
   await runTransaction(DRAFT_STORE, "readwrite", store => store.delete(key))
+}
+
+export async function saveSyncOutcome(clientMutationId, outcome) {
+  await saveFormDraft(`${SYNC_OUTCOME_PREFIX}${clientMutationId}`, outcome)
+}
+
+export async function loadSyncOutcome(clientMutationId) {
+  return loadFormDraft(`${SYNC_OUTCOME_PREFIX}${clientMutationId}`)
+}
+
+export async function clearSyncOutcome(clientMutationId) {
+  await clearFormDraft(`${SYNC_OUTCOME_PREFIX}${clientMutationId}`)
 }
 
 export async function queueMutation(mutation) {

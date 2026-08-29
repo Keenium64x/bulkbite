@@ -67,6 +67,10 @@ export const saveAuxiliaryRecord = (doctype, name, values, tables) => call("bulk
 export const planAuxiliaryRecordDeletion = (doctype, names, defaultOutcome = "delete", outcomesByDoctype = {}) => call("bulkbite.api.plan_auxiliary_record_deletion", { doctype, names, default_outcome: defaultOutcome, outcomes_by_doctype: outcomesByDoctype })
 export const deleteAuxiliaryRecords = (request) => call("bulkbite.api.delete_auxiliary_records", { doctype: request.doctype, names: request.names, plan_token: request.planToken, outcome: request.outcome, outcomes_by_doctype: request.outcomesByDoctype, approved: request.approved })
 export const getRecipeExpectation = (recipe, plannedOutputQty, sourceLocation) => call("bulkbite.api.get_recipe_expectation", { recipe, planned_output_qty: plannedOutputQty, source_location: sourceLocation }, "GET")
+export const createAdHocProductionRun = (recipe, plannedOutputQty, productionDate, sourceLocation = "Ingredients", targetLocation = "Finished Meals") => call("bulkbite.api.create_ad_hoc_production_run", { recipe, planned_output_qty: plannedOutputQty, production_date: productionDate, source_location: sourceLocation, target_location: targetLocation })
+export const getFinishedFoodPosition = (itemCode = "", location = "Finished Meals") => call("bulkbite.api.get_finished_food_position", { item_code: itemCode, location }, "GET")
+export const allocateFinishedFood = (payload) => call("bulkbite.api.allocate_finished_food", { payload })
+export const getBuyingRecommendation = (planName, location = "Ingredients", horizonWeeks = 4) => call("bulkbite.api.get_buying_recommendation", { plan_name: planName, location, horizon_weeks: horizonWeeks }, "GET")
 export const createRunFromPlan = (planName, planRowName, productionDate, sourceLocation, targetLocation, recipe, plannedOutputQty, directionAction) =>
   call("bulkbite.api.create_run_from_plan", {
     plan_name: planName,

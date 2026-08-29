@@ -104,6 +104,8 @@ def calculate_basket_adjustments(supplier, basket_subtotal, on_date=None):
 			continue
 		if not _date_active(row.effective_from, row.effective_to, on_date) or flt(basket_subtotal) < flt(row.threshold_amount):
 			continue
+		if row.adjustment_type == "Minimum Order":
+			continue
 		amount = _adjustment_amount(row, basket_subtotal, basket_subtotal, 1)
 		if row.adjustment_type == "Free Delivery":
 			potential_costs += amount

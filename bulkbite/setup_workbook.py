@@ -31,7 +31,7 @@ RECIPE_FIELDS = [
 ]
 
 SETUP_TARGETS = OrderedDict({
-	"BulkBite Item": {"label": "Items", "identity": "item_code", "fields": ["item_code", "item_name", "item_type", "item_category", "stock_uom", "track_stock", "purchasable", "enabled", "theory_valuation_rate", "description"]},
+	"BulkBite Item": {"label": "Items", "identity": "item_code", "fields": ["item_code", "item_name", "item_type", "item_category", "stock_uom", "track_stock", "purchasable", "enabled", "theory_valuation_rate", "pull_forward_allowed", "shelf_life_days", "maximum_preferred_stock_qty", "description"]},
 	"BulkBite Supplier": {"label": "Suppliers", "identity": "supplier_name", "fields": ["supplier_name", "enabled", "notes"]},
 	"BulkBite Item Category": {"label": "Food categories", "identity": "category_name", "fields": ["category_name", "default_supplier", "enabled", "notes"]},
 	"BulkBite Location": {"label": "Locations", "identity": "location_name", "fields": ["location_name", "location_type", "enabled", "notes"]},
@@ -161,6 +161,8 @@ def _review_recipe_proposal(proposal):
 		row["nominal_output_qty"] = flt(row.get("nominal_output_qty"))
 		if not row["recipe_name"]: row["errors"].append("Recipe Name is required.")
 		if not row["finished_item"]: row["errors"].append("Finished Item Code is required.")
+		if row["finished_item"] and not frappe.db.exists("BulkBite Item", row["finished_item"]) and not row["finished_item_name"]:
+			row["errors"].append("Finished Item Name is required when the item code is new.")
 		if row["nominal_output_qty"] <= 0: row["errors"].append("Recipe Output must be greater than zero.")
 		identity = row["recipe_id"] if row["recipe_id"] and frappe.db.exists("BulkBite Recipe", row["recipe_id"]) else frappe.db.get_value("BulkBite Recipe", {"recipe_name": row["recipe_name"], "version": row["version"]}, "name")
 		row["record_name"] = identity or ""
@@ -172,6 +174,8 @@ def _review_recipe_proposal(proposal):
 		for ingredient in row.get("ingredients") or []:
 			item = {**ingredient, "item_code": _text(ingredient.get("item_code")), "item_name": _text(ingredient.get("item_name")), "qty": flt(ingredient.get("qty")), "errors": []}
 			if not item["item_code"]: item["errors"].append("Ingredient Item Code is required.")
+			if item["item_code"] and not frappe.db.exists("BulkBite Item", item["item_code"]) and not item["item_name"]:
+				item["errors"].append("Ingredient Item Name is required when the item code is new.")
 			if item["qty"] <= 0: item["errors"].append("Ingredient Quantity must be greater than zero.")
 			if item["item_code"] in seen_items: item["errors"].append("The same ingredient appears twice in this recipe.")
 			seen_items.add(item["item_code"])

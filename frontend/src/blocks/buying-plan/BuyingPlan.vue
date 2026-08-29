@@ -1,8 +1,8 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import { SystemBadge, SystemCheckboxShadcn, SystemLinkedRecordField, SystemOperationalButton } from "@/desyium"
-import { saveMonthlyProductionPlan } from "@/resources/api"
+import { SystemBadge, SystemCheckboxShadcn, SystemLinkedRecordField, SystemOperationalButton, SystemSelect } from "@/desyium"
+import { getBuyingRecommendation, saveMonthlyProductionPlan } from "@/resources/api"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, plan: { type: Object, default: null } })
 const emit = defineEmits(["open-workflow", "changed"])
@@ -10,10 +10,14 @@ const router = useRouter()
 const busy = ref(false)
 const error = ref("")
 const routes = reactive([])
-const buying = computed(() => props.plan?.buying || { lines: [], suppliers: [], expected_cost: 0 })
+const horizonWeeks = ref(4)
+const recommendation = ref(null)
+const buying = computed(() => recommendation.value || props.plan?.buying || { lines: [], suppliers: [], expected_cost: 0 })
+const horizonOptions = [1, 2, 4, 8, 12].map(value => ({ label: `${value} ${value === 1 ? 'week' : 'weeks'}`, value }))
 const supplierOptions = computed(() => (props.snapshot?.options?.suppliers || []).map(value => ({ label: value, value })))
 
 watch(() => [props.plan, props.snapshot], hydrateRoutes, { immediate: true, deep: true })
+watch(() => [props.plan?.name, horizonWeeks.value], loadRecommendation, { immediate: true })
 
 function number(value, digits = 2) { return Number(value || 0).toLocaleString("en-ZA", { minimumFractionDigits: digits, maximumFractionDigits: digits }) }
 function manageOffers() { router.push({ name: "BulkBiteSetupList", params: { doctype: "BulkBite Supplier Offer" } }) }
@@ -24,6 +28,14 @@ function hydrateRoutes() {
     const current = props.plan?.purchase_routes?.find(row => row.item_category === category.name)
     return { item_category: category.name, supplier: current?.supplier || category.default_supplier || "", use_discounted_price: Boolean(current?.use_discounted_price) }
   }))
+}
+
+async function loadRecommendation() {
+  if (!props.plan?.name) return
+  busy.value = true
+  error.value = ""
+  try { recommendation.value = await getBuyingRecommendation(props.plan.name, props.plan.location || "Ingredients", horizonWeeks.value) }
+  catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
 
 async function saveRoutes() {
@@ -54,9 +66,10 @@ async function saveRoutes() {
 
 <template>
   <section data-block="buying-plan" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Buying</p><h1>What to buy next</h1><p>Shortages use the current customer direction and stock on hand. Quantities round up to the pack size sold by each chosen supplier.</p></div><SystemBadge>{{ plan?.plan_title || "NO ACTIVE DIRECTION" }}</SystemBadge></header>
+    <header class="workflow-header"><div><p class="eyebrow">Buying</p><h1>What to buy next</h1><p>This is an advisory shopping list for the selected future period. Receipts remain the only proof that anything was bought.</p></div><SystemBadge>{{ plan?.plan_title || "NO ACTIVE DIRECTION" }}</SystemBadge></header>
     <div v-if="!plan" class="state-message"><p>Set the current customer direction before building a shopping list.</p><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">Open planning</SystemOperationalButton></div>
     <template v-else>
+      <section class="form-section buying-horizon"><div class="section-heading"><div><p class="eyebrow">Buying period</p><h2>Choose how far ahead to cover</h2><p>The basket repeats the saved meal cycle for this horizon, subtracts current ingredient stock, and rounds shortages to supplier packs.</p></div><SystemBadge>ADVISORY ONLY</SystemBadge></div><div class="horizon-control"><SystemSelect v-model="horizonWeeks" label="Plan buying for" :options="horizonOptions" /><SystemOperationalButton variant="outline" :loading="busy" @click="loadRecommendation">Recalculate</SystemOperationalButton></div></section>
       <section class="form-section">
         <div class="section-heading"><div><p class="eyebrow">Buying routes</p><h2>Choose where each category is bought</h2><p>Set the usual supplier for every enabled food category. Saving the routes recalculates this shopping list and its expected cost.</p></div><div class="button-row"><SystemOperationalButton variant="outline" @click="openLinked('create', 'BulkBite Item Category')">Add category</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="openLinked('list', 'BulkBite Item Category')">Manage categories</SystemOperationalButton></div></div>
         <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
@@ -70,10 +83,11 @@ async function saveRoutes() {
         </div>
         <div class="route-actions"><SystemOperationalButton variant="solid" :loading="busy" @click="saveRoutes">Save buying routes</SystemOperationalButton></div>
       </section>
-      <div class="metric-board"><div><strong>{{ buying.shortage_count || 0 }}</strong><span>items short</span></div><div><strong>{{ buying.missing_offer_count || 0 }}</strong><span>prices missing</span></div><div><strong>R {{ number(buying.expected_cost) }}</strong><span>expected basket</span></div><div><strong>{{ buying.lines.filter(line => line.shortage_qty > 0).reduce((sum, line) => sum + Number(line.surplus_qty || 0), 0).toFixed(1) }}</strong><span>pack overflow units</span></div></div>
+      <div class="metric-board"><div><strong>{{ buying.horizon_weeks || horizonWeeks }}</strong><span>weeks covered</span></div><div><strong>{{ buying.shortage_count || 0 }}</strong><span>items short</span></div><div><strong>{{ buying.missing_offer_count || 0 }}</strong><span>prices missing</span></div><div><strong>R {{ number(buying.expected_cost) }}</strong><span>expected basket</span></div><div><strong>{{ buying.lines.filter(line => line.shortage_qty > 0).reduce((sum, line) => sum + Number(line.surplus_qty || 0), 0).toFixed(1) }}</strong><span>pack overflow units</span></div></div>
       <div class="buying-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">Update customer direction</SystemOperationalButton><SystemOperationalButton variant="outline" @click="manageOffers">Manage supplier offers</SystemOperationalButton><SystemOperationalButton variant="solid" @click="emit('open-workflow', 'receipts')">Add purchase receipt</SystemOperationalButton></div>
       <section v-for="group in buying.suppliers" :key="group.supplier" class="data-section">
-        <div class="section-heading"><div><p class="eyebrow">Supplier order</p><h2>{{ group.supplier }}</h2></div><SystemBadge>R {{ number(group.expected_cost) }}</SystemBadge></div>
+        <div class="section-heading"><div><p class="eyebrow">Supplier order</p><h2>{{ group.supplier }}</h2><p>{{ group.pull_forward_recommendation }}</p></div><SystemBadge>R {{ number(group.expected_cost) }}</SystemBadge></div>
+        <div v-if="group.delivery_threshold || group.supplier_order_minimum" class="delivery-position" :class="(group.threshold_status === 'reached' || !group.delivery_threshold) && (group.supplier_order_minimum_met || !group.supplier_order_minimum) ? 'is-ready' : 'is-under'"><div v-if="group.delivery_threshold"><span>Free-delivery threshold</span><strong>R {{ number(group.delivery_threshold) }}</strong></div><div v-if="group.supplier_order_minimum"><span>Supplier order minimum</span><strong>R {{ number(group.supplier_order_minimum) }}</strong></div><div><span>Current base basket</span><strong>R {{ number(group.base_cost) }}</strong></div><div v-if="group.delivery_threshold"><span>{{ group.threshold_status === 'reached' ? 'Delivery threshold' : 'Gap to free delivery' }}</span><strong>{{ group.threshold_status === 'reached' ? 'Covered' : `R ${number(group.threshold_gap)}` }}</strong></div><div v-if="group.supplier_order_minimum"><span>{{ group.supplier_order_minimum_met ? 'Order minimum' : 'Gap to order minimum' }}</span><strong>{{ group.supplier_order_minimum_met ? 'Covered' : `R ${number(group.supplier_order_minimum_gap)}` }}</strong></div><div v-if="group.delivery_threshold"><span>Delivery below threshold</span><strong>R {{ number(group.delivery_fee_below_threshold) }}</strong></div></div>
         <div class="table-wrap"><table><thead><tr><th>Ingredient</th><th>Need</th><th>Pack sold</th><th>Packs</th><th>Buy</th><th>Price</th></tr></thead><tbody>
           <tr v-for="line in group.items.filter(item => item.shortage_qty > 0)" :key="line.item_code">
             <td><strong>{{ line.item_name }}</strong><small>{{ line.item_category || "Uncategorised" }}</small></td><td class="number-cell">{{ number(line.shortage_qty, 1) }} {{ line.uom }}</td>
@@ -88,5 +102,5 @@ async function saveRoutes() {
 </template>
 
 <style scoped>
-.buying-actions{display:flex;flex-wrap:wrap;gap:var(--spacing-xs);margin-block:var(--spacing-s)}.route-grid{display:grid;gap:var(--spacing-xs)}.route-row{display:grid;grid-template-columns:minmax(10rem,.45fr) minmax(15rem,1fr) minmax(12rem,.65fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.route-row>strong{align-self:center}.route-actions{display:flex;justify-content:flex-end;margin-top:var(--spacing-s)}.large-value{display:block;margin-block:var(--spacing-xs);font-size:var(--font-size-3)}td small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}@media(max-width:44rem){.route-row{grid-template-columns:1fr}.route-actions{justify-content:stretch}.route-actions>*{width:100%}}
+.buying-actions{display:flex;flex-wrap:wrap;gap:var(--spacing-xs);margin-block:var(--spacing-s)}.horizon-control{display:grid;grid-template-columns:minmax(12rem,20rem) auto;align-items:end;gap:var(--spacing-xs)}.route-grid{display:grid;gap:var(--spacing-xs)}.route-row{display:grid;grid-template-columns:minmax(10rem,.45fr) minmax(15rem,1fr) minmax(12rem,.65fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.route-row>strong{align-self:center}.route-actions{display:flex;justify-content:flex-end;margin-top:var(--spacing-s)}.delivery-position{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-xs);margin-bottom:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-secondary)}.delivery-position.is-ready{border-color:color-mix(in oklch,var(--theme-success) 40%,var(--theme-border))}.delivery-position.is-under{border-color:color-mix(in oklch,var(--theme-warning) 48%,var(--theme-border))}.delivery-position div{display:grid;gap:var(--spacing-3xs)}.delivery-position span{color:var(--theme-text-muted);font-size:var(--font-size--2)}.large-value{display:block;margin-block:var(--spacing-xs);font-size:var(--font-size-3)}td small{display:block;margin-top:var(--spacing-3xs);color:var(--theme-text-muted)}@media(max-width:52rem){.delivery-position{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:44rem){.route-row,.horizon-control,.delivery-position{grid-template-columns:1fr}.route-actions{justify-content:stretch}.route-actions>*{width:100%}}
 </style>

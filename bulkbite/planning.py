@@ -117,12 +117,27 @@ def _gross_profit_position(revenue, food_cost):
 # =============================================================================
 
 
-def build_plan_snapshot(plan, location="Ingredients"):
-	"""Expand one monthly plan into weekly recipe demand and aggregate ingredient requirements."""
+def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finished_stock=False, finished_location="Finished Meals"):
+	"""Expand the meal cycle and optionally cover output demand with finished stock before ingredients."""
+	weeks = max(int(weeks or 4), 1)
 	rows = []
 	aggregated = {}
-	for plan_row in plan.plan_rows:
-		expectation = load_expected_usage(plan_row.recipe, plan_row.planned_output_qty, location)
+	ordered_rows = sorted(plan.plan_rows, key=lambda value: int(value.week_number or 0))
+	if not ordered_rows:
+		return rows, []
+	finished_balances = {}
+	for horizon_week in range(1, weeks + 1):
+		plan_row = ordered_rows[(horizon_week - 1) % len(ordered_rows)]
+		planned_output = round_operational_quantity(plan_row.planned_output_qty)
+		finished_item = plan_row.finished_item
+		if cover_with_finished_stock and finished_item not in finished_balances:
+			finished_balances[finished_item] = round_operational_quantity(get_available_stock(finished_item, finished_location))
+		finished_available = finished_balances.get(finished_item, 0) if cover_with_finished_stock else 0
+		finished_coverage = round_operational_quantity(min(planned_output, max(finished_available, 0)))
+		production_required = round_operational_quantity(max(planned_output - finished_coverage, 0))
+		if cover_with_finished_stock:
+			finished_balances[finished_item] = round_operational_quantity(finished_available - finished_coverage)
+		expectation = load_expected_usage(plan_row.recipe, production_required, location) if production_required > 0 else {"ingredients": []}
 		ingredients = []
 		for ingredient in expectation["ingredients"]:
 			required = round_operational_quantity(ingredient["expected_qty"])
@@ -150,13 +165,17 @@ def build_plan_snapshot(plan, location="Ingredients"):
 		rows.append(
 			{
 				"name": plan_row.name,
-				"week_number": plan_row.week_number,
+				"week_number": horizon_week,
+				"cycle_week": plan_row.week_number,
 				"planned_date": plan_row.planned_date,
-				"finished_item": plan_row.finished_item,
-				"finished_item_name": frappe.get_cached_value("BulkBite Item", plan_row.finished_item, "item_name"),
+				"finished_item": finished_item,
+				"finished_item_name": frappe.get_cached_value("BulkBite Item", finished_item, "item_name"),
 				"recipe": plan_row.recipe,
 				"weekly_servings": plan_row.weekly_servings,
-				"planned_output_qty": round_operational_quantity(plan_row.planned_output_qty),
+				"planned_output_qty": planned_output,
+				"finished_stock_coverage_qty": finished_coverage,
+				"production_required_qty": production_required,
+				"finished_stock_closing_qty": round_operational_quantity(finished_balances.get(finished_item, 0)) if cover_with_finished_stock else 0,
 				"uom": plan_row.uom,
 				"ingredients": ingredients,
 			}
@@ -175,7 +194,7 @@ def build_plan_snapshot(plan, location="Ingredients"):
 # =============================================================================
 
 
-def build_buying_plan(plan, requirements, as_of_date=None):
+def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 	"""Round ingredient shortages to chosen supplier packs and price the theoretical basket."""
 	as_of_date = getdate(as_of_date or plan.period_start or nowdate())
 	routes = {row.item_category: row for row in plan.purchase_routes}
@@ -222,6 +241,8 @@ def build_buying_plan(plan, requirements, as_of_date=None):
 		group["expected_savings"] += basket_bridge["savings"]
 		group["expected_added_costs"] += basket_bridge["added_costs"]
 		group["expected_cost"] += basket_bridge["net_adjustment"]
+		group.update(_delivery_threshold_recommendation(group["supplier"], group["base_cost"], as_of_date, group["items"], horizon_weeks))
+		group.update(_supplier_minimum_position(group["supplier"], group["base_cost"], as_of_date))
 	missing_offers = sum(1 for row in lines if row["shortage_qty"] > 0 and not row["offer"])
 	return {
 		"lines": lines,
@@ -232,7 +253,101 @@ def build_buying_plan(plan, requirements, as_of_date=None):
 		"expected_cost": sum(group["expected_cost"] for group in groups.values()),
 		"shortage_count": sum(1 for row in lines if row["shortage_qty"] > 0),
 		"missing_offer_count": missing_offers,
+		"horizon_weeks": max(int(horizon_weeks or 4), 1),
 	}
+
+
+def _supplier_minimum_position(supplier, basket_subtotal, as_of_date):
+	"""Return the supplier's active order threshold without turning it into a purchase."""
+	rules = frappe.get_all(
+		"BulkBite Price Adjustment",
+		filters={"enabled": 1, "supplier": supplier, "scope_type": ["in", ["Supplier", "Basket"]]},
+		fields=["adjustment_type", "threshold_amount", "effective_from", "effective_to"],
+	)
+	active = [
+		row for row in rules
+		if row.adjustment_type == "Minimum Order"
+		and flt(row.threshold_amount) > 0
+		and (not row.effective_from or getdate(row.effective_from) <= as_of_date)
+		and (not row.effective_to or getdate(row.effective_to) >= as_of_date)
+	]
+	minimum = max((flt(row.threshold_amount) for row in active), default=0)
+	gap = round(max(minimum - flt(basket_subtotal), 0), 2)
+	return {
+		"supplier_order_minimum": round(minimum, 2),
+		"supplier_order_minimum_gap": gap,
+		"supplier_order_minimum_met": bool(minimum and not gap),
+	}
+
+
+def _delivery_threshold_recommendation(supplier, basket_subtotal, as_of_date, basket_items=None, horizon_weeks=4):
+	"""Model one safe extra pack when it costs less than delivery and respects holding limits."""
+	rules = frappe.get_all(
+		"BulkBite Price Adjustment",
+		filters={"enabled": 1, "supplier": supplier, "adjustment_type": ["in", ["Delivery Fee", "Free Delivery"]]},
+		fields=["name", "adjustment_name", "adjustment_type", "value", "threshold_amount", "effective_from", "effective_to"],
+		order_by="priority asc, name asc",
+	)
+	active = [row for row in rules if (not row.effective_from or getdate(row.effective_from) <= as_of_date) and (not row.effective_to or getdate(row.effective_to) >= as_of_date)]
+	threshold = max((flt(row.threshold_amount) for row in active if flt(row.threshold_amount) > 0), default=0)
+	delivery_fee = max((flt(row.value) for row in active if row.adjustment_type == "Delivery Fee"), default=0)
+	gap = round(max(threshold - flt(basket_subtotal), 0), 2)
+	candidates = _pull_forward_candidates(supplier, basket_items or [], as_of_date, horizon_weeks, gap, delivery_fee)
+	selected = candidates[0] if candidates else None
+	return {
+		"delivery_threshold": round(threshold, 2),
+		"delivery_fee_below_threshold": round(delivery_fee, 2),
+		"threshold_gap": gap,
+		"threshold_status": "reached" if threshold and not gap else "below" if threshold else "not_configured",
+		"pull_forward_candidates": candidates,
+		"recommended_pull_forward_cost": selected["expected_cost"] if selected else 0,
+		"estimated_delivery_saving": round(max(delivery_fee - flt(selected["expected_cost"]), 0), 2) if selected else 0,
+		"pull_forward_recommendation": (
+			f"Add one extra pack of {selected['item_name']} for about R {selected['expected_cost']:.2f}. This reaches the threshold and is about R {max(delivery_fee - selected['expected_cost'], 0):.2f} cheaper than delivery."
+			if selected else
+			f"The basket is R {gap:.2f} below the free-delivery threshold. Paying delivery may use less cash than adding stock."
+			if gap and delivery_fee else
+			"The current basket reaches the configured delivery threshold." if threshold else
+			"No delivery threshold is configured for this supplier."
+		),
+	}
+
+
+def _pull_forward_candidates(supplier, basket_items, as_of_date, horizon_weeks, threshold_gap, delivery_fee):
+	"""Return extra-pack options whose cost, shelf life, and stock ceiling make them safe."""
+	if not supplier or threshold_gap <= 0 or delivery_fee <= 0:
+		return []
+	candidates = []
+	for basket_item in basket_items:
+		item = frappe.get_cached_doc("BulkBite Item", basket_item["item_code"])
+		if not item.pull_forward_allowed or int(item.shelf_life_days or 0) < max(int(horizon_weeks or 1) * 7, 1):
+			continue
+		maximum = flt(item.maximum_preferred_stock_qty)
+		if maximum <= 0:
+			continue
+		offer = basket_item.get("offer") or _select_offer(item.name, supplier, True, as_of_date)
+		if not offer:
+			continue
+		projected = flt(basket_item.get("available_qty")) + flt(basket_item.get("purchase_qty"))
+		extra_qty = flt(offer["stock_qty_per_pack"])
+		if projected + extra_qty > maximum:
+			continue
+		bridge = calculate_offer_price_bridge(offer, 1, as_of_date, True)
+		extra_cost = round(flt(bridge["landed_cost"]), 2)
+		if extra_cost < threshold_gap or extra_cost >= delivery_fee:
+			continue
+		candidates.append({
+			"item_code": item.name,
+			"item_name": item.item_name,
+			"packs": 1,
+			"purchase_qty": round_operational_quantity(extra_qty),
+			"uom": item.stock_uom,
+			"expected_cost": extra_cost,
+			"projected_stock_qty": round_operational_quantity(projected + extra_qty),
+			"maximum_preferred_stock_qty": round_operational_quantity(maximum),
+			"shelf_life_days": int(item.shelf_life_days or 0),
+		})
+	return sorted(candidates, key=lambda row: (row["expected_cost"], row["item_name"]))
 
 
 def load_buying_theory(plan, location="Ingredients"):

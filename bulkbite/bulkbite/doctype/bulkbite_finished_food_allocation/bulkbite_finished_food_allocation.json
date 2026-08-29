@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-FFA-.YYYY.-.#####",
+ "creation": "2026-08-29 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["posting_date", "finished_item", "source_location", "source_production_run", "allocation_type", "source_reservation", "demand_period", "quantity", "uom", "status", "stock_event", "truth_event", "notes"],
+ "fields": [
+  {"default": "Today", "fieldname": "posting_date", "fieldtype": "Date", "in_list_view": 1, "label": "Allocation Date", "reqd": 1},
+  {"fieldname": "finished_item", "fieldtype": "Link", "in_list_view": 1, "label": "Finished Food", "options": "BulkBite Item", "reqd": 1},
+  {"default": "Finished Meals", "fieldname": "source_location", "fieldtype": "Link", "label": "Stock Location", "options": "BulkBite Location", "reqd": 1},
+  {"fieldname": "source_production_run", "fieldtype": "Link", "label": "Source Production Run", "options": "BulkBite Production Run"},
+  {"fieldname": "allocation_type", "fieldtype": "Select", "in_list_view": 1, "label": "Purpose", "options": "Current Customers\nFuture Customers\nFuture Customer Fulfilment\nInternal Consumption\nWaste or Spoilage", "reqd": 1},
+  {"depends_on": "eval:doc.allocation_type=='Future Customer Fulfilment'", "fieldname": "source_reservation", "fieldtype": "Link", "label": "Future Reservation", "options": "BulkBite Finished Food Allocation"},
+  {"fieldname": "demand_period", "fieldtype": "Data", "label": "Customer Period or Reference"},
+  {"fieldname": "quantity", "fieldtype": "Float", "in_list_view": 1, "label": "Quantity", "non_negative": 1, "reqd": 1},
+  {"fetch_from": "finished_item.stock_uom", "fieldname": "uom", "fieldtype": "Data", "label": "Unit", "read_only": 1},
+  {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nReserved\nIssued", "read_only": 1, "reqd": 1},
+  {"fieldname": "stock_event", "fieldtype": "Link", "label": "Stock Event", "options": "BulkBite Stock Event", "read_only": 1},
+  {"fieldname": "truth_event", "fieldtype": "Link", "label": "Truth Event", "options": "BulkBite Truth Event", "read_only": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-29 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Finished Food Allocation",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "submit": 1, "write": 1},
+  {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "submit": 1, "write": 1},
+  {"create": 1, "read": 1, "role": "BulkBite Worker", "submit": 1, "write": 1},
+  {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "posting_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

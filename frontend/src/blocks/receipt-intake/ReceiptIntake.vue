@@ -1,7 +1,11 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { SystemBadge, SystemDatePicker, SystemFormControl, SystemLink, SystemLinkedRecordField, SystemMultiFileUploader, SystemOperationalButton, SystemSelect } from "@/desyium"
-import { createReceiptIntake, getReceiptExtractionStatus, receiveStockFromReceipt, startReceiptExtraction } from "@/resources/api"
+import { runtimeConfig } from "@/config/runtime"
+import { nativeState } from "@/native/lifecycle"
+import { clearFormDraft, clearSyncOutcome, listQueuedMutations, loadFormDraft, loadSyncOutcome, offlineState, saveFormDraft } from "@/native/offlineStore"
+import { syncDraftMutation } from "@/native/offlineSync"
+import { createReceiptIntake, getReceiptExtractionStatus, receiveStockFromReceipt, startReceiptExtraction, syncOfflineMutation } from "@/resources/api"
 import { useRouter } from "vue-router"
 
 const props = defineProps({ snapshot: { type: Object, default: null }, inventory: { type: Object, default: null }, plan: { type: Object, default: null } })
@@ -17,6 +21,13 @@ const extractionStage = ref("")
 const showOcr = ref(false)
 const showReceipt = ref(false)
 const receiptFiles = ref([])
+const localDraftReady = ref(false)
+const localDraftDirty = ref(false)
+const queuedMutationId = ref("")
+const queuedMutation = ref(null)
+const formLocked = computed(() => Boolean(saved.value || queuedMutationId.value))
+let localDraftTimer = null
+const RECEIPT_DRAFT_KEY = "receipt-intake:current"
 const today = new Date()
 const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
 const form = reactive({ receipt_file: "", supplier: "", supplier_invoice_number: "", invoice_date: localToday, default_location: "Ingredients", currency: "ZAR", tax_amount: 0, review_notes: "" })
@@ -65,6 +76,87 @@ function addLine() { if (!saved.value) lines.push(newLine(form.default_location)
 function addAdjustment() { if (!saved.value) adjustments.push({ adjustment_type: "Offer Discount", description: "", effect: "Saving", amount: 0, notes: "" }) }
 function updateAdjustment(row, field, value) { row[field] = value; row.effect = ["Offer Discount", "Percentage Discount", "Fixed Discount", "Rebate", "Free Delivery", "Other Saving"].includes(row.adjustment_type) ? "Saving" : "Cost" }
 function uploadedFileUrl(file) { return file?.file_url || file?.message?.file_url || file?.data?.file_url || "" }
+function receiptPayload() {
+  return {
+    ...form,
+    evidence_files: receiptFiles.value.slice(1).map(file => ({ evidence_file: file.file_url, file_name: file.file_name })),
+    business_name: "BulkBite",
+    subtotal_amount: lines.reduce((sum, line) => sum + Number(line.amount || 0), 0),
+    total_amount: total.value,
+    status: "Reviewed",
+    items: lines.map(line => recomputeLine({ ...line })),
+    adjustments: adjustments.map(row => ({ ...row })),
+  }
+}
+function localDraftSnapshot() {
+  return {
+    form: { ...form },
+    lines: lines.map(line => ({ ...line })),
+    adjustments: adjustments.map(row => ({ ...row })),
+    receiptFiles: receiptFiles.value.map(file => ({ file_url: file.file_url, file_name: file.file_name })),
+    extraction: extraction.value,
+    extractionStatus: extractionStatus.value,
+    extractionStage: extractionStage.value,
+    queuedMutationId: queuedMutationId.value,
+    queuedMutation: queuedMutation.value,
+  }
+}
+async function persistLocalDraft() {
+  if (!runtimeConfig.isNative || !localDraftReady.value || saved.value) return
+  await saveFormDraft(RECEIPT_DRAFT_KEY, localDraftSnapshot())
+  localDraftDirty.value = true
+}
+function scheduleLocalDraftSave() {
+  window.clearTimeout(localDraftTimer)
+  localDraftTimer = window.setTimeout(() => persistLocalDraft().catch(() => {}), 250)
+}
+async function restoreLocalDraft() {
+  if (!runtimeConfig.isNative) { localDraftReady.value = true; return }
+  const draft = await loadFormDraft(RECEIPT_DRAFT_KEY).catch(() => null)
+  if (draft && !form.receipt_file && lines.length === 1 && !lines[0].item_code) {
+    Object.assign(form, draft.form || {})
+    receiptFiles.value = (draft.receiptFiles || []).map(file => ({ ...file }))
+    lines.splice(0, lines.length, ...((draft.lines || []).length ? draft.lines.map(line => ({ ...line })) : [newLine(form.default_location)]))
+    adjustments.splice(0, adjustments.length, ...(draft.adjustments || []).map(row => ({ ...row })))
+    extraction.value = draft.extraction || null
+    extractionStatus.value = draft.extractionStatus || ""
+    extractionStage.value = draft.extractionStage || ""
+    queuedMutationId.value = draft.queuedMutationId || ""
+    queuedMutation.value = draft.queuedMutation || null
+    localDraftDirty.value = true
+  }
+  localDraftReady.value = true
+}
+async function reconcileQueuedReceipt(attempt = 0) {
+  if (!queuedMutationId.value || !nativeState.connected) return
+  const queue = await listQueuedMutations().catch(() => [])
+  if (queue.some(mutation => mutation.clientMutationId === queuedMutationId.value)) {
+    if (attempt < 8) window.setTimeout(() => reconcileQueuedReceipt(attempt + 1).catch(() => {}), 1500)
+    return
+  }
+	const resolution = offlineState.lastResolution?.clientMutationId === queuedMutationId.value ? offlineState.lastResolution : null
+	const completed = offlineState.completedResults[queuedMutationId.value]
+	const persisted = await loadSyncOutcome(queuedMutationId.value).catch(() => null)
+	if (resolution?.action === "server" || persisted?.action === "server") {
+		saved.value = null
+	} else if (resolution?.result) {
+		saved.value = resolution.result
+	} else if (persisted?.result) {
+		saved.value = persisted.result
+	} else if (completed) {
+		saved.value = completed
+	} else if (queuedMutation.value) {
+		const response = await syncOfflineMutation(queuedMutation.value)
+		saved.value = response?.result || null
+	}
+	delete offlineState.completedResults[queuedMutationId.value]
+  await clearSyncOutcome(queuedMutationId.value).catch(() => {})
+  await clearFormDraft(RECEIPT_DRAFT_KEY).catch(() => {})
+  queuedMutationId.value = ""
+  queuedMutation.value = null
+  localDraftDirty.value = false
+  emit("changed")
+}
 async function onUpload(files) {
 	const uploaded = (files || []).map(file => ({ file_url: uploadedFileUrl(file), file_name: file.file_name || "Receipt evidence" })).filter(file => file.file_url)
 	if (!uploaded.length) { error.value = "The files uploaded, but their private addresses were missing. Try the upload again."; return }
@@ -142,17 +234,43 @@ async function saveDraft() {
   if (!validate()) { error.value = "Check the marked receipt fields."; return }
   busy.value = true; error.value = ""
   try {
-    saved.value = await createReceiptIntake({ ...form, evidence_files: receiptFiles.value.slice(1).map(file => ({ evidence_file: file.file_url, file_name: file.file_name })), business_name: "BulkBite", subtotal_amount: lines.reduce((sum, line) => sum + Number(line.amount || 0), 0), total_amount: total.value, status: "Reviewed", items: lines.map(line => recomputeLine({ ...line })), adjustments })
+    const payload = receiptPayload()
+    if (runtimeConfig.isNative) {
+      const synchronized = await syncDraftMutation(syncOfflineMutation, "create_receipt_draft", payload)
+      if (synchronized.queued) {
+        queuedMutationId.value = synchronized.mutation.clientMutationId
+        queuedMutation.value = synchronized.mutation
+        await persistLocalDraft()
+        error.value = "This reviewed receipt is saved on this device. BulkBite will create the server draft when the connection returns. Stock has not changed."
+        return
+      }
+      saved.value = synchronized.result
+    } else {
+      saved.value = await createReceiptIntake(payload)
+    }
+    await clearFormDraft(RECEIPT_DRAFT_KEY).catch(() => {})
+    localDraftDirty.value = false
   } catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
 async function receiveStock() {
   busy.value = true; error.value = ""
   try { saved.value = await receiveStockFromReceipt(saved.value.name); emit("changed") } catch (exception) { error.value = exception.message } finally { busy.value = false }
 }
+
+watch(() => [form, lines, adjustments, receiptFiles.value, extraction.value], scheduleLocalDraftSave, { deep: true })
+watch(() => nativeState.connected, (connected) => {
+  if (connected) window.setTimeout(() => reconcileQueuedReceipt().catch(() => {}), 1500)
+})
+watch(() => offlineState.lastSyncedAt, () => reconcileQueuedReceipt().catch(() => {}))
+onMounted(async () => {
+  await restoreLocalDraft()
+  await reconcileQueuedReceipt()
+})
+onBeforeUnmount(() => window.clearTimeout(localDraftTimer))
 </script>
 
 <template>
-  <section data-block="receipt-intake" class="workflow-block">
+  <section data-block="receipt-intake" class="workflow-block" :data-offline-draft-dirty="localDraftDirty || undefined">
     <header class="workflow-header"><div><p class="eyebrow">Receipts</p><h1>Add bought stock</h1><p>Keep the receipt, check what arrived, then add the reviewed quantities to stock.</p></div></header>
     <ol class="workflow-steps" aria-label="Receipt progress">
       <li :class="{ 'is-current': !form.receipt_file, 'is-complete': form.receipt_file }"><span>1</span><div><strong>Upload receipt</strong><small>Attach the private source document.</small></div></li>
@@ -162,7 +280,7 @@ async function receiveStock() {
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
     <section class="form-section">
       <div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Upload the receipt</h2><p>Use the receipt as evidence for this stock entry.</p></div><SystemBadge v-if="form.receipt_file">Uploaded</SystemBadge></div>
-			<SystemMultiFileUploader v-model="receiptFiles" :disabled="Boolean(saved)" :label="receiptFiles.length ? 'Replace or add receipt files' : 'Add receipt files'" @complete="onUpload" />
+			<SystemMultiFileUploader v-model="receiptFiles" :disabled="formLocked" :label="receiptFiles.length ? 'Replace or add receipt files' : 'Add receipt files'" @complete="onUpload" />
 			<p class="field-note" aria-live="polite">{{ busy && form.receipt_file ? extractionProgressText : (receiptFiles.length ? `${receiptFiles.length} private receipt file${receiptFiles.length === 1 ? '' : 's'} ready.` : "Add all receipt images or PDF files in one selection. They stay private and attached to the receipt record.") }}</p>
 			<div v-if="extraction" class="safety-note">
 				<div class="extraction-summary"><div><strong>{{ extraction.parser_mode }}</strong><p>{{ extraction.lines.length }} purchase lines suggested at {{ Math.round(Number(extraction.confidence || 0) * 100) }}% document confidence. Check every match, quantity, and rate before saving.</p></div><SystemOperationalButton variant="outline" @click="showOcr = !showOcr">{{ showOcr ? "Hide OCR text" : "Show OCR text" }}</SystemOperationalButton></div>
@@ -188,25 +306,25 @@ async function receiveStock() {
         </div>
       </div>
       <div class="field-grid">
-        <SystemLinkedRecordField v-model="form.supplier" label="Supplier" :options="supplierOptions" :disabled="Boolean(saved)" :error="errors.supplier" placeholder="Choose supplier" create-label="Add supplier" manage-label="Manage suppliers" @create="openLinked('create', 'BulkBite Supplier')" @manage="openLinked('list', 'BulkBite Supplier')" />
-        <SystemFormControl v-model="form.supplier_invoice_number" label="Invoice number" size="lg" :disabled="Boolean(saved)" />
-        <SystemDatePicker v-model="form.invoice_date" label="Invoice date" format="YYYY-MM-DD" :disabled="Boolean(saved)" :clearable="false" />
-        <SystemLinkedRecordField v-model="form.default_location" label="Stock location" :options="locationOptions" :disabled="Boolean(saved)" :error="errors.default_location" create-label="Add location" manage-label="Manage locations" @create="openLinked('create', 'BulkBite Location')" @manage="openLinked('list', 'BulkBite Location')" />
+        <SystemLinkedRecordField v-model="form.supplier" label="Supplier" :options="supplierOptions" :disabled="formLocked" :error="errors.supplier" placeholder="Choose supplier" create-label="Add supplier" manage-label="Manage suppliers" @create="openLinked('create', 'BulkBite Supplier')" @manage="openLinked('list', 'BulkBite Supplier')" />
+        <SystemFormControl v-model="form.supplier_invoice_number" label="Invoice number" size="lg" :disabled="formLocked" />
+        <SystemDatePicker v-model="form.invoice_date" label="Invoice date" format="YYYY-MM-DD" :disabled="formLocked" :clearable="false" />
+        <SystemLinkedRecordField v-model="form.default_location" label="Stock location" :options="locationOptions" :disabled="formLocked" :error="errors.default_location" create-label="Add location" manage-label="Manage locations" @create="openLinked('create', 'BulkBite Location')" @manage="openLinked('list', 'BulkBite Location')" />
       </div>
       <div class="line-list">
         <article v-for="(line, index) in lines" :key="index" class="entry-row">
           <span class="row-number">{{ String(index + 1).padStart(2, "0") }}</span>
           <div class="purchase-fields">
-            <SystemLinkedRecordField :model-value="line.item_code" label="Item" :options="itemOptions" :disabled="Boolean(saved)" :error="errors[`item_${index}`]" placeholder="Choose ingredient" create-label="Add item" manage-label="Manage items" @update:model-value="updateLine(line, 'item_code', $event)" @create="openLinked('create', 'BulkBite Item')" @manage="openLinked('list', 'BulkBite Item')" />
-            <SystemFormControl :model-value="line.purchase_qty" type="number" label="Packs bought" min="1" step="1" size="lg" :disabled="Boolean(saved)" :error="errors[`purchase_qty_${index}`]" @update:model-value="updateLine(line, 'purchase_qty', $event)" />
-            <SystemFormControl :model-value="line.units_per_pack" type="number" label="Units per pack" min="1" step="1" size="lg" :disabled="Boolean(saved)" :error="errors[`units_per_pack_${index}`]" @update:model-value="updateLine(line, 'units_per_pack', $event)" />
-            <SystemFormControl :model-value="line.unit_size" type="number" label="Size per unit" min="0.1" step="0.1" size="lg" :disabled="Boolean(saved)" :error="errors[`unit_size_${index}`]" @update:model-value="updateLine(line, 'unit_size', $event)" />
+            <SystemLinkedRecordField :model-value="line.item_code" label="Item" :options="itemOptions" :disabled="formLocked" :error="errors[`item_${index}`]" placeholder="Choose ingredient" create-label="Add item" manage-label="Manage items" @update:model-value="updateLine(line, 'item_code', $event)" @create="openLinked('create', 'BulkBite Item')" @manage="openLinked('list', 'BulkBite Item')" />
+            <SystemFormControl :model-value="line.purchase_qty" type="number" label="Packs bought" min="1" step="1" size="lg" :disabled="formLocked" :error="errors[`purchase_qty_${index}`]" @update:model-value="updateLine(line, 'purchase_qty', $event)" />
+            <SystemFormControl :model-value="line.units_per_pack" type="number" label="Units per pack" min="1" step="1" size="lg" :disabled="formLocked" :error="errors[`units_per_pack_${index}`]" @update:model-value="updateLine(line, 'units_per_pack', $event)" />
+            <SystemFormControl :model-value="line.unit_size" type="number" label="Size per unit" min="0.1" step="0.1" size="lg" :disabled="formLocked" :error="errors[`unit_size_${index}`]" @update:model-value="updateLine(line, 'unit_size', $event)" />
             <label class="field-shell">
               <span>Size unit</span>
-              <SystemSelect :model-value="line.purchase_uom" :options="purchaseUomOptions" size="lg" :disabled="Boolean(saved)" @update:model-value="updateLine(line, 'purchase_uom', $event)" />
+              <SystemSelect :model-value="line.purchase_uom" :options="purchaseUomOptions" size="lg" :disabled="formLocked" @update:model-value="updateLine(line, 'purchase_uom', $event)" />
               <small v-if="errors[`purchase_uom_${index}`]" class="field-error">{{ errors[`purchase_uom_${index}`] }}</small>
             </label>
-            <SystemFormControl :model-value="line.price_per_unit" type="number" label="Unit price (R)" min="0" step="0.01" size="lg" :disabled="Boolean(saved)" :error="errors[`amount_${index}`]" @update:model-value="updateLine(line, 'price_per_unit', $event)" />
+            <SystemFormControl :model-value="line.price_per_unit" type="number" label="Unit price (R)" min="0" step="0.01" size="lg" :disabled="formLocked" :error="errors[`amount_${index}`]" @update:model-value="updateLine(line, 'price_per_unit', $event)" />
           </div>
           <dl class="purchase-summary" aria-label="Calculated purchase values">
             <div><dt>Purchase format</dt><dd>{{ formatQuantity(line.purchase_qty) }} pack(s) × {{ formatQuantity(line.units_per_pack) }} unit(s) × {{ formatQuantity(line.unit_size) }} {{ line.purchase_uom }}</dd></div>
@@ -218,23 +336,23 @@ async function receiveStock() {
 					<div v-if="line.source_quote || visibleWarning(line) || line.notes || line.confidence" class="line-review"><SystemBadge :theme="line.confidence >= 85 ? 'green' : line.confidence >= 60 ? 'orange' : 'red'">{{ Math.round(line.confidence || 0) }}% confidence</SystemBadge><p v-if="line.source_quote"><strong>OCR source:</strong> {{ line.source_quote }}</p><p v-if="line.notes"><strong>Parser note:</strong> {{ line.notes }}</p><p v-if="visibleWarning(line)"><strong>Check:</strong> {{ visibleWarning(line) }}</p></div>
         </article>
       </div>
-      <SystemOperationalButton v-if="!saved" class="receipt-add-line" variant="outline" @click="addLine">Add receipt line</SystemOperationalButton>
+      <SystemOperationalButton v-if="!formLocked" class="receipt-add-line" variant="outline" @click="addLine">Add receipt line</SystemOperationalButton>
       <div class="section-heading receipt-adjustment-heading"><div><p class="eyebrow">Actual savings and buying costs</p><h3>What changed the receipt total?</h3><p>Record discounts, rebates, free delivery, delivery charges, and other buying adjustments exactly as the receipt proves them.</p></div></div>
       <div v-if="adjustments.length" class="adjustment-list">
         <article v-for="(row, index) in adjustments" :key="index">
-          <label class="field-shell"><span>Type</span><SystemSelect :model-value="row.adjustment_type" :options="adjustmentTypes" size="lg" :disabled="Boolean(saved)" @update:model-value="updateAdjustment(row, 'adjustment_type', $event)" /></label>
-          <SystemFormControl v-model="row.description" label="Receipt description" size="lg" :disabled="Boolean(saved)" />
-          <SystemFormControl v-model="row.amount" type="number" label="Amount (R)" min="0" step="0.01" size="lg" :disabled="Boolean(saved)" />
+          <label class="field-shell"><span>Type</span><SystemSelect :model-value="row.adjustment_type" :options="adjustmentTypes" size="lg" :disabled="formLocked" @update:model-value="updateAdjustment(row, 'adjustment_type', $event)" /></label>
+          <SystemFormControl v-model="row.description" label="Receipt description" size="lg" :disabled="formLocked" />
+          <SystemFormControl v-model="row.amount" type="number" label="Amount (R)" min="0" step="0.01" size="lg" :disabled="formLocked" />
           <SystemBadge :theme="row.effect === 'Saving' ? 'green' : undefined">{{ row.effect }}</SystemBadge>
-          <SystemOperationalButton v-if="!saved" variant="ghost" @click="adjustments.splice(index, 1)">Remove</SystemOperationalButton>
+          <SystemOperationalButton v-if="!formLocked" variant="ghost" @click="adjustments.splice(index, 1)">Remove</SystemOperationalButton>
         </article>
       </div>
-      <SystemOperationalButton v-if="!saved" class="receipt-add-line" variant="outline" @click="addAdjustment">Add discount or cost</SystemOperationalButton>
+      <SystemOperationalButton v-if="!formLocked" class="receipt-add-line" variant="outline" @click="addAdjustment">Add discount or cost</SystemOperationalButton>
       <div class="receipt-total"><span>Reviewed total</span><strong>R {{ total.toFixed(2) }}</strong></div>
     </section>
     <footer class="posting-bar">
       <div><SystemBadge>{{ saved ? (saved.docstatus ? "STOCK ADDED" : "READY TO ADD") : "REVIEW NOT SAVED" }}</SystemBadge><p>{{ saved ? (saved.docstatus ? "The reviewed quantities are now in stock." : "Review the saved receipt once more, then add it to stock.") : "Save the review first. Stock will not change yet." }}</p></div>
-      <SystemOperationalButton v-if="!saved" variant="solid" size="lg" :loading="busy" @click="saveDraft">Save reviewed receipt</SystemOperationalButton>
+      <SystemOperationalButton v-if="!saved" variant="solid" size="lg" :loading="busy" :disabled="Boolean(queuedMutationId)" @click="saveDraft">{{ queuedMutationId ? "Waiting to sync" : "Save reviewed receipt" }}</SystemOperationalButton>
       <SystemOperationalButton v-else-if="!saved.docstatus" variant="solid" size="lg" :loading="busy" @click="receiveStock">Add reviewed stock</SystemOperationalButton>
     </footer>
 		<section class="data-section receipt-history">

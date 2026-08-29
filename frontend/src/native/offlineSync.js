@@ -1,6 +1,6 @@
 import { runtimeConfig } from "@/config/runtime"
 import { nativeState } from "@/native/lifecycle"
-import { listQueuedMutations, offlineState, queueMutation, removeQueuedMutation } from "@/native/offlineStore"
+import { listQueuedMutations, offlineState, queueMutation, removeQueuedMutation, saveSyncOutcome } from "@/native/offlineStore"
 
 
 // =============================================================================
@@ -30,7 +30,7 @@ export async function syncDraftMutation(callSyncEndpoint, operation, payload, ba
       mutation.conflict = error.message
       await queueMutation(mutation)
       offlineState.conflict = mutation
-      throw error
+      return { queued: true, mutation, conflict: true }
     }
     await queueMutation(mutation)
     offlineState.error = "This draft is saved on this device and will sync when BulkBite reconnects."
@@ -53,7 +53,9 @@ async function runFlush(callSyncEndpoint) {
     const queued = (await listQueuedMutations()).sort((a, b) => a.createdAt - b.createdAt)
     for (const mutation of queued) {
       try {
-        await callSyncEndpoint(mutation)
+        const response = await callSyncEndpoint(mutation)
+        await saveSyncOutcome(mutation.clientMutationId, { action: "completed", result: response?.result || null })
+        offlineState.completedResults[mutation.clientMutationId] = response?.result || null
         await removeQueuedMutation(mutation.clientMutationId)
         offlineState.lastSyncedAt = Date.now()
       } catch (error) {
@@ -75,17 +77,41 @@ export async function resolveOfflineConflict(callSyncEndpoint, action) {
   const mutation = offlineState.conflict
   if (!mutation) return false
   if (action === "server") {
+    await saveSyncOutcome(mutation.clientMutationId, { action: "server", result: null })
     await removeQueuedMutation(mutation.clientMutationId)
+    offlineState.lastResolution = { clientMutationId: mutation.clientMutationId, action: "server", result: null }
     offlineState.conflict = null
+    offlineState.lastSyncedAt = Date.now()
     return true
   }
   if (action === "local") {
-    await callSyncEndpoint({ ...mutation, overwriteConflict: true })
+    const response = await callSyncEndpoint({ ...mutation, overwriteConflict: true })
+    await saveSyncOutcome(mutation.clientMutationId, { action: "local", result: response?.result || null })
     await removeQueuedMutation(mutation.clientMutationId)
+    offlineState.lastResolution = { clientMutationId: mutation.clientMutationId, action: "local", result: response?.result || null }
     offlineState.conflict = null
+    offlineState.lastSyncedAt = Date.now()
     return true
   }
   return false
+}
+
+export function offlineConflictDetails() {
+  const conflict = offlineState.conflict
+  if (!conflict) return null
+  const marker = String(conflict.conflict || "").indexOf("CONFLICT:")
+  if (marker < 0) return { operation: conflict.operation, local: conflict.payload, server: null, changedFields: [] }
+  try {
+    const detail = JSON.parse(String(conflict.conflict).slice(marker + 9).trim())
+    const local = conflict.payload || {}
+    const server = detail.server || {}
+    const changedFields = [...new Set([...Object.keys(local), ...Object.keys(server)])]
+      .filter(field => JSON.stringify(local[field]) !== JSON.stringify(server[field]))
+      .map(field => ({ field, local: local[field], server: server[field] }))
+    return { ...detail, operation: conflict.operation, local, changedFields }
+  } catch {
+    return { operation: conflict.operation, local: conflict.payload, server: null, changedFields: [] }
+  }
 }
 
 function isConflict(error) {
