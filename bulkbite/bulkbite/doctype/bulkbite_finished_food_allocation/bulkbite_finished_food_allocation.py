@@ -31,7 +31,7 @@ class BulkBiteFinishedFoodAllocation(Document):
 			frappe.throw(_("A future reservation can only be linked to a future customer fulfilment."))
 
 	def on_submit(self):
-		frappe.db.sql("select name from `tabBulkBite Finished Food Allocation` where name = %s for update", (self.name,))
+		_lock_finished_food_position(self.finished_item, self.source_location)
 		if self.allocation_type == "Future Customer Fulfilment":
 			frappe.db.sql("select name from `tabBulkBite Finished Food Allocation` where name = %s for update", (self.source_reservation,))
 			available = get_reservation_remaining(self.source_reservation, exclude_name=self.name)
@@ -74,6 +74,15 @@ class BulkBiteFinishedFoodAllocation(Document):
 		if reservation.finished_item != self.finished_item or reservation.source_location != self.source_location:
 			frappe.throw(_("The reservation is for a different finished meal or stock location."))
 		self.demand_period = self.demand_period or reservation.demand_period
+
+
+def _lock_finished_food_position(item_code, location):
+	"""Serialize physical issues and reservations against one item-location balance."""
+	frappe.db.sql("select name from `tabDocType` where name = %s for update", ("BulkBite Stock Balance",))
+	frappe.db.sql(
+		"select name from `tabBulkBite Stock Balance` where item_code = %s and location = %s for update",
+		(item_code, location),
+	)
 
 
 def get_unallocated_finished_food(item_code, location, exclude_name=None):

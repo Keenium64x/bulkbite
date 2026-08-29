@@ -5,12 +5,19 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation import get_reservation_remaining, get_unallocated_finished_food
+from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation import _lock_finished_food_position, get_reservation_remaining, get_unallocated_finished_food
 from bulkbite.planning import _delivery_threshold_recommendation, _supplier_minimum_position, build_plan_snapshot
 from bulkbite.stock_ledger import append_stock_event, get_stock_balance
 
 
 class TestFinishedFoodBuyingCoverage(TestCase):
+	def test_finished_food_position_uses_a_shared_item_location_lock(self):
+		with patch("bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation.frappe.db.sql") as sql:
+			_lock_finished_food_position("MEAL-001", "Finished Meals")
+
+		self.assertEqual(sql.call_count, 2)
+		self.assertEqual(sql.call_args_list[1].args[1], ("MEAL-001", "Finished Meals"))
+
 	def test_finished_food_covers_early_weeks_before_ingredient_demand(self):
 		plan = SimpleNamespace(plan_rows=[
 			SimpleNamespace(name=f"row-{week}", week_number=week, planned_date=None, finished_item="MEAL", recipe="RECIPE", weekly_servings=10, planned_output_qty=10, uom="Kg")
