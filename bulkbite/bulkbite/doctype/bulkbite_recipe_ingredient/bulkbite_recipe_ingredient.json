@@ -3,7 +3,7 @@
  "field_order": ["item_code", "qty", "uom", "theory_rate"],
  "fields": [
   {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Ingredient", "options": "BulkBite Item", "reqd": 1},
-  {"fieldname": "qty", "fieldtype": "Float", "in_list_view": 1, "label": "Quantity", "non_negative": 1, "reqd": 1},
+  {"description": "Raw or purchased quantity consumed by the recipe. Cooking yield is configured on the item and must not be applied to this value twice.", "fieldname": "qty", "fieldtype": "Float", "in_list_view": 1, "label": "Raw Quantity", "non_negative": 1, "reqd": 1},
   {"fetch_from": "item_code.stock_uom", "fieldname": "uom", "fieldtype": "Data", "in_list_view": 1, "label": "Unit", "read_only": 1},
   {"fetch_from": "item_code.theory_valuation_rate", "fieldname": "theory_rate", "fieldtype": "Currency", "label": "Theory Rate", "read_only": 1}
  ],

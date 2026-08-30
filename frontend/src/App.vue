@@ -45,7 +45,7 @@ const sections = [
 	{ id: "import", label: "Import", group: "theoretical" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
 ];
-const auxiliarySections = ["employees", "documents", "history", "operations"];
+const auxiliarySections = ["employees", "documents", "history", "operations", "containers"];
 const activeSectionStorageKey = "bulkbite-active-section";
 const allowedSectionIds = new Set([
 	...sections.map((section) => section.id),
@@ -356,6 +356,15 @@ watch(
 		<SystemStockOverview
 			v-else-if="activeSection === 'operations'"
 			mode="operations"
+			:snapshot="snapshot"
+			:inventory="inventory"
+			:plan="plan"
+			@open-workflow="navigate"
+			@changed="loadAll"
+		/>
+		<SystemStockOverview
+			v-else-if="activeSection === 'containers'"
+			mode="containers"
 			:snapshot="snapshot"
 			:inventory="inventory"
 			:plan="plan"

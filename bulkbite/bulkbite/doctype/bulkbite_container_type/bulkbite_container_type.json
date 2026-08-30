@@ -4,9 +4,10 @@
  "autoname": "field:container_type_name",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["container_type_name", "enabled", "default_for_production", "capacity_qty", "capacity_uom", "replacement_price", "non_return_charge_multiplier", "expected_return_days", "notes"],
+ "field_order": ["container_type_name", "stock_item", "enabled", "default_for_production", "capacity_qty", "capacity_uom", "replacement_price", "non_return_charge_multiplier", "expected_return_days", "notes"],
  "fields": [
   {"fieldname": "container_type_name", "fieldtype": "Data", "in_list_view": 1, "label": "Container Type", "reqd": 1, "unique": 1},
+  {"description": "Packaging item used for purchasing and stock identity. Individual reusable containers are tracked as container assets.", "fieldname": "stock_item", "fieldtype": "Link", "in_list_view": 1, "label": "Stock Item", "options": "BulkBite Item", "reqd": 1},
   {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
   {"default": "0", "fieldname": "default_for_production", "fieldtype": "Check", "label": "Default for Production"},
   {"fieldname": "capacity_qty", "fieldtype": "Float", "label": "Food Capacity", "non_negative": 1, "reqd": 1},

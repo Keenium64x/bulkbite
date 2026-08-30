@@ -118,7 +118,7 @@ def _gross_profit_position(revenue, food_cost):
 # =============================================================================
 
 
-def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finished_stock=False, finished_location="Finished Meals"):
+def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finished_stock=False, finished_location="Finished Meals", start_cycle_week=1):
 	"""Expand the meal cycle and optionally cover output demand with finished stock before ingredients."""
 	weeks = max(int(weeks or 4), 1)
 	rows = []
@@ -127,8 +127,9 @@ def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finish
 	if not ordered_rows:
 		return rows, []
 	finished_balances = {}
+	start_index = max(int(start_cycle_week or 1) - 1, 0) % len(ordered_rows)
 	for horizon_week in range(1, weeks + 1):
-		plan_row = ordered_rows[(horizon_week - 1) % len(ordered_rows)]
+		plan_row = ordered_rows[(start_index + horizon_week - 1) % len(ordered_rows)]
 		planned_output = round_operational_quantity(plan_row.planned_output_qty)
 		finished_item = plan_row.finished_item
 		if cover_with_finished_stock and finished_item not in finished_balances:
@@ -199,10 +200,10 @@ def build_plan_snapshot(plan, location="Ingredients", weeks=4, cover_with_finish
 # =============================================================================
 
 
-def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
+def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4, next_production=None):
 	"""Round ingredient shortages to chosen supplier packs and price the theoretical basket."""
-	as_of_date = getdate(as_of_date or plan.period_start or nowdate())
-	production_date = _next_planned_production_date(plan, as_of_date)
+	as_of_date = getdate(as_of_date or nowdate())
+	production_date = _next_planned_production_date(plan, as_of_date, next_production)
 	routes = {row.item_category: row for row in plan.purchase_routes}
 	lines = []
 	for item in requirements:
@@ -213,7 +214,7 @@ def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 		if not supplier and item.get("item_category"):
 			supplier = frappe.get_cached_value("BulkBite Item Category", item["item_category"], "default_supplier")
 		offer = _select_offer(item["item_code"], supplier, bool(route and route.use_discounted_price), as_of_date)
-		line = {**item, "supplier": supplier, "offer": offer}
+		line = {**item, "supplier": supplier, "offer": offer, "quantity_basis": "Raw purchase quantity"}
 		if offer and item["shortage_qty"] > 0:
 			packs = math.ceil(item["shortage_qty"] / offer["stock_qty_per_pack"])
 			price_bridge = calculate_offer_price_bridge(offer, packs, as_of_date, bool(route and route.use_discounted_price))
@@ -234,6 +235,8 @@ def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 		lines.append(line)
 	groups = {}
 	for line in lines:
+		if flt(line.get("shortage_qty")) <= 0:
+			continue
 		key = line["supplier"] or "Supplier not chosen"
 		group = groups.setdefault(key, {"supplier": key, "base_cost": 0, "expected_savings": 0, "expected_added_costs": 0, "expected_cost": 0, "items": []})
 		group["base_cost"] += line["base_cost"]
@@ -261,6 +264,9 @@ def build_buying_plan(plan, requirements, as_of_date=None, horizon_weeks=4):
 		"shortage_count": sum(1 for row in lines if row["shortage_qty"] > 0),
 		"missing_offer_count": missing_offers,
 		"horizon_weeks": max(int(horizon_weeks or 4), 1),
+		"as_of_date": as_of_date,
+		"production_date": production_date,
+		"all_stock_covered": not any(flt(row.get("shortage_qty")) > 0 for row in lines),
 	}
 
 
@@ -282,18 +288,19 @@ def _supplier_order_deadline(plan, supplier, as_of_date, production_date=None):
 	}
 
 
-def _next_planned_production_date(plan, as_of_date):
+def _next_planned_production_date(plan, as_of_date, next_production=None):
 	"""Resolve the first saved cooking session which can still happen on or after today."""
 	as_of = getdate(as_of_date or nowdate())
 	weekday_index = {name: index for index, name in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])}
+	next_row = (next_production or {}).get("row") or {}
+	target_week = int(next_row.get("cycle_week") or next_row.get("week_number") or 0)
 	candidates = []
 	for run in plan.capacity_runs or []:
 		week = max(int(run.week_number or 1), 1)
+		if target_week and week != target_week:
+			continue
 		weekday = weekday_index.get(run.day_of_week or "Saturday", 5)
-		cycle_start = getdate(plan.period_start or as_of)
-		candidate = cycle_start + timedelta(days=(week - 1) * 7 + weekday)
-		while candidate < as_of:
-			candidate += timedelta(days=28)
+		candidate = as_of + timedelta(days=(weekday - as_of.weekday()) % 7)
 		candidates.append(candidate)
 	return min(candidates) if candidates else _next_cycle_date(plan, "Saturday", as_of)
 

@@ -9,7 +9,7 @@ from frappe.tests import IntegrationTestCase
 
 from bulkbite.api import _next_production_station
 from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation import _lock_finished_food_position, get_reservation_remaining, get_unallocated_finished_food
-from bulkbite.planning import _delivery_threshold_recommendation, _next_planned_production_date, _supplier_minimum_position, _supplier_order_deadline, build_plan_snapshot
+from bulkbite.planning import _delivery_threshold_recommendation, _next_planned_production_date, _supplier_minimum_position, _supplier_order_deadline, build_buying_plan, build_plan_snapshot
 from bulkbite.stock_ledger import append_stock_event, get_stock_balance
 from bulkbite.workforce import calculate_capacity_forecast
 from bulkbite.workforce import _select_required_output_runs
@@ -96,6 +96,18 @@ class TestFinishedFoodBuyingCoverage(TestCase):
 		self.assertEqual(deadline["customer_delivery_date"], date(2026, 8, 30))
 		self.assertEqual(deadline["order_by_date"], date(2026, 8, 23))
 
+	def test_past_saved_cycle_rolls_the_target_week_to_the_next_live_weekday(self):
+		plan = SimpleNamespace(
+			period_start=date(2026, 8, 1),
+			capacity_runs=[
+				SimpleNamespace(week_number=1, day_of_week="Saturday"),
+				SimpleNamespace(week_number=2, day_of_week="Thursday"),
+			],
+		)
+		production_date = _next_planned_production_date(plan, date(2026, 8, 30), {"row": {"cycle_week": 2}})
+
+		self.assertEqual(production_date, date(2026, 9, 3))
+
 	def test_finished_food_position_uses_a_shared_item_location_lock(self):
 		with patch("bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finished_food_allocation.frappe.db.sql") as sql:
 			_lock_finished_food_position("MEAL-001", "Finished Meals")
@@ -123,6 +135,29 @@ class TestFinishedFoodBuyingCoverage(TestCase):
 
 		self.assertEqual([row["production_required_qty"] for row in sessions], [0, 0, 5, 10])
 		self.assertEqual(requirements[0]["required_qty"], 7.5)
+
+	def test_receipt_posted_stock_removes_covered_items_from_supplier_groups(self):
+		plan = SimpleNamespace(
+			period_start=date(2026, 8, 1),
+			plan_rows=[SimpleNamespace(name="row-1", week_number=1, planned_date=None, finished_item="MEAL", recipe="RECIPE", weekly_servings=10, planned_output_qty=10, uom="Kg")],
+			capacity_runs=[SimpleNamespace(week_number=1, day_of_week="Saturday")],
+			purchase_routes=[],
+		)
+		item = SimpleNamespace(item_category="Dry", purchasable=True)
+		expected = {"ingredients": [{"item_code": "RICE", "item_name": "Rice", "uom": "Kg", "expected_qty": 10, "available_before_measurement": 12}]}
+		with (
+			patch("bulkbite.planning.get_available_stock", return_value=12),
+			patch("bulkbite.planning.load_expected_usage", return_value=expected),
+			patch("bulkbite.planning.frappe.get_cached_doc", return_value=item),
+			patch("bulkbite.planning.frappe.get_cached_value", return_value="Makro"),
+			patch("bulkbite.planning._select_offer", return_value=None),
+		):
+			_rows, requirements = build_plan_snapshot(plan, "Ingredients", 1)
+			buying = build_buying_plan(plan, requirements, date(2026, 8, 30), 1)
+
+		self.assertTrue(buying["all_stock_covered"])
+		self.assertEqual(buying["shortage_count"], 0)
+		self.assertEqual(buying["suppliers"], [])
 
 	def test_delivery_threshold_does_not_claim_unverified_stock_is_safe(self):
 		with patch("bulkbite.planning.frappe.get_all", return_value=[SimpleNamespace(adjustment_type="Delivery Fee", value=80, threshold_amount=600, effective_from=None, effective_to=None)]):

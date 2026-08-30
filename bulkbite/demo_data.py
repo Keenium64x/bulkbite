@@ -172,28 +172,32 @@ def ensure_demo_master_data():
 	_ensure_demo_recipe_instructions()
 
 	item_updates = {
-		"BB-ING-POTATOES": ("Vegetables", "6001000000011"),
-		"BB-ING-ONIONS": ("Vegetables", "6001000000028"),
-		"BB-ING-CRUSHED-GARLIC": ("Vegetables", "6001000000035"),
-		"BB-ING-CHICKEN-BREAST": ("Protein", "6001000000042"),
-		"BB-ING-VALUE-BEEF-MINCE": ("Protein", "6001000000059"),
-		"BB-ING-PARBOILED-RICE": ("Dry", "6001000000066"),
-		"BB-ING-DRY-BEANS": ("Dry", "6001000000073"),
-		"BB-ING-LENTILS": ("Dry", "6001000000080"),
-		"BB-ING-BASIC-PASTA": ("Dry", "6001000000097"),
-		"BB-ING-TOMATO-ONION-MIX": ("Dry", "6001000000103"),
-		"BB-ING-TOMATO-PUREE": ("Dry", "6001000000110"),
-		"BB-ING-SUNFLOWER-OIL": ("Dry", "6001000000127"),
-		"BB-ING-CURRY-POWDER": ("Dry", "6001000000134"),
-		"BB-ING-STOCK-CUBES": ("Dry", "6001000000141"),
-		"BB-ING-SALT": ("Dry", "6001000000158"),
-		"BB-ING-MIXED-HERBS": ("Dry", "6001000000165"),
+		"BB-ING-POTATOES": ("Vegetables", "6001000000011", 1, 175, "medium potatoes", "Count is an estimate only. Weigh the raw potatoes before preparation."),
+		"BB-ING-ONIONS": ("Vegetables", "6001000000028", 1, 150, "medium onions", "Count is an estimate only. Weigh the raw onions before preparation."),
+		"BB-ING-CRUSHED-GARLIC": ("Vegetables", "6001000000035", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-CHICKEN-BREAST": ("Protein", "6001000000042", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-VALUE-BEEF-MINCE": ("Protein", "6001000000059", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-PARBOILED-RICE": ("Dry", "6001000000066", 2.8, 0, "", "Demo planning assumption: 1 kg dry rice yields about 2.8 kg cooked. Buying still uses the dry weight."),
+		"BB-ING-DRY-BEANS": ("Dry", "6001000000073", 2.4, 0, "", "Demo planning assumption: 1 kg dry beans yields about 2.4 kg cooked. Buying still uses the dry weight."),
+		"BB-ING-LENTILS": ("Dry", "6001000000080", 2.5, 0, "", "Demo planning assumption: 1 kg dry lentils yields about 2.5 kg cooked. Buying still uses the dry weight."),
+		"BB-ING-BASIC-PASTA": ("Dry", "6001000000097", 2.25, 0, "", "Demo planning assumption: 1 kg dry pasta yields about 2.25 kg cooked. Buying still uses the dry weight."),
+		"BB-ING-TOMATO-ONION-MIX": ("Dry", "6001000000103", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-TOMATO-PUREE": ("Dry", "6001000000110", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-SUNFLOWER-OIL": ("Dry", "6001000000127", 1, 0, "", "Use the saved raw volume."),
+		"BB-ING-CURRY-POWDER": ("Dry", "6001000000134", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-STOCK-CUBES": ("Dry", "6001000000141", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-SALT": ("Dry", "6001000000158", 1, 0, "", "Use the saved raw weight."),
+		"BB-ING-MIXED-HERBS": ("Dry", "6001000000165", 1, 0, "", "Use the saved raw weight."),
 	}
-	for item_code, (category, scan_code) in item_updates.items():
+	for item_code, (category, scan_code, yield_factor, piece_weight, piece_label, yield_note) in item_updates.items():
 		if not frappe.db.exists("BulkBite Item", item_code):
 			continue
 		item = frappe.get_doc("BulkBite Item", item_code)
 		item.item_category = category
+		item.prepared_yield_factor = yield_factor
+		item.average_piece_weight_g = piece_weight
+		item.piece_count_label = piece_label
+		item.preparation_yield_note = yield_note
 		if not item.scan_codes:
 			item.scan_codes = scan_code
 		item.save(ignore_permissions=True)
@@ -215,6 +219,8 @@ def ensure_demo_master_data():
 				"description": f"{DEMO_MARKER}. Standard packed-meal container.",
 			}
 		).insert(ignore_permissions=True)
+	if frappe.db.exists("BulkBite Container Type", "Standard 750 ml Reusable Container"):
+		frappe.db.set_value("BulkBite Container Type", "Standard 750 ml Reusable Container", "stock_item", "BB-PACK-MEAL-CONTAINER-750", update_modified=False)
 
 	offers = _ensure_supplier_offers()
 	adjustments = _ensure_price_adjustments()
@@ -450,10 +456,6 @@ def ensure_demo_workforce():
 def ensure_demo_direction(master, workforce):
 	"""Freeze the four-meal direction and its theoretical buying position before demo receipts."""
 	plan_name = frappe.db.get_value("BulkBite Production Plan", {"status": "Active"}, "name", order_by="modified desc")
-	if plan_name:
-		plan = frappe.get_doc("BulkBite Production Plan", plan_name)
-		if DEMO_MARKER in (plan.notes or ""):
-			return plan.name
 
 	recipes = frappe.get_all(
 		"BulkBite Recipe", filters={"status": "Approved"}, fields=["name", "recipe_name", "finished_item"], order_by="name"
@@ -498,13 +500,13 @@ def ensure_demo_direction(master, workforce):
 			{"scheduled_elapsed_hours": 6, "runs_per_week": 2, "team_template": workforce["team_template"]},
 		],
 		"capacity_runs": [
-			{"week_number": 1, "run_number": 1, "day_of_week": "Monday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
-			{"week_number": 1, "run_number": 2, "day_of_week": "Thursday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
-			{"week_number": 2, "run_number": 1, "day_of_week": "Tuesday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
-			{"week_number": 2, "run_number": 2, "day_of_week": "Friday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
-			{"week_number": 3, "run_number": 1, "day_of_week": "Wednesday", "scheduled_elapsed_hours": 4, "team_template": workforce["team_template"], "planned_people": 3},
-			{"week_number": 4, "run_number": 1, "day_of_week": "Monday", "scheduled_elapsed_hours": 6, "team_template": workforce["team_template"], "planned_people": 4},
-			{"week_number": 4, "run_number": 2, "day_of_week": "Thursday", "scheduled_elapsed_hours": 6, "team_template": workforce["team_template"], "planned_people": 4},
+			{"week_number": 1, "run_number": 1, "day_of_week": "Saturday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
+			{"week_number": 1, "run_number": 2, "day_of_week": "Saturday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
+			{"week_number": 2, "run_number": 1, "day_of_week": "Saturday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
+			{"week_number": 2, "run_number": 2, "day_of_week": "Saturday", "scheduled_elapsed_hours": 5, "team_template": workforce["team_template"], "planned_people": 4},
+			{"week_number": 3, "run_number": 1, "day_of_week": "Saturday", "scheduled_elapsed_hours": 4, "team_template": workforce["team_template"], "planned_people": 3},
+			{"week_number": 4, "run_number": 1, "day_of_week": "Saturday", "scheduled_elapsed_hours": 6, "team_template": workforce["team_template"], "planned_people": 4},
+			{"week_number": 4, "run_number": 2, "day_of_week": "Saturday", "scheduled_elapsed_hours": 6, "team_template": workforce["team_template"], "planned_people": 4},
 		],
 		"forecast_customer_mix": [
 			{"plan_type": "Lite", "target_customers": 26, "target_week": 8},
@@ -792,6 +794,7 @@ def ensure_demo_containers(production):
 		"Standard 750 ml Reusable Container",
 		{
 			"container_type_name": "Standard 750 ml Reusable Container",
+			"stock_item": "BB-PACK-MEAL-CONTAINER-750",
 			"enabled": 1,
 			"default_for_production": 1,
 			"capacity_qty": 0.75,

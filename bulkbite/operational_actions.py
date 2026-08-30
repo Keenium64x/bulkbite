@@ -6,6 +6,8 @@ from datetime import timedelta
 import frappe
 from frappe.utils import add_days, add_months, flt, getdate, nowdate
 
+from bulkbite.stock_production import get_available_stock, round_operational_quantity
+
 
 # =============================================================================
 # region OPERATIONAL SCHEDULE MATERIALIZATION
@@ -121,9 +123,12 @@ def get_container_position_snapshot(as_of_date=None):
 	types = frappe.get_all(
 		"BulkBite Container Type",
 		filters={"enabled": 1},
-		fields=["name", "container_type_name", "capacity_qty", "capacity_uom", "replacement_price", "non_return_charge_multiplier", "expected_return_days", "default_for_production"],
+		fields=["name", "container_type_name", "stock_item", "capacity_qty", "capacity_uom", "replacement_price", "non_return_charge_multiplier", "expected_return_days", "default_for_production"],
 		order_by="default_for_production desc, container_type_name asc",
 	)
+	for container_type in types:
+		container_type["stock_uom"] = frappe.get_cached_value("BulkBite Item", container_type.stock_item, "stock_uom") if container_type.stock_item else None
+		container_type["stock_qty"] = round_operational_quantity(get_available_stock(container_type.stock_item, "Ingredients")) if container_type.stock_item else 0
 	pending_charges = sum(
 		flt(value) for value in frappe.get_all(
 			"BulkBite Container Movement",
@@ -154,15 +159,17 @@ def build_operational_action_snapshot(plan_snapshot=None):
 	calendar_snapshot = get_operational_calendar_snapshot()
 	container_position = get_container_position_snapshot()
 	actions = []
-	for action in calendar_snapshot["actions"]:
-		if action.display_status not in {"Missed", "Due"}:
-			continue
+	today = getdate(nowdate())
+	for action, occurrence_count in _group_actionable_calendar_actions(calendar_snapshot["actions"], today):
 		severity = "overdue" if action.display_status == "Missed" else "attention"
+		reason = action.consequence_note or f"{action.action_type} is {action.display_status.lower()}."
+		if occurrence_count > 1:
+			reason = f"{reason} {occurrence_count} occurrences are grouped into this recovery action."
 		actions.append({
 			"priority": 10 if severity == "overdue" else 50,
 			"severity": severity,
 			"title": action.title,
-			"reason": action.consequence_note or f"{action.action_type} is {action.display_status.lower()}.",
+			"reason": reason,
 			"due_date": action.due_date,
 			"action_section": action.target_section or "operations",
 			"action_label": "Review calendar",
@@ -173,7 +180,7 @@ def build_operational_action_snapshot(plan_snapshot=None):
 	for supplier in buying.get("suppliers") or []:
 		if not any(row.get("supplier") == supplier.get("supplier") for row in shortages):
 			continue
-		overdue = supplier.get("order_by_date") and getdate(supplier["order_by_date"]) < getdate(nowdate())
+		overdue = supplier.get("order_by_date") and getdate(supplier["order_by_date"]) < today
 		actions.append({
 			"priority": 15 if overdue else 30,
 			"severity": "overdue" if overdue else "attention",
@@ -188,12 +195,13 @@ def build_operational_action_snapshot(plan_snapshot=None):
 	next_row = next_station.get("row") or {}
 	if next_row and flt(next_row.get("remaining_output_qty") or next_row.get("planned_output_qty")) > 0:
 		remaining = flt(next_row.get("remaining_output_qty") or next_row.get("planned_output_qty"))
+		production_date = buying.get("production_date") or next_row.get("planned_date")
 		actions.append({
 			"priority": 40,
 			"severity": "attention",
 			"title": "Complete the next production run",
 			"reason": f"{round(remaining, 1)} kg is still needed for the current meal target.",
-			"due_date": next_row.get("planned_date"),
+			"due_date": production_date,
 			"action_section": "production",
 			"action_label": "Open production",
 			"recovery_steps": ["Confirm ingredient readiness.", "Record another run for the remaining food."],
@@ -205,7 +213,7 @@ def build_operational_action_snapshot(plan_snapshot=None):
 			"title": "Recover overdue containers",
 			"reason": f"{container_position['overdue']} customer containers are past their expected return date.",
 			"due_date": None,
-			"action_section": "stock",
+			"action_section": "containers",
 			"action_label": "Open container control",
 			"recovery_steps": ["Contact the listed customers.", "Record returns or mark unreturned containers lost so the replacement charge is visible."],
 		})
@@ -221,6 +229,56 @@ def build_operational_action_snapshot(plan_snapshot=None):
 		"recovery_steps": [],
 	}
 	return {"primary": primary, "actions": actions, "calendar": calendar_snapshot, "containers": container_position}
+
+
+def _is_calendar_action_actionable(action, today):
+	"""Keep future calendar occurrences out of the work queue until their lead window opens."""
+	if action.display_status == "Missed":
+		return True
+	if action.display_status != "Due":
+		return False
+	lead_days = 0
+	schedule = getattr(action, "schedule", None)
+	if schedule:
+		lead_days = max(int(frappe.get_cached_value("BulkBite Operational Schedule", schedule, "lead_days") or 0), 0)
+	return getdate(action.due_date) <= add_days(today, lead_days)
+
+
+def _group_actionable_calendar_actions(actions, today):
+	"""Collapse repeated occurrences into one queue job while preserving every calendar event."""
+	grouped = {}
+	for action in actions:
+		if not _is_calendar_action_actionable(action, today):
+			continue
+		key = getattr(action, "schedule", None) or getattr(action, "name", None) or (action.action_type, action.title)
+		if key not in grouped:
+			grouped[key] = [action, 0]
+		grouped[key][1] += 1
+	return grouped.values()
+
+
+def get_default_container_suggestion(output_qty):
+	"""Return the deterministic packing count for the enabled default container type."""
+	container_type = frappe.db.get_value(
+		"BulkBite Container Type",
+		{"enabled": 1, "default_for_production": 1},
+		["name", "container_type_name", "capacity_qty", "capacity_uom", "stock_item"],
+		as_dict=True,
+	)
+	if not container_type or flt(container_type.capacity_qty) <= 0 or container_type.capacity_uom != "Kg":
+		return {"available": False, "suggested_count": 0, "capacity_qty": 0, "capacity_uom": "Kg"}
+	quantity = max(flt(output_qty), 0)
+	count = int((quantity / flt(container_type.capacity_qty)) + 0.999999) if quantity else 0
+	return {
+		"available": True,
+		"container_type": container_type.name,
+		"container_type_name": container_type.container_type_name,
+		"stock_item": container_type.stock_item,
+		"capacity_qty": flt(container_type.capacity_qty),
+		"capacity_uom": container_type.capacity_uom,
+		"suggested_count": count,
+		"implied_average_fill_qty": round(quantity / count, 3) if count else 0,
+	}
 
 
 # endregion NEXT ACTION ENGINE

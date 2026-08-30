@@ -22,10 +22,7 @@ def build_run_instruction_plan(recipe_name, output_qty, team_size=1):
 	if output_qty <= 0:
 		frappe.throw(_("Instruction output must be greater than zero."))
 	expectation = load_expected_usage(recipe.name, output_qty, "Ingredients")
-	ingredients = [
-		{"item_code": row["item_code"], "item_name": row["item_name"], "quantity": round_operational_quantity(row["expected_qty"]), "uom": row["uom"]}
-		for row in expectation["ingredients"]
-	]
+	ingredients = [_build_ingredient_guidance(row) for row in expectation["ingredients"]]
 	equipment = _equipment_position()
 	steps = _build_steps(recipe, output_qty, ingredients, equipment)
 	lanes, elapsed = _assign_worker_lanes(steps, max(int(team_size or 1), 1))
@@ -43,6 +40,39 @@ def build_run_instruction_plan(recipe_name, output_qty, team_size=1):
 		"warnings": _instruction_warnings(recipe, steps, equipment),
 		"ai_available": bool(frappe.conf.get("gemini_api_key") and frappe.conf.get("gemini_private_receipt_approved")),
 	}
+
+
+def _build_ingredient_guidance(row):
+	"""Keep raw recipe weight authoritative and add deterministic kitchen estimates."""
+	quantity = round_operational_quantity(row["expected_qty"])
+	item = frappe.db.get_value(
+		"BulkBite Item",
+		row["item_code"],
+		["prepared_yield_factor", "average_piece_weight_g", "piece_count_label", "preparation_yield_note"],
+		as_dict=True,
+	) or {}
+	yield_factor = flt(item.get("prepared_yield_factor")) or 1
+	prepared_quantity = round_operational_quantity(quantity * yield_factor)
+	piece_count = None
+	if row["uom"] == "Kg" and flt(item.get("average_piece_weight_g")) > 0:
+		piece_count = max(round(quantity * 1000 / flt(item.get("average_piece_weight_g"))), 1)
+	return {
+		"item_code": row["item_code"],
+		"item_name": row["item_name"],
+		"quantity": quantity,
+		"uom": row["uom"],
+		"quantity_basis": "Raw purchase quantity",
+		"prepared_yield_factor": round(yield_factor, 3),
+		"prepared_quantity": prepared_quantity,
+		"piece_count_estimate": piece_count,
+		"piece_count_label": item.get("piece_count_label") or _default_piece_label(row["item_name"]),
+		"preparation_yield_note": item.get("preparation_yield_note"),
+	}
+
+
+def _default_piece_label(item_name):
+	label = str(item_name or "pieces").strip().lower()
+	return label if label.endswith("s") else f"{label}s"
 
 
 def _build_steps(recipe, output_qty, ingredients, equipment):

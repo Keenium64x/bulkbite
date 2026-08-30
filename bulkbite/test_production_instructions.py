@@ -29,6 +29,7 @@ class TestProductionInstructions(TestCase):
 		equipment = {"POT": {"name": "POT", "equipment_type_name": "Cooking pot", "capacity_uom": "Kg", "total_concurrent_capacity": 10}}
 		with (
 			patch("bulkbite.production_instructions.frappe.get_doc", return_value=recipe),
+			patch("bulkbite.production_instructions.frappe.db.get_value", side_effect=lambda _doctype, item_code, _fields, as_dict=True: {"prepared_yield_factor": 2.5 if item_code == "RICE" else 1, "average_piece_weight_g": 200 if item_code == "SAUCE" else 0, "piece_count_label": "medium sauce vegetables" if item_code == "SAUCE" else "", "preparation_yield_note": None}),
 			patch("bulkbite.production_instructions.load_expected_usage", return_value=expectation),
 			patch("bulkbite.production_instructions._equipment_position", return_value=equipment),
 			patch("bulkbite.production_instructions.frappe.conf", {}),
@@ -36,6 +37,8 @@ class TestProductionInstructions(TestCase):
 			result = build_run_instruction_plan("RECIPE-001", 25, 2)
 
 		self.assertEqual(result["ingredients"][0]["quantity"], 15)
+		self.assertEqual(result["ingredients"][0]["prepared_quantity"], 37.5)
+		self.assertEqual(result["ingredients"][1]["piece_count_estimate"], 50)
 		self.assertEqual(result["steps"][0]["batch_count"], 2)
 		self.assertEqual(result["steps"][2]["depends_on_steps"], [1, 2])
 		self.assertEqual(result["estimated_elapsed_minutes"], 25)

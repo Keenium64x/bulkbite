@@ -47,7 +47,7 @@ RECIPE_FIELDS = [
 ]
 
 SETUP_TARGETS = OrderedDict({
-	"BulkBite Item": {"label": "Items", "identity": "item_code", "fields": ["item_code", "item_name", "item_type", "item_category", "stock_uom", "track_stock", "purchasable", "enabled", "theory_valuation_rate", "pull_forward_allowed", "shelf_life_days", "maximum_preferred_stock_qty", "description"]},
+	"BulkBite Item": {"label": "Items", "identity": "item_code", "fields": ["item_code", "item_name", "item_type", "item_category", "stock_uom", "track_stock", "purchasable", "enabled", "theory_valuation_rate", "prepared_yield_factor", "average_piece_weight_g", "piece_count_label", "preparation_yield_note", "pull_forward_allowed", "shelf_life_days", "maximum_preferred_stock_qty", "description"]},
 	"BulkBite Supplier": {"label": "Suppliers", "identity": "supplier_name", "fields": ["supplier_name", "enabled", "accountant_reference", "tax_reference", "email", "phone", "delivery_lead_time_days", "order_safety_days", "notes"]},
 	"BulkBite Equipment Type": {"label": "Equipment types", "identity": "equipment_type_name", "fields": ["equipment_type_name", "capacity_qty", "capacity_uom", "quantity_available", "concurrent_batch_limit", "enabled", "notes"]},
 	"BulkBite Item Category": {"label": "Food categories", "identity": "category_name", "fields": ["category_name", "default_supplier", "enabled", "notes"]},

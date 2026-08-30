@@ -73,6 +73,7 @@ export const getFinishedFoodPosition = (itemCode = "", location = "Finished Meal
 export const getProductionHistorySnapshot = (planName = "") => call("bulkbite.api.get_production_history_snapshot", { plan_name: planName }, "GET")
 export const getOperationalCalendar = (fromDate, toDate) => call("bulkbite.api.get_operational_calendar", { from_date: fromDate, to_date: toDate }, "GET")
 export const getContainerPosition = () => call("bulkbite.api.get_container_position", {}, "GET")
+export const getContainerSuggestion = (outputQty) => call("bulkbite.api.get_container_suggestion", { output_qty: outputQty }, "GET")
 export const updateOperationalAction = (name, action, newDate, reason) => call("bulkbite.api.update_operational_action", { name, action, new_date: newDate, reason })
 export const recordContainerMovement = (payload) => call("bulkbite.api.record_container_movement", { payload })
 export const allocateFinishedFood = (payload) => call("bulkbite.api.allocate_finished_food", { payload })

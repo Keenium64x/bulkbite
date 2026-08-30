@@ -63,6 +63,7 @@ from bulkbite.production_instructions import build_run_instruction_plan
 from bulkbite.operational_actions import (
 	build_operational_action_snapshot,
 	get_container_position_snapshot,
+	get_default_container_suggestion,
 	get_operational_calendar_snapshot,
 	materialize_operational_actions,
 )
@@ -1631,6 +1632,12 @@ def get_container_position():
 	return get_container_position_snapshot()
 
 
+@frappe.whitelist(methods=["GET"])
+def get_container_suggestion(output_qty):
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	return get_default_container_suggestion(output_qty)
+
+
 @frappe.whitelist(methods=["POST"])
 def update_operational_action(name, action, new_date=None, reason=None):
 	_require_roles("BulkBite Manager")
@@ -1780,9 +1787,6 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
 	location = location or "Ingredients"
 	rows, requirements = build_plan_snapshot(plan, location)
-	buying_rows, buying_requirements = build_plan_snapshot(plan, location, cover_with_finished_stock=True)
-	buying = build_buying_plan(plan, buying_requirements)
-	buying["planned_sessions"] = buying_rows
 	demand = calculate_customer_demand(plan.customer_mix)
 	runs = frappe.get_all(
 		"BulkBite Production Run",
@@ -1790,6 +1794,11 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
 		order_by="production_date, creation",
 	)
+	next_production = _next_production_station(rows, runs)
+	start_cycle_week = int((next_production.get("row") or {}).get("cycle_week") or (next_production.get("row") or {}).get("week_number") or 1)
+	buying_rows, buying_requirements = build_plan_snapshot(plan, location, cover_with_finished_stock=True, start_cycle_week=start_cycle_week)
+	buying = build_buying_plan(plan, buying_requirements, next_production=next_production)
+	buying["planned_sessions"] = buying_rows
 	result = {
 		"name": plan.name,
 		"modified": plan.modified,
@@ -1818,7 +1827,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"runs": runs,
 	}
 	result["capacity_plan"] = _build_capacity_plan(plan, result["customer_mix"], result["workforce"])
-	result["next_production"] = _next_production_station(result["rows"], runs)
+	result["next_production"] = next_production
 	result["operations"] = build_operational_action_snapshot(result)
 	return result
 
@@ -1832,8 +1841,17 @@ def get_buying_recommendation(plan_name=None, location="Ingredients", horizon_we
 		return None
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
 	weeks = max(min(int(horizon_weeks or 4), 12), 1)
-	rows, requirements = build_plan_snapshot(plan, location, weeks, cover_with_finished_stock=True)
-	buying = build_buying_plan(plan, requirements, horizon_weeks=weeks)
+	direction_rows, _ = build_plan_snapshot(plan, location)
+	runs = frappe.get_all(
+		"BulkBite Production Run",
+		filters={"production_plan": plan.name},
+		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation"],
+		order_by="production_date, creation",
+	)
+	next_production = _next_production_station(direction_rows, runs)
+	start_cycle_week = int((next_production.get("row") or {}).get("cycle_week") or (next_production.get("row") or {}).get("week_number") or 1)
+	rows, requirements = build_plan_snapshot(plan, location, weeks, cover_with_finished_stock=True, start_cycle_week=start_cycle_week)
+	buying = build_buying_plan(plan, requirements, horizon_weeks=weeks, next_production=next_production)
 	buying["planned_sessions"] = rows
 	buying["advisory_only"] = True
 	return buying

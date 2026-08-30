@@ -17,6 +17,7 @@ import {
 	createRunFromPlan,
 	discardProductionRun,
 	getFinishedFoodPosition,
+	getContainerSuggestion,
 	getProductionHistorySnapshot,
 	getProductionInstructions,
 	getRecipeExpectation,
@@ -56,6 +57,8 @@ const localToday = () => {
 const productionDate = ref(localToday());
 const actualOutput = ref(0);
 const finishedContainerCount = ref(0);
+const containerSuggestion = ref(null);
+const containerCountManuallySet = ref(false);
 const notes = ref("");
 const measurements = reactive([]);
 const employeeRows = reactive([]);
@@ -183,6 +186,7 @@ watch(
 	() => reconcileQueuedProduction().catch(() => {}),
 );
 watch([actualOutput, selectedRecipe], () => queueExpectationScale());
+watch(actualOutput, () => queueContainerSuggestion());
 watch(() => props.mode, loadHistory, { immediate: true });
 
 async function loadHistory() {
@@ -207,6 +211,8 @@ async function hydrateStation(value) {
 	if (!row) {
 		adHocMode.value = false;
 		finishedContainerCount.value = 0;
+		containerCountManuallySet.value = false;
+		containerSuggestion.value = null;
 		instructionPlan.value = null;
 		if (runtimeConfig.isNative) {
 			await restoreLocalProductionDraft().catch(() => {});
@@ -222,6 +228,7 @@ async function hydrateStation(value) {
 		run.value?.actual_output_qty ?? row.remaining_output_qty ?? row.planned_output_qty,
 	);
 	finishedContainerCount.value = Number(run.value?.finished_container_count || 0);
+	containerCountManuallySet.value = Boolean(run.value?.finished_container_count);
 	plannedOutput.value = roundQuantity(
 		run.value?.planned_output_qty ?? row.remaining_output_qty ?? row.planned_output_qty,
 	);
@@ -270,6 +277,7 @@ function startAdHocProduction() {
 	plannedOutput.value = 0;
 	actualOutput.value = 0;
 	finishedContainerCount.value = 0;
+	containerCountManuallySet.value = false;
 	measurements.splice(0);
 	employeeRows.splice(0);
 	notes.value = "";
@@ -293,6 +301,7 @@ async function restoreLocalProductionDraft() {
 	plannedOutput.value = roundQuantity(draft.planned_output_qty);
 	actualOutput.value = draft.actual_output_qty;
 	finishedContainerCount.value = Number(draft.finished_container_count || 0);
+	containerCountManuallySet.value = Boolean(draft.finished_container_count);
 	notes.value = draft.notes || "";
 	measurements.splice(0, measurements.length, ...(draft.ingredients || []));
 	employeeRows.splice(0, employeeRows.length, ...(draft.employees || []));
@@ -778,6 +787,25 @@ function updateActualQuantity(item, value) {
 	item.actual_qty = value;
 	manuallyOverriddenUsage.add(item.item_code);
 }
+let containerSuggestionTimer;
+function queueContainerSuggestion() {
+	window.clearTimeout(containerSuggestionTimer);
+	if (Number(actualOutput.value) <= 0) return;
+	containerSuggestionTimer = window.setTimeout(loadContainerSuggestion, 180);
+}
+async function loadContainerSuggestion() {
+	try {
+		containerSuggestion.value = await getContainerSuggestion(roundQuantity(actualOutput.value));
+		if (!containerCountManuallySet.value && containerSuggestion.value?.available)
+			finishedContainerCount.value = Number(containerSuggestion.value.suggested_count || 0);
+	} catch {
+		containerSuggestion.value = null;
+	}
+}
+function setFinishedContainerCount(value) {
+	containerCountManuallySet.value = true;
+	finishedContainerCount.value = value;
+}
 async function openInstructions() {
 	error.value = "";
 	if (!selectedRecipe.value || Number(actualOutput.value) <= 0)
@@ -924,8 +952,8 @@ function openRecipeRecords(create = false) {
 					</summary>
 					<div class="instruction-ingredient-grid">
 						<article v-for="item in instructionPlan.ingredients" :key="item.item_code">
-							<strong>{{ item.item_name }}</strong
-							><span>{{ quantity(item.quantity) }} {{ item.uom }}</span>
+							<div class="ingredient-quantity"><strong>{{ quantity(item.quantity) }} {{ item.uom }}</strong><span>weigh raw</span></div>
+							<div><strong>{{ item.item_name }}</strong><p v-if="item.piece_count_estimate">About {{ item.piece_count_estimate }} {{ item.piece_count_label }}</p><p v-else-if="item.prepared_yield_factor !== 1">Expected yield: {{ quantity(item.prepared_quantity) }} {{ item.uom }} prepared</p><small v-if="item.preparation_yield_note">{{ item.preparation_yield_note }}</small></div>
 						</article>
 					</div>
 				</details>
@@ -966,7 +994,7 @@ function openRecipeRecords(create = false) {
 										step.ingredients
 											.map(
 												(item) =>
-													`${quantity(item.quantity)} ${item.uom} ${item.item_name}`,
+															`${quantity(item.quantity)} ${item.uom} raw ${item.item_name}${item.piece_count_estimate ? `, about ${item.piece_count_estimate} ${item.piece_count_label}` : ""}`,
 											)
 											.join(", ")
 									}}.</small
@@ -1103,13 +1131,14 @@ function openRecipeRecords(create = false) {
 								size="lg"
 								:disabled="draftLocked"
 							/><SystemFormControl
-								v-model="finishedContainerCount"
+								:model-value="finishedContainerCount"
 								type="number"
 								label="Finished containers"
 								min="0"
 								step="1"
 								size="lg"
 								:disabled="draftLocked"
+								@update:model-value="setFinishedContainerCount"
 							/>
 						</div>
 						<div class="button-row">
@@ -1141,10 +1170,10 @@ function openRecipeRecords(create = false) {
 							>
 						</div>
 					</div>
-					<p v-if="finishedContainerCount > 0" class="direction-note">
-						{{ quantity(actualOutput / finishedContainerCount) }} kg average per
-						finished container.
-					</p>
+					<div v-if="containerSuggestion?.available" class="container-suggestion">
+						<div><span>Suggested packing</span><strong>{{ containerSuggestion.suggested_count }} × {{ quantity(containerSuggestion.capacity_qty) }} {{ containerSuggestion.capacity_uom }}</strong><small>{{ containerSuggestion.container_type_name }}. The count rounds up so all recorded food has space.</small></div>
+						<div><span>Your entry</span><strong>{{ finishedContainerCount || 0 }} containers</strong><small v-if="finishedContainerCount > 0">{{ quantity(actualOutput / finishedContainerCount) }} kg average fill</small></div>
+					</div>
 				</section>
 				<section class="data-section">
 					<div class="section-heading">
@@ -1564,6 +1593,32 @@ function openRecipeRecords(create = false) {
 	border-radius: var(--component-radius-field);
 	background: var(--theme-secondary);
 }
+.instruction-ingredient-grid article {
+	grid-template-columns: minmax(7rem, 0.45fr) minmax(0, 1fr);
+	align-items: start;
+	gap: var(--spacing-xs);
+}
+.instruction-ingredient-grid article p,
+.instruction-ingredient-grid article small {
+	margin: var(--spacing-3xs) 0 0;
+	color: var(--theme-text-muted);
+}
+.ingredient-quantity {
+	display: grid;
+	gap: var(--spacing-3xs);
+	padding: var(--spacing-xs);
+	border-radius: var(--component-radius-control);
+	background: var(--theme-surface-raised);
+}
+.ingredient-quantity strong {
+	font-size: var(--font-size-1);
+	font-variant-numeric: tabular-nums;
+}
+.ingredient-quantity span {
+	font-size: var(--font-size--2);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
 .instruction-ingredient-grid span,
 .worker-lane-grid span,
 .instruction-step-list small {
@@ -1607,6 +1662,24 @@ function openRecipeRecords(create = false) {
 	padding: var(--spacing-xs);
 	border-radius: var(--component-radius-field);
 	background: var(--theme-surface-raised);
+}
+.container-suggestion {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--spacing-xs);
+	margin-bottom: var(--spacing-s);
+	padding: var(--spacing-s);
+	border: var(--border-width-1) solid color-mix(in oklch, var(--theme-success) 34%, var(--theme-border));
+	border-radius: var(--component-radius-card);
+	background: color-mix(in oklch, var(--theme-success) 6%, var(--theme-surface-raised));
+}
+.container-suggestion div {
+	display: grid;
+	gap: var(--spacing-3xs);
+}
+.container-suggestion span,
+.container-suggestion small {
+	color: var(--theme-text-muted);
 }
 .allocation-grid {
 	display: grid;
@@ -1839,6 +1912,10 @@ function openRecipeRecords(create = false) {
 		justify-items: start;
 	}
 	.instruction-step-list article {
+		grid-template-columns: 1fr;
+	}
+	.instruction-ingredient-grid article,
+	.container-suggestion {
 		grid-template-columns: 1fr;
 	}
 }
