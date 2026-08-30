@@ -403,7 +403,7 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 
 
 def _select_required_output_runs(schedule, opening_output_qty, required_output_qty, labour_minutes_per_kg):
-	"""Preserve pinned runs and share the remaining target fairly across balanced runs."""
+	"""Preserve custom runs and assign the remaining target by balanced run capacity."""
 	runs = [dict(supplied) for supplied in schedule or []]
 	pinned = [run for run in runs if run.get("output_mode") == "Fixed"]
 	balanced = [run for run in runs if run.get("output_mode") != "Fixed"]
@@ -414,20 +414,26 @@ def _select_required_output_runs(schedule, opening_output_qty, required_output_q
 	open_runs = [run for run in balanced if capacities[id(run)] > 0]
 
 	while remaining_output > 0.0005 and open_runs:
-		share = remaining_output / len(open_runs)
+		available_capacity = {
+			id(run): max(capacities[id(run)] - allocations[id(run)], 0)
+			for run in open_runs
+		}
+		total_available = sum(available_capacity.values())
+		if total_available <= 0.0005:
+			break
 		allocated_this_pass = 0.0
-		next_open = []
 		for run in open_runs:
-			available = max(capacities[id(run)] - allocations[id(run)], 0)
-			allocation = min(share, available)
+			available = available_capacity[id(run)]
+			allocation = min(remaining_output * available / total_available, available)
 			allocations[id(run)] += allocation
 			allocated_this_pass += allocation
-			if available - allocation > 0.0005:
-				next_open.append(run)
 		remaining_output -= allocated_this_pass
 		if allocated_this_pass <= 0.0005:
 			break
-		open_runs = next_open
+		open_runs = [
+			run for run in open_runs
+			if capacities[id(run)] - allocations[id(run)] > 0.0005
+		]
 
 	selected = []
 	for run in runs:

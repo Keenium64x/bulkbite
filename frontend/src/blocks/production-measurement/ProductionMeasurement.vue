@@ -17,6 +17,7 @@ import {
 	createRunFromPlan,
 	discardProductionRun,
 	getFinishedFoodPosition,
+	getProductionHistorySnapshot,
 	getProductionInstructions,
 	getRecipeExpectation,
 	saveProductionEmployees,
@@ -44,8 +45,9 @@ import { nativeState } from "@/native/lifecycle";
 const props = defineProps({
 	snapshot: { type: Object, default: null },
 	plan: { type: Object, default: null },
+	mode: { type: String, default: "production" },
 });
-const emit = defineEmits(["changed", "open-worker-sheets", "open-employees"]);
+const emit = defineEmits(["changed", "open-worker-sheets", "open-employees", "open-history", "close"]);
 const router = useRouter();
 const localToday = () => {
 	const value = new Date();
@@ -70,6 +72,8 @@ const dirtySinceSave = ref(false);
 const adHocMode = ref(false);
 const finishedFood = ref(null);
 const instructionPlan = ref(null);
+const history = ref(null);
+const manuallyOverriddenUsage = new Set();
 const allocation = reactive({
 	allocation_type: "Current Customers",
 	source_reservation: "",
@@ -179,11 +183,26 @@ watch(
 	() => reconcileQueuedProduction().catch(() => {}),
 );
 watch([actualOutput, selectedRecipe], () => queueExpectationScale());
+watch(() => props.mode, loadHistory, { immediate: true });
+
+async function loadHistory() {
+	if (props.mode !== "history") return;
+	busy.value = true;
+	error.value = "";
+	try {
+		history.value = await getProductionHistorySnapshot(props.plan?.name || "");
+	} catch (exception) {
+		error.value = exception.message;
+	} finally {
+		busy.value = false;
+	}
+}
 
 async function hydrateStation(value) {
 	hydrating = true;
 	const row = value?.row;
 	run.value = value?.run || null;
+	manuallyOverriddenUsage.clear();
 	measurements.splice(0);
 	if (!row) {
 		adHocMode.value = false;
@@ -219,7 +238,6 @@ async function hydrateStation(value) {
 			measurement_method: saved?.measurement_method || "Used",
 			actual_qty: roundQuantity(saved?.actual_qty ?? item.expected_qty),
 			remaining_qty: roundQuantity(saved?.remaining_qty ?? item.available_qty),
-			actual_overridden: Boolean(saved),
 		});
 	});
 	employeeRows.splice(
@@ -704,7 +722,6 @@ async function changeRecipe(recipe) {
 				measurement_method: "Used",
 				actual_qty: roundQuantity(item.expected_qty),
 				remaining_qty: roundQuantity(item.available_before_measurement),
-				actual_overridden: false,
 			})),
 		);
 		actualOutput.value = plannedOutput.value;
@@ -739,9 +756,7 @@ async function scaleRecipeExpectation() {
 			measurements.length,
 			...expectation.ingredients.map((item) => {
 				const existing = current.get(item.item_code);
-				const usedUntouched =
-					!existing ||
-					(existing.measurement_method === "Used" && !existing.actual_overridden);
+				const usedUntouched = !existing || (existing.measurement_method === "Used" && !manuallyOverriddenUsage.has(item.item_code));
 				return {
 					...item,
 					available_qty: item.available_before_measurement,
@@ -752,7 +767,6 @@ async function scaleRecipeExpectation() {
 					remaining_qty: roundQuantity(
 						existing?.remaining_qty ?? item.available_before_measurement,
 					),
-					actual_overridden: Boolean(existing?.actual_overridden),
 				};
 			}),
 		);
@@ -762,7 +776,7 @@ async function scaleRecipeExpectation() {
 }
 function updateActualQuantity(item, value) {
 	item.actual_qty = value;
-	item.actual_overridden = true;
+	manuallyOverriddenUsage.add(item.item_code);
 }
 async function openInstructions() {
 	error.value = "";
@@ -800,6 +814,27 @@ function openRecipeRecords(create = false) {
 		class="workflow-block"
 		:data-offline-draft-dirty="dirtySinceSave || undefined"
 	>
+		<template v-if="mode === 'history'">
+			<header class="workflow-header">
+				<div><p class="eyebrow">Production truth</p><h1>Production history</h1><p>Compare customer need, planned output, actual food, labour, allocations, and reusable containers.</p></div>
+				<div class="button-row"><SystemOperationalButton variant="outline" :loading="busy" @click="loadHistory">Refresh</SystemOperationalButton><SystemOperationalButton variant="solid" @click="emit('close')">Record production</SystemOperationalButton></div>
+			</header>
+			<div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
+			<section v-if="history" class="history-summary" :class="history.summary.needs_another_run ? 'is-behind' : 'is-ready'">
+				<div><p class="eyebrow">Current cycle</p><h2>{{ history.summary.needs_another_run ? "More production is needed" : "Production is on pace" }}</h2><p>{{ history.summary.needs_another_run ? `${quantity(history.summary.remaining_customer_qty)} kg still has to be made for customers.` : "Posted output covers the current customer requirement." }}</p></div>
+				<div class="metric-board"><div><strong>{{ quantity(history.summary.customer_required_qty) }} kg</strong><span>customers need</span></div><div><strong>{{ quantity(history.summary.planned_qty) }} kg</strong><span>theory planned</span></div><div><strong>{{ quantity(history.summary.actual_qty) }} kg</strong><span>actually made</span></div><div><strong>{{ quantity(Math.abs(history.summary.output_difference_qty)) }} kg</strong><span>{{ history.summary.output_difference_qty < 0 ? "missing" : "above need" }}</span></div></div>
+			</section>
+			<section v-if="history" class="data-section">
+				<div class="section-heading"><div><p class="eyebrow">Finished food allocation</p><h2>Where the food went</h2></div></div>
+				<div class="metric-board"><div v-for="(value, label) in history.summary.allocations" :key="label"><strong>{{ quantity(value) }} kg</strong><span>{{ label }}</span></div></div>
+			</section>
+			<section v-if="history" class="data-section">
+				<div class="section-heading"><div><p class="eyebrow">Run evidence</p><h2>Theory against actual</h2></div><SystemBadge>{{ history.runs.length }} posted runs</SystemBadge></div>
+				<div class="history-run-list"><article v-for="item in history.runs" :key="item.name"><div class="history-run-heading"><div><strong>{{ item.finished_item }}</strong><small>{{ item.production_date }} · {{ item.name }}</small></div><SystemBadge :theme="item.customer_coverage_status === 'Short' ? 'red' : 'green'">{{ item.customer_coverage_status }}</SystemBadge></div><div class="metric-board"><div><strong>{{ quantity(item.planned_output_qty) }} kg</strong><span>planned</span></div><div><strong>{{ quantity(item.actual_output_qty) }} kg</strong><span>made</span></div><div><strong>{{ quantity(item.theory_customer_qty) }} kg</strong><span>customer theory</span></div><div><strong>{{ quantity(item.unallocated_output_qty) }} kg</strong><span>unallocated</span></div><div><strong>{{ item.finished_container_count }}</strong><span>containers filled</span></div><div><strong>{{ quantity(item.actual_labour_minutes_per_kg) }} min/kg</strong><span>actual labour rate</span></div></div><div v-if="item.allocations.length" class="allocation-strip"><span v-for="allocationRow in item.allocations" :key="allocationRow.name">{{ allocationRow.allocation_type }}: {{ quantity(allocationRow.quantity) }} {{ allocationRow.uom }}</span></div></article></div>
+			</section>
+			<section v-if="history" class="data-section"><div class="section-heading"><div><p class="eyebrow">Reusable containers</p><h2>Container position</h2></div></div><div class="metric-board"><div><strong>{{ history.containers.states.Clean || 0 }}</strong><span>clean</span></div><div><strong>{{ history.containers.states.Filled || 0 }}</strong><span>filled food</span></div><div><strong>{{ history.containers.states['With Customer'] || 0 }}</strong><span>with customers</span></div><div><strong>{{ history.containers.overdue || 0 }}</strong><span>overdue</span></div><div><strong>{{ history.containers.states.Maintenance || 0 }}</strong><span>maintenance</span></div></div></section>
+		</template>
+		<template v-else>
 		<header class="workflow-header">
 			<div>
 				<p class="eyebrow">Production</p>
@@ -825,6 +860,8 @@ function openRecipeRecords(create = false) {
 					>Manage employees</SystemOperationalButton
 				><SystemOperationalButton variant="outline" @click="emit('open-worker-sheets')"
 					>Worker sheets</SystemOperationalButton
+				><SystemOperationalButton variant="outline" @click="emit('open-history')"
+					>Production history</SystemOperationalButton
 				><SystemBadge v-if="selectedRow && !adHocMode"
 					>Cycle {{ station.cycle_number || 1 }} · Meal
 					{{ selectedRow.week_number }}</SystemBadge
@@ -1409,79 +1446,75 @@ function openRecipeRecords(create = false) {
 				</section>
 			</template>
 		</template>
-		<section
-			v-if="!instructionPlan"
-			class="data-section"
-			aria-labelledby="production-history-heading"
-		>
-			<div class="section-heading">
-				<div>
-					<p class="eyebrow">History</p>
-					<h2 id="production-history-heading">Past production</h2>
-					<p>
-						Posted runs are permanent. Drafts can be opened from the current production
-						area.
-					</p>
-				</div>
-			</div>
-			<div class="table-wrap">
-				<table>
-					<thead>
-						<tr>
-							<th>Date</th>
-							<th>Meal</th>
-							<th>Food made</th>
-							<th>Team</th>
-							<th>Elapsed</th>
-							<th>Labour-hours</th>
-							<th>Pace</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr v-for="item in snapshot?.recent_runs || []" :key="item.name">
-							<td>{{ item.production_date }}</td>
-							<td>
-								<strong>{{ item.finished_item }}</strong
-								><small>{{ item.name }}</small>
-							</td>
-							<td>{{ quantity(item.actual_output_qty) }} kg</td>
-							<td>{{ item.actual_team_size || 0 }}</td>
-							<td>{{ quantity(item.actual_elapsed_hours) }} h</td>
-							<td>{{ quantity(item.actual_labour_hours) }} h</td>
-							<td>{{ quantity(item.actual_labour_minutes_per_kg) }} min/kg</td>
-							<td>
-								<SystemBadge
-									:theme="
-										item.takt_status === 'Slower than takt'
-											? 'red'
-											: item.docstatus
-												? 'green'
-												: undefined
-									"
-									>{{
-										item.docstatus ? item.takt_status || "Posted" : "Draft"
-									}}</SystemBadge
-								>
-							</td>
-						</tr>
-						<tr v-if="!snapshot?.recent_runs?.length">
-							<td colspan="8">No production runs yet.</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</section>
+		</template>
 	</section>
 </template>
 
 <style scoped>
+.history-summary,
+.history-run-list > article {
+	display: grid;
+	gap: var(--spacing-s);
+	padding: var(--spacing-m);
+	border: var(--border-width-1) solid var(--theme-border);
+	border-radius: var(--component-radius-card);
+	background: var(--theme-surface-raised);
+}
+.history-summary {
+	grid-template-columns: minmax(16rem, 0.65fr) minmax(0, 1.35fr);
+}
+.history-summary.is-behind {
+	border-color: color-mix(in oklch, var(--theme-error) 48%, var(--theme-border));
+	background: color-mix(in oklch, var(--theme-error) 7%, var(--theme-surface-raised));
+}
+.history-summary.is-ready {
+	border-color: color-mix(in oklch, var(--theme-success) 38%, var(--theme-border));
+}
+.history-summary h2,
+.history-summary p {
+	margin: var(--spacing-3xs) 0 0;
+}
+.history-summary p:not(.eyebrow) {
+	color: var(--theme-text-muted);
+}
+.history-run-list {
+	display: grid;
+	gap: var(--spacing-xs);
+}
+.history-run-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--spacing-s);
+}
+.history-run-heading small {
+	display: block;
+	margin-top: var(--spacing-3xs);
+	color: var(--theme-text-muted);
+}
+.allocation-strip {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--spacing-2xs);
+}
+.allocation-strip span {
+	padding: var(--spacing-3xs) var(--spacing-xs);
+	border-radius: 999px;
+	background: var(--theme-secondary);
+	color: var(--theme-text-muted);
+	font-size: var(--font-size--2);
+}
 .production-direction-grid {
 	display: grid;
 	grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) minmax(10rem, 0.5fr);
 	align-items: end;
 	gap: var(--spacing-s);
 	margin-bottom: var(--spacing-s);
+}
+@media (max-width: 54rem) {
+	.history-summary {
+		grid-template-columns: 1fr;
+	}
 }
 .direction-note {
 	margin-bottom: var(--spacing-s);

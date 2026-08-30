@@ -60,6 +60,12 @@ from bulkbite.setup_workbook import (
 	review_workspace_import,
 )
 from bulkbite.production_instructions import build_run_instruction_plan
+from bulkbite.operational_actions import (
+	build_operational_action_snapshot,
+	get_container_position_snapshot,
+	get_operational_calendar_snapshot,
+	materialize_operational_actions,
+)
 
 
 # =============================================================================
@@ -114,6 +120,7 @@ def get_workspace_snapshot():
 	for run in result["recent_runs"]:
 		for field in ("planned_output_qty", "actual_output_qty"):
 			run[field] = round_operational_quantity(run.get(field))
+	result["operations"] = build_operational_action_snapshot()
 	_enrich_run_workforce_evidence(result["recent_runs"])
 	_enrich_document_effects(result["recent_receipts"], "BulkBite Receipt Line", "items")
 	_enrich_document_effects(result["recent_cost_invoices"], "BulkBite Cost Invoice Line", "costs")
@@ -605,6 +612,9 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Equipment Type": {"label": "Equipment types", "singular_label": "equipment type", "description": "Available kitchen equipment, batch capacity, and concurrent use limits for production instructions."},
 	"BulkBite Production Plan": {"label": "Production plans", "singular_label": "plan", "description": "Planned recipes and meal quantities used by the production workflow."},
 	"BulkBite Team Template": {"label": "Team templates", "singular_label": "team template", "description": "Reusable groups that prefill the people expected in a normal production run."},
+	"BulkBite Container Type": {"label": "Container types", "singular_label": "container type", "description": "Reusable container capacity, replacement price, and expected return rules."},
+	"BulkBite Container Asset": {"label": "Containers", "singular_label": "container", "description": "Individually tracked reusable containers and their current lifecycle state."},
+	"BulkBite Operational Schedule": {"label": "Operational schedules", "singular_label": "schedule", "description": "Repeating stock counts, accountant exports, container checks, and other duties."},
 }
 _AUXILIARY_FIELD_TYPES = {"Data", "Int", "Float", "Currency", "Date", "Select", "Check", "Small Text", "Text", "Long Text", "Link", "Table"}
 _AUXILIARY_LIST_FILTER_TYPES = {"Check", "Date", "Link", "Select"}
@@ -1529,6 +1539,143 @@ def get_finished_food_position(item_code=None, location="Finished Meals"):
 	}
 
 
+@frappe.whitelist(methods=["GET"])
+def get_production_history_snapshot(plan_name=None):
+	"""Compare current customer theory with posted production and immutable allocations."""
+	_require_app_user()
+	plan_name = plan_name or frappe.db.get_value("BulkBite Production Plan", {"status": "Active"}, "name", order_by="modified desc")
+	plan = frappe.get_doc("BulkBite Production Plan", plan_name) if plan_name else None
+	plan_rows = build_plan_snapshot(plan, "Ingredients")[0] if plan else []
+	run_filters = {"docstatus": 1}
+	if plan_name:
+		run_filters["production_plan"] = plan_name
+	run_names = frappe.get_all(
+		"BulkBite Production Run",
+		filters=run_filters,
+		fields=["name", "production_date", "production_plan_row", "plan_week_number", "cycle_number", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "finished_container_count", "average_container_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_status", "material_cost_variance", "notes"],
+		order_by="production_date desc, creation desc",
+		limit=200,
+	)
+	current_cycle = max([int(row.cycle_number or 1) for row in run_names], default=1)
+	if not any(int(row.cycle_number or 1) == current_cycle for row in run_names) and current_cycle > 1:
+		current_cycle -= 1
+	allocation_filters = {"name": "__none__"}
+	if run_names:
+		allocation_filters = {"docstatus": 1, "source_production_run": ["in", [row.name for row in run_names]]}
+	allocations = frappe.get_all(
+		"BulkBite Finished Food Allocation",
+		filters=allocation_filters,
+		fields=["name", "posting_date", "source_production_run", "allocation_type", "demand_period", "quantity", "uom", "status"],
+		order_by="posting_date asc, creation asc",
+	)
+	allocations_by_run = {}
+	for row in allocations:
+		allocations_by_run.setdefault(row.source_production_run, []).append(row)
+	row_theory = {row["name"]: row for row in plan_rows}
+	runs = []
+	for run in run_names:
+		run_allocations = allocations_by_run.get(run.name, [])
+		allocated = sum(flt(row.quantity) for row in run_allocations if row.allocation_type != "Future Customers")
+		reserved = sum(flt(row.quantity) for row in run_allocations if row.allocation_type == "Future Customers")
+		theory = row_theory.get(run.production_plan_row) or {}
+		customer_required = flt(theory.get("customer_required_output_qty") or run.planned_output_qty)
+		runs.append({
+			**run,
+			"theory_customer_qty": round_operational_quantity(customer_required),
+			"theory_extra_qty": round_operational_quantity(theory.get("extra_output_qty")),
+			"output_variance_qty": round_operational_quantity(flt(run.actual_output_qty) - flt(run.planned_output_qty)),
+			"allocations": run_allocations,
+			"allocated_output_qty": round_operational_quantity(allocated),
+			"reserved_output_qty": round_operational_quantity(reserved),
+			"unallocated_output_qty": round_operational_quantity(max(flt(run.actual_output_qty) - allocated - reserved, 0)),
+			"customer_coverage_status": "Covered" if flt(run.actual_output_qty) >= customer_required else "Short",
+		})
+	customer_required = sum(flt(row.get("customer_required_output_qty")) for row in plan_rows)
+	planned = sum(flt(row.get("planned_output_qty")) for row in plan_rows)
+	current_runs = [row for row in run_names if int(row.cycle_number or 1) == current_cycle]
+	current_run_names = {row.name for row in current_runs}
+	current_allocations = [row for row in allocations if row.source_production_run in current_run_names]
+	actual = sum(flt(row.actual_output_qty) for row in current_runs)
+	allocated_by_type = {
+		allocation_type: round_operational_quantity(sum(flt(row.quantity) for row in current_allocations if row.allocation_type == allocation_type))
+		for allocation_type in ["Current Customers", "Future Customers", "Future Customer Fulfilment", "Internal Consumption", "Waste or Spoilage"]
+	}
+	remaining = round_operational_quantity(max(customer_required - actual, 0))
+	return {
+		"plan": plan_name,
+		"summary": {
+			"cycle_number": current_cycle,
+			"customer_required_qty": round_operational_quantity(customer_required),
+			"planned_qty": round_operational_quantity(planned),
+			"actual_qty": round_operational_quantity(actual),
+			"remaining_customer_qty": remaining,
+			"output_difference_qty": round_operational_quantity(actual - customer_required),
+			"status": "On pace" if remaining <= 0 else "Behind",
+			"needs_another_run": remaining > 0,
+			"allocations": allocated_by_type,
+		},
+		"runs": runs,
+		"containers": get_container_position_snapshot(),
+	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_operational_calendar(from_date=None, to_date=None):
+	_require_app_user()
+	return get_operational_calendar_snapshot(from_date, to_date)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_container_position():
+	_require_app_user()
+	return get_container_position_snapshot()
+
+
+@frappe.whitelist(methods=["POST"])
+def update_operational_action(name, action, new_date=None, reason=None):
+	_require_roles("BulkBite Manager")
+	doc = frappe.get_doc("BulkBite Operational Action", name)
+	if action == "complete":
+		doc.status = "Completed"
+		doc.completed_on = getdate(nowdate())
+	elif action == "reschedule":
+		if not new_date:
+			frappe.throw(_("Choose a new date."))
+		doc.status = "Rescheduled"
+		doc.rescheduled_to = getdate(new_date)
+		doc.notes = reason
+	elif action == "cancel":
+		if not reason:
+			frappe.throw(_("Enter why the action is being cancelled."))
+		doc.status = "Cancelled"
+		doc.cancellation_reason = reason
+	else:
+		frappe.throw(_("Choose complete, reschedule, or cancel."))
+	doc.save()
+	if action == "reschedule":
+		frappe.get_doc({
+			"doctype": "BulkBite Operational Action",
+			"title": doc.title,
+			"action_type": doc.action_type,
+			"schedule": doc.schedule,
+			"due_date": doc.rescheduled_to,
+			"status": "Due",
+			"target_section": doc.target_section,
+			"consequence_note": doc.consequence_note,
+			"notes": _("Rescheduled from {0}.").format(doc.name),
+		}).insert()
+	return get_operational_calendar_snapshot()
+
+
+@frappe.whitelist(methods=["POST"])
+def record_container_movement(payload=None):
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	data = _as_dict(payload)
+	doc = frappe.get_doc({"doctype": "BulkBite Container Movement", **data}).insert()
+	doc.submit()
+	return get_container_position_snapshot()
+
+
 @frappe.whitelist(methods=["POST"])
 def allocate_finished_food(payload=None):
 	"""Submit one explicit customer, future, internal, or waste allocation exactly once."""
@@ -1672,6 +1819,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 	}
 	result["capacity_plan"] = _build_capacity_plan(plan, result["customer_mix"], result["workforce"])
 	result["next_production"] = _next_production_station(result["rows"], runs)
+	result["operations"] = build_operational_action_snapshot(result)
 	return result
 
 

@@ -151,23 +151,11 @@ auth_hooks = ["bulkbite.mobile.validate_mobile_jwt"]
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"bulkbite.tasks.all"
-# 	],
-# 	"daily": [
-# 		"bulkbite.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"bulkbite.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"bulkbite.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"bulkbite.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		"bulkbite.operational_actions.daily_operational_action_generation",
+	],
+}
 
 # Testing
 # -------

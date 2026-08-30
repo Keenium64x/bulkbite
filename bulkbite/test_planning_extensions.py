@@ -16,14 +16,14 @@ from bulkbite.workforce import _select_required_output_runs
 
 
 class TestFinishedFoodBuyingCoverage(TestCase):
-	def test_balanced_runs_share_remaining_output_after_pinned_run(self):
+	def test_balanced_runs_share_remaining_output_by_capacity_after_custom_run(self):
 		runs = [
 			{"run_number": 1, "output_mode": "Fixed", "planned_output_qty": 20, "scheduled_elapsed_hours": 4, "planned_people": 1},
 			{"run_number": 2, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 4, "planned_people": 10},
 			{"run_number": 3, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 8, "planned_people": 10},
 		]
 		selected = _select_required_output_runs(runs, 0, 80, 60)
-		self.assertEqual([row["planned_output_qty"] for row in selected], [20.0, 30.0, 30.0])
+		self.assertEqual([row["planned_output_qty"] for row in selected], [20.0, 20.0, 40.0])
 
 	def test_balanced_runs_redistribute_output_when_one_run_hits_capacity(self):
 		runs = [
@@ -31,7 +31,7 @@ class TestFinishedFoodBuyingCoverage(TestCase):
 			{"run_number": 2, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 8, "planned_people": 1},
 		]
 		selected = _select_required_output_runs(runs, 0, 8, 60)
-		self.assertEqual([row["planned_output_qty"] for row in selected], [2.0, 6.0])
+		self.assertEqual([row["planned_output_qty"] for row in selected], [1.6, 6.4])
 
 	def test_partial_production_keeps_the_same_meal_and_returns_the_remaining_target(self):
 		rows = [{"name": "ROW-1", "week_number": 1, "planned_output_qty": 20}, {"name": "ROW-2", "week_number": 2, "planned_output_qty": 10}]

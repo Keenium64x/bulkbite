@@ -70,6 +70,11 @@ export const getRecipeExpectation = (recipe, plannedOutputQty, sourceLocation) =
 export const getProductionInstructions = (recipe, outputQty, teamSize) => call("bulkbite.api.get_production_instructions", { recipe, output_qty: outputQty, team_size: teamSize }, "GET")
 export const createAdHocProductionRun = (recipe, plannedOutputQty, productionDate, sourceLocation = "Ingredients", targetLocation = "Finished Meals") => call("bulkbite.api.create_ad_hoc_production_run", { recipe, planned_output_qty: plannedOutputQty, production_date: productionDate, source_location: sourceLocation, target_location: targetLocation })
 export const getFinishedFoodPosition = (itemCode = "", location = "Finished Meals") => call("bulkbite.api.get_finished_food_position", { item_code: itemCode, location }, "GET")
+export const getProductionHistorySnapshot = (planName = "") => call("bulkbite.api.get_production_history_snapshot", { plan_name: planName }, "GET")
+export const getOperationalCalendar = (fromDate, toDate) => call("bulkbite.api.get_operational_calendar", { from_date: fromDate, to_date: toDate }, "GET")
+export const getContainerPosition = () => call("bulkbite.api.get_container_position", {}, "GET")
+export const updateOperationalAction = (name, action, newDate, reason) => call("bulkbite.api.update_operational_action", { name, action, new_date: newDate, reason })
+export const recordContainerMovement = (payload) => call("bulkbite.api.record_container_movement", { payload })
 export const allocateFinishedFood = (payload) => call("bulkbite.api.allocate_finished_food", { payload })
 export const getBuyingRecommendation = (planName, location = "Ingredients", horizonWeeks = 4) => call("bulkbite.api.get_buying_recommendation", { plan_name: planName, location, horizon_weeks: horizonWeeks }, "GET")
 export const createRunFromPlan = (planName, planRowName, productionDate, sourceLocation, targetLocation, recipe, plannedOutputQty, directionAction) =>

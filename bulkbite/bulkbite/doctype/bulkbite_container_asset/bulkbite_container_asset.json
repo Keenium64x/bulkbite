@@ -1,0 +1,34 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:asset_code",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["asset_code", "container_type", "lifecycle_state", "current_customer_reference", "expected_return_date", "last_movement", "acquisition_date", "replacement_cost", "enabled", "notes"],
+ "fields": [
+  {"fieldname": "asset_code", "fieldtype": "Data", "in_list_view": 1, "label": "Container Code", "reqd": 1, "unique": 1},
+  {"fieldname": "container_type", "fieldtype": "Link", "in_list_view": 1, "label": "Container Type", "options": "BulkBite Container Type", "reqd": 1},
+  {"default": "Clean", "fieldname": "lifecycle_state", "fieldtype": "Select", "in_list_view": 1, "label": "Current State", "options": "Clean\nFilled\nWith Customer\nMaintenance\nLost\nRetired", "read_only": 1, "reqd": 1},
+  {"fieldname": "current_customer_reference", "fieldtype": "Data", "label": "Customer Reference", "read_only": 1},
+  {"fieldname": "expected_return_date", "fieldtype": "Date", "label": "Expected Return Date", "read_only": 1},
+  {"fieldname": "last_movement", "fieldtype": "Link", "label": "Last Movement", "options": "BulkBite Container Movement", "read_only": 1},
+  {"default": "Today", "fieldname": "acquisition_date", "fieldtype": "Date", "label": "Acquisition Date", "reqd": 1},
+  {"fetch_from": "container_type.replacement_price", "fieldname": "replacement_cost", "fieldtype": "Currency", "label": "Replacement Cost", "read_only": 1},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "label": "Enabled"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Container Asset",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "BulkBite Worker"},
+  {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "asset_code",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

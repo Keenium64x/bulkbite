@@ -5,7 +5,8 @@ import { BarChart } from "echarts/charts"
 import { GridComponent, TooltipComponent } from "echarts/components"
 import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
-import { SystemBadge, SystemCard, SystemChart, SystemLinkedRecordField, SystemOperationalButton, SystemScanCodeField, SystemStat } from "@/desyium"
+import { SystemBadge, SystemCard, SystemChart, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemScanCodeField, SystemSelect, SystemStat } from "@/desyium"
+import { recordContainerMovement, updateOperationalAction } from "@/resources/api"
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
 
@@ -19,11 +20,14 @@ const props = defineProps({
   error: { type: String, default: "" },
 })
 
-const emit = defineEmits(["scan", "map-scan", "open-workflow"])
+const emit = defineEmits(["scan", "map-scan", "open-workflow", "changed"])
 const router = useRouter()
 const scanCode = ref("")
 const mappingItem = ref("")
 const costBasis = ref("expected")
+const actionBusy = ref("")
+const containerBusy = ref(false)
+const containerMovement = ref({ container_asset: "", movement_type: "", customer_reference: "", notes: "" })
 
 const itemOptions = computed(() => (props.inventory?.items || []).map((item) => ({ label: item.item_name, value: item.item_code })))
 const nextWeek = computed(() => props.plan?.next_production?.row || props.plan?.rows?.[0])
@@ -34,6 +38,12 @@ const stockCoverage = computed(() => requirementCount.value ? Math.round((stockE
 const stockValue = computed(() => (props.inventory?.items || []).reduce((total, item) => total + Number(item.stock_value || 0), 0))
 const latestReceipt = computed(() => props.snapshot?.recent_receipts?.[0] || null)
 const latestRun = computed(() => props.snapshot?.recent_runs?.[0] || null)
+const operations = computed(() => props.plan?.operations || props.snapshot?.operations || {})
+const primaryAction = computed(() => operations.value?.primary || null)
+const calendarActions = computed(() => operations.value?.calendar?.actions || [])
+const containers = computed(() => operations.value?.containers || {})
+const containerOptions = computed(() => (containers.value?.assets || []).filter((item) => !["Lost", "Retired"].includes(item.lifecycle_state)).map((item) => ({ label: `${item.asset_code} · ${item.lifecycle_state}`, value: item.name })))
+const movementOptions = ["Filled for Production", "Issued to Customer", "Returned by Customer", "Sent to Maintenance", "Returned from Maintenance", "Marked Lost", "Retired"].map((value) => ({ label: value, value }))
 const latestRunName = computed(() => {
   const itemCode = latestRun.value?.finished_item
   return props.snapshot?.options?.recipes?.find((recipe) => recipe.item === itemCode)?.recipe_name || itemCode || "No production recorded"
@@ -105,6 +115,31 @@ function number(value, digits = 2) { return Number(value || 0).toLocaleString("e
 function compactNumber(value) { return Number(value || 0).toLocaleString("en-ZA", { notation: "compact", maximumFractionDigits: 1 }) }
 function money(value) { return `R ${Number(value || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
 function themeColor(name) { return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim() }
+async function changeAction(item, action) {
+  let newDate = null
+  let reason = null
+  if (action === "reschedule") {
+    newDate = window.prompt("New date (YYYY-MM-DD)", item.rescheduled_to || item.due_date || "")
+    if (!newDate) return
+    reason = window.prompt("Why is this being rescheduled?", "") || "Rescheduled from operations calendar."
+  }
+  if (action === "cancel") {
+    reason = window.prompt("Why is this being cancelled?", "")
+    if (!reason) return
+  }
+  actionBusy.value = item.name
+  try { await updateOperationalAction(item.name, action, newDate, reason); emit("changed") }
+  finally { actionBusy.value = "" }
+}
+async function saveContainerMovement() {
+  if (!containerMovement.value.container_asset || !containerMovement.value.movement_type) return
+  containerBusy.value = true
+  try {
+    await recordContainerMovement({ ...containerMovement.value, posting_date: new Date().toISOString().slice(0, 10) })
+    containerMovement.value = { container_asset: "", movement_type: "", customer_reference: "", notes: "" }
+    emit("changed")
+  } finally { containerBusy.value = false }
+}
 </script>
 
 <template>
@@ -146,6 +181,12 @@ function themeColor(name) { return window.getComputedStyle(document.documentElem
           <table class="desyium-block__visually-hidden"><caption>{{ basisLabel }} financial chart values</caption><thead><tr><th>Measure</th><th>Amount</th></tr></thead><tbody><tr><td>Revenue</td><td>{{ money(finances?.revenue) }}</td></tr><tr><td>Food cost</td><td>{{ money(selectedPosition.food_cost) }}</td></tr><tr><td>Gross profit before overheads</td><td>{{ money(selectedPosition.gross_profit) }}</td></tr></tbody></table>
         </SystemCard>
 
+		<SystemCard v-if="primaryAction" class="next-action-panel" :class="`is-${primaryAction.severity}`">
+		  <div><p class="panel-index">What needs to happen next</p><h2>{{ primaryAction.title }}</h2><p>{{ primaryAction.reason }}</p><small v-if="primaryAction.due_date">Due {{ primaryAction.due_date }}</small></div>
+		  <div class="next-action-panel__steps" v-if="primaryAction.recovery_steps?.length"><strong>Recovery path</strong><ol><li v-for="step in primaryAction.recovery_steps" :key="step">{{ step }}</li></ol></div>
+		  <SystemOperationalButton variant="solid" @click="emit('open-workflow', primaryAction.action_section)">{{ primaryAction.action_label }}</SystemOperationalButton>
+		</SystemCard>
+
         <SystemCard class="operating-panel">
           <p class="panel-index">Current direction</p><h2>{{ plan.plan_title }}</h2>
           <div class="operating-figures"><div><strong>{{ plan.customer_demand.total_customers }}</strong><span>customers</span></div><div><strong>{{ number(plan.customer_demand.weekly_output_qty, 1) }} kg</strong><span>food per week</span></div><div><strong>{{ currentShortageCount }}</strong><span>items to buy</span></div></div>
@@ -166,7 +207,7 @@ function themeColor(name) { return window.getComputedStyle(document.documentElem
             <article class="activity-item"><span>Latest receipt</span><template v-if="latestReceipt"><strong>{{ latestReceipt.supplier }}</strong><small>{{ latestReceipt.invoice_date }} · {{ latestReceipt.status }}</small><b>{{ money(latestReceipt.total_amount) }}</b></template><template v-else><strong>No receipt recorded</strong><small>Add the first supplier receipt after buying.</small></template></article>
             <article class="activity-item"><span>Latest production</span><template v-if="latestRun"><strong>{{ latestRunName }}</strong><small>{{ latestRun.production_date }} · {{ latestRun.docstatus ? "Posted" : "Draft" }}</small><b>{{ number(latestRun.actual_output_qty, 1) }} kg</b></template><template v-else><strong>No production recorded</strong><small>Open production when the next meal is ready.</small></template></article>
           </div>
-          <div class="panel-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Open receipts</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="emit('open-workflow', 'production')">Past production</SystemOperationalButton></div>
+          <div class="panel-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Open receipts</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="emit('open-workflow', 'history')">Production history</SystemOperationalButton></div>
         </SystemCard>
       </div>
 
@@ -174,7 +215,15 @@ function themeColor(name) { return window.getComputedStyle(document.documentElem
         <div class="action-panel__header"><p class="panel-index">Next work</p><h2>Move the kitchen forward</h2><p>The current plan sets the theory. Choose the job that matches what is happening now.</p></div>
         <div class="action-panel__grid"><article v-for="work in nextWork" :key="work.key" class="work-action"><p class="panel-index">{{ work.eyebrow }}</p><h3>{{ work.title }}</h3><p>{{ work.detail }}</p><SystemOperationalButton :variant="work.variant" :disabled="work.disabled" @click="emit('open-workflow', work.key)">{{ work.action }}</SystemOperationalButton></article></div>
       </SystemCard>
+	  <div class="panel-actions dashboard-auxiliary-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'history')">Production history</SystemOperationalButton><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'operations')">Operations calendar</SystemOperationalButton></div>
     </template>
+
+	<header v-if="mode === 'operations'" class="workflow-header"><div><p class="eyebrow">Operational calendar</p><h1>Scheduled work and exceptions</h1><p>Complete, reschedule, or cancel recurring duties without adding another main navigation tab.</p></div><SystemOperationalButton variant="outline" @click="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Operational Schedule' } })">Manage schedules</SystemOperationalButton></header>
+	<template v-if="mode === 'operations'">
+	  <section class="data-section"><div class="section-heading"><div><p class="eyebrow">Position</p><h2>What is due</h2></div><SystemBadge>{{ operations?.calendar?.counts?.missed || 0 }} missed</SystemBadge></div><div class="metric-board"><div><strong>{{ operations?.calendar?.counts?.missed || 0 }}</strong><span>missed</span></div><div><strong>{{ operations?.calendar?.counts?.due || 0 }}</strong><span>due or upcoming</span></div><div><strong>{{ operations?.calendar?.counts?.completed || 0 }}</strong><span>completed</span></div><div><strong>{{ operations?.calendar?.counts?.rescheduled || 0 }}</strong><span>rescheduled</span></div></div></section>
+	  <section class="data-section"><div class="section-heading"><div><p class="eyebrow">Event calendar</p><h2>Recurring work</h2></div></div><div class="operations-list"><article v-for="item in calendarActions" :key="item.name" :class="{ 'is-missed': item.display_status === 'Missed' }"><div><SystemBadge :theme="item.display_status === 'Missed' ? 'red' : item.display_status === 'Completed' ? 'green' : undefined">{{ item.display_status }}</SystemBadge><strong>{{ item.title }}</strong><small>{{ item.due_date }} · {{ item.action_type }}</small><p v-if="item.consequence_note">{{ item.consequence_note }}</p></div><div v-if="['Due','Missed'].includes(item.display_status)" class="button-row"><SystemOperationalButton size="sm" variant="solid" :loading="actionBusy === item.name" @click="changeAction(item, 'complete')">Complete</SystemOperationalButton><SystemOperationalButton size="sm" variant="outline" @click="changeAction(item, 'reschedule')">Reschedule</SystemOperationalButton><SystemOperationalButton size="sm" variant="ghost" @click="changeAction(item, 'cancel')">Cancel</SystemOperationalButton></div></article></div></section>
+	  <section class="data-section"><div class="section-heading"><div><p class="eyebrow">Container control</p><h2>Reusable container position</h2></div><div class="button-row"><SystemOperationalButton variant="outline" @click="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Container Asset' } })">Manage containers</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Container Type' } })">Container types</SystemOperationalButton></div></div><div class="metric-board"><div><strong>{{ containers.states?.Clean || 0 }}</strong><span>clean</span></div><div><strong>{{ containers.states?.Filled || 0 }}</strong><span>filled</span></div><div><strong>{{ containers.states?.['With Customer'] || 0 }}</strong><span>with customers</span></div><div><strong>{{ containers.overdue || 0 }}</strong><span>overdue</span></div><div><strong>{{ containers.states?.Maintenance || 0 }}</strong><span>maintenance</span></div><div><strong>{{ money(containers.pending_replacement_charges) }}</strong><span>pending replacement charges</span></div></div><div class="container-movement-form"><SystemSelect v-model="containerMovement.container_asset" label="Container" :options="containerOptions" /><SystemSelect v-model="containerMovement.movement_type" label="What happened" :options="movementOptions" /><SystemFormControl v-if="containerMovement.movement_type === 'Issued to Customer'" v-model="containerMovement.customer_reference" label="Customer reference" /><SystemFormControl v-model="containerMovement.notes" label="Movement notes" /><SystemOperationalButton variant="solid" :loading="containerBusy" :disabled="!containerMovement.container_asset || !containerMovement.movement_type || (containerMovement.movement_type === 'Issued to Customer' && !containerMovement.customer_reference)" @click="saveContainerMovement">Record movement</SystemOperationalButton></div><p v-if="containerMovement.movement_type === 'Marked Lost'" class="evidence-note">Marking a customer container lost records a pending charge at twice its configured replacement price.</p><div class="table-wrap"><table><thead><tr><th>Container</th><th>Type</th><th>State</th><th>Customer</th><th>Expected return</th></tr></thead><tbody><tr v-for="item in containers.assets || []" :key="item.name" :class="{ 'is-short': item.overdue }"><td><strong>{{ item.asset_code }}</strong></td><td>{{ item.container_type }}</td><td>{{ item.lifecycle_state }}</td><td>{{ item.current_customer_reference || 'BulkBite' }}</td><td>{{ item.expected_return_date || 'Not out' }}</td></tr></tbody></table></div></section>
+	</template>
 
     <header v-if="mode === 'stock'" class="workflow-header"><div><p class="eyebrow">Stock</p><h1>Current ingredient stock</h1><p>Check balances, scan an item, and reconcile a physical count below.</p></div><SystemBadge>{{ inventory?.location || "Ingredients" }}</SystemBadge></header>
     <div v-if="mode === 'stock'" class="workflow-grid dashboard-secondary">
@@ -204,6 +253,10 @@ function themeColor(name) { return window.getComputedStyle(document.documentElem
 </template>
 
 <style scoped>
+.next-action-panel{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(16rem,.7fr) auto;align-items:center;gap:var(--spacing-m);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border)!important;border-radius:var(--component-radius-block)!important;background:var(--theme-surface)!important}.next-action-panel.is-overdue{border-color:color-mix(in oklch,var(--theme-error) 50%,var(--theme-border))!important;background:color-mix(in oklch,var(--theme-error) 7%,var(--theme-surface))!important}.next-action-panel.is-ready{border-color:color-mix(in oklch,var(--theme-success) 35%,var(--theme-border))!important}.next-action-panel h2,.next-action-panel p{margin:var(--spacing-3xs) 0 0}.next-action-panel p:not(.panel-index),.next-action-panel small{color:var(--theme-text-muted)}.next-action-panel__steps ol{margin:var(--spacing-2xs) 0 0;padding-left:var(--spacing-m);color:var(--theme-text-muted)}.dashboard-auxiliary-actions{justify-content:flex-end;margin-top:var(--spacing-s)}.operations-list{display:grid;gap:var(--spacing-xs)}.operations-list article{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-m);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.operations-list article.is-missed{border-color:color-mix(in oklch,var(--theme-error) 45%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 6%,var(--theme-surface-raised))}.operations-list article>div:first-child{display:grid;gap:var(--spacing-3xs)}.operations-list article small,.operations-list article p{margin:0;color:var(--theme-text-muted)}
+@media(max-width:54rem){.next-action-panel{grid-template-columns:1fr}.operations-list article{align-items:flex-start;flex-direction:column}.operations-list .button-row{width:100%}.operations-list .button-row :deep(button){flex:1}}
+.container-movement-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;align-items:end;gap:var(--spacing-xs);margin:var(--spacing-s) 0;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+@media(max-width:54rem){.container-movement-form{grid-template-columns:1fr}.container-movement-form :deep(button){width:100%}}
 .dashboard-header{align-items:end}.dashboard-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--spacing-m)}.financial-panel,.operating-panel,.readiness-panel,.activity-panel,.action-panel,.dashboard-empty__card{border:var(--border-width-1) solid var(--theme-border)!important;border-radius:var(--component-radius-block)!important;background:var(--theme-surface)!important;box-shadow:0 1px 2px color-mix(in oklch,var(--theme-text) 5%,transparent)!important}.financial-panel,.operating-panel,.readiness-panel,.activity-panel,.action-panel{padding:var(--spacing-m)}.financial-panel{grid-column:span 8}.operating-panel{grid-column:span 4}.readiness-panel,.activity-panel{grid-column:span 6}.financial-panel__header,.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-m)}.financial-panel__header h2,.operating-panel h2,.readiness-panel h2,.activity-panel h2,.action-panel h2,.dashboard-empty__card h2{margin:var(--spacing-3xs) 0;font:var(--font-weight-700) var(--font-size-1)/1.3 var(--font-family-b)}.financial-panel__header p:not(.panel-index),.action-panel p:not(.panel-index),.dashboard-empty__card p:not(.panel-index){margin:var(--spacing-2xs) 0 0;color:var(--theme-text-muted)}.basis-control{display:flex;flex-wrap:wrap;gap:var(--spacing-2xs);padding:var(--spacing-3xs);overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.financial-panel__body{display:grid;gap:var(--spacing-m);margin-top:var(--spacing-m)}.financial-chart{height:20rem;min-width:0}.financial-chart :deep(.system-chart){display:block;width:100%;height:100%}.financial-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-content:start;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);overflow:hidden;background:var(--theme-surface-raised)}.financial-stats :deep(.system-stat){min-width:0;padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:last-child){border-right:0}.financial-stats :deep(.system-stat__value){font-size:var(--font-size-1)}.evidence-note{margin:var(--spacing-s) 0 0;padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-control);background:color-mix(in oklch,var(--theme-primary) 8%,var(--theme-surface-raised));color:var(--theme-text-muted);font-size:var(--font-size--1)}.operating-panel,.readiness-panel,.activity-panel{display:grid;align-content:start;gap:var(--spacing-s)}.operating-figures{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.operating-figures div{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.operating-figures div:last-child{border-right:0}.operating-figures strong{font-size:var(--font-size-1);font-variant-numeric:tabular-nums}.operating-figures span,.next-production span,.next-production small,.activity-item span,.activity-item small{color:var(--theme-text-muted);font-size:var(--font-size--2)}.next-production{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border-left:3px solid var(--theme-primary);border-radius:0 var(--component-radius-control) var(--component-radius-control) 0;background:var(--theme-surface-raised)}.readiness-meter{height:.55rem;overflow:hidden;border-radius:999px;background:var(--theme-secondary)}.readiness-meter span{display:block;height:100%;border-radius:inherit;background:var(--theme-primary)}.readiness-figures strong{font-size:var(--font-size-0)}.panel-actions{display:flex;flex-wrap:wrap;gap:var(--spacing-xs);margin-top:auto}.activity-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.activity-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--spacing-3xs) var(--spacing-xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.activity-item:last-child{border-right:0}.activity-item>span,.activity-item>small{grid-column:1/-1}.activity-item strong{min-width:0;overflow-wrap:anywhere}.activity-item b{font-variant-numeric:tabular-nums}.action-panel{display:grid;gap:var(--spacing-m);margin-top:var(--spacing-m)}.action-panel__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.work-action{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:var(--spacing-xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.work-action:last-child{border-right:0}.work-action h3{margin:0;font-size:var(--font-size-0);line-height:1.35}.work-action>p:not(.panel-index){min-height:3.9em;margin:0;color:var(--theme-text-muted);font-size:var(--font-size--1);line-height:1.45}.work-action :deep(button){width:100%;margin-top:auto}.dashboard-empty{display:grid;grid-template-columns:minmax(0,42rem);justify-content:center}.dashboard-empty__card{display:grid;gap:var(--spacing-s);padding:var(--spacing-l)}
 .financial-panel{grid-column:1/-1}.operating-panel,.readiness-panel,.activity-panel{grid-column:span 4}.readiness-figures{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-list{grid-template-columns:1fr}.activity-item{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.activity-item:last-child{border-bottom:0}
 @media(max-width:72rem){.financial-panel{grid-column:1/-1}.operating-panel,.readiness-panel,.activity-panel{grid-column:span 6}.financial-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.financial-stats :deep(.system-stat){border-bottom:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:nth-child(2n)){border-right:0}.financial-stats :deep(.system-stat:nth-last-child(-n+2)){border-bottom:0}.action-panel__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.work-action:nth-child(2n){border-right:0}.work-action:nth-child(-n+2){border-bottom:var(--border-width-1) solid var(--theme-border)}}

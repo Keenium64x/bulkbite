@@ -45,7 +45,7 @@ const sections = [
 	{ id: "import", label: "Import", group: "theoretical" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
 ];
-const auxiliarySections = ["employees", "documents"];
+const auxiliarySections = ["employees", "documents", "history", "operations"];
 const activeSectionStorageKey = "bulkbite-active-section";
 const allowedSectionIds = new Set([
 	...sections.map((section) => section.id),
@@ -274,6 +274,14 @@ watch(
 			@changed="loadAll"
 			@open-worker-sheets="navigate('documents')"
 			@open-employees="openEmployees('production')"
+			@open-history="navigate('history')"
+		/>
+		<SystemProductionMeasurement
+			v-else-if="activeSection === 'history'"
+			mode="history"
+			:snapshot="snapshot"
+			:plan="plan"
+			@close="navigate('production')"
 		/>
 		<SystemEmployeeManagement
 			v-else-if="activeSection === 'employees'"
@@ -345,5 +353,14 @@ watch(
 			/>
 			<SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
 		</template>
+		<SystemStockOverview
+			v-else-if="activeSection === 'operations'"
+			mode="operations"
+			:snapshot="snapshot"
+			:inventory="inventory"
+			:plan="plan"
+			@open-workflow="navigate"
+			@changed="loadAll"
+		/>
 	</SystemBulkbiteAppShell>
 </template>

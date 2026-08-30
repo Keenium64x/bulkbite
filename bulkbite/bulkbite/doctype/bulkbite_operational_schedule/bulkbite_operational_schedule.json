@@ -1,0 +1,36 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:schedule_name",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["schedule_name", "enabled", "action_type", "recurrence", "interval", "day_of_week", "day_of_month", "month_of_year", "lead_days", "default_section", "start_date", "notes"],
+ "fields": [
+  {"fieldname": "schedule_name", "fieldtype": "Data", "in_list_view": 1, "label": "Schedule Name", "reqd": 1, "unique": 1},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "in_list_view": 1, "label": "Enabled"},
+  {"fieldname": "action_type", "fieldtype": "Select", "in_list_view": 1, "label": "Action Type", "options": "Stock Reconciliation\nAccountant Export\nContainer Reconciliation\nProduction Review\nCustom", "reqd": 1},
+  {"default": "Monthly", "fieldname": "recurrence", "fieldtype": "Select", "label": "Repeats", "options": "Weekly\nMonthly\nQuarterly\nAnnual\nCustom Days", "reqd": 1},
+  {"default": "1", "fieldname": "interval", "fieldtype": "Int", "label": "Repeat Every", "non_negative": 1, "reqd": 1},
+  {"fieldname": "day_of_week", "fieldtype": "Select", "label": "Weekday", "options": "Monday\nTuesday\nWednesday\nThursday\nFriday\nSaturday\nSunday"},
+  {"fieldname": "day_of_month", "fieldtype": "Int", "label": "Day of Month"},
+  {"fieldname": "month_of_year", "fieldtype": "Int", "label": "Month Number"},
+  {"default": "3", "fieldname": "lead_days", "fieldtype": "Int", "label": "Show on Dashboard Before", "non_negative": 1},
+  {"default": "operations", "fieldname": "default_section", "fieldtype": "Select", "label": "App Destination", "options": "operations\nstock\nexport\nproduction", "reqd": 1},
+  {"default": "Today", "fieldname": "start_date", "fieldtype": "Date", "label": "Starts On", "reqd": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Instructions or Consequence"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Operational Schedule",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "BulkBite Worker"},
+  {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "schedule_name",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

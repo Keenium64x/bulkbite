@@ -79,7 +79,7 @@ const dayOptions = [
 ].map((value) => ({ label: value, value }));
 const outputModeOptions = [
 	{ label: "Balanced", value: "Auto" },
-	{ label: "Pinned", value: "Fixed" },
+	{ label: "Custom", value: "Fixed" },
 ];
 const scenarioWeeks = computed(() =>
 	props.mode === "forecasting" ? Number(form.forecast_weeks || 8) : 4,
@@ -156,6 +156,28 @@ const capacitySummary = computed(() => {
 				: outputDifference > 0 || teamHourDifference > 0
 					? "Over capacity"
 					: "At capacity",
+	};
+});
+const schedulePosition = computed(() => {
+	const customOutput = form.capacity_runs
+		.filter((row) => row.output_mode === "Fixed")
+		.reduce((sum, row) => sum + Number(row.planned_output_qty || 0), 0);
+	const totalRequired = form.plan_rows.reduce(
+		(sum, row) => sum + weeklyKg.value + Number(row.extra_output_qty || 0),
+		0,
+	);
+	const totalAssigned = form.capacity_runs.reduce(
+		(sum, row) => sum + Number(row.planned_output_qty || 0),
+		0,
+	);
+	return {
+		customerRequired: roundQuantity(weeklyKg.value * form.plan_rows.length),
+		extraOutput: roundQuantity(form.plan_rows.reduce((sum, row) => sum + Number(row.extra_output_qty || 0), 0)),
+		totalRequired: roundQuantity(totalRequired),
+		totalAssigned: roundQuantity(totalAssigned),
+		customOutput: roundQuantity(customOutput),
+		balancedOutput: roundQuantity(totalAssigned - customOutput),
+		difference: roundQuantity(totalAssigned - totalRequired),
 	};
 });
 const workforceRows = computed(() =>
@@ -871,6 +893,20 @@ function number(value) {
 						>Add run</SystemOperationalButton
 					>
 				</div>
+				<article class="schedule-position" :class="schedulePosition.difference < 0 ? 'is-under' : 'is-ready'">
+					<div>
+						<p class="eyebrow">Full cycle position</p>
+						<h3>{{ schedulePosition.difference < 0 ? `${number(Math.abs(schedulePosition.difference))} kg still needs a run` : schedulePosition.difference > 0 ? `${number(schedulePosition.difference)} kg above the current target` : "All required food is assigned" }}</h3>
+						<p>Balanced output moves with cooking hours and crew size. Custom output stays at the quantity you enter.</p>
+					</div>
+					<div class="schedule-position__figures">
+						<span><strong>{{ number(schedulePosition.customerRequired) }} kg</strong>customers</span>
+						<span><strong>{{ number(schedulePosition.extraOutput) }} kg</strong>extra planned</span>
+						<span><strong>{{ number(schedulePosition.balancedOutput) }} kg</strong>balanced</span>
+						<span><strong>{{ number(schedulePosition.customOutput) }} kg</strong>custom</span>
+						<span><strong>{{ number(schedulePosition.totalAssigned) }} kg</strong>assigned</span>
+					</div>
+				</article>
 				<div class="capacity-run-list">
 					<article v-for="(row, index) in form.capacity_runs" :key="index">
 						<SystemFormControl
@@ -898,7 +934,7 @@ function number(value) {
 							step="0.1"
 							:label="
 								row.output_mode === 'Fixed'
-									? 'Pinned output (kg)'
+									? 'Custom output (kg)'
 									: 'Balanced output (kg)'
 							"
 							:disabled="row.output_mode !== 'Fixed'"
@@ -1290,6 +1326,75 @@ function number(value) {
 .forecast-week-list {
 	display: grid;
 	gap: var(--spacing-xs);
+}
+.schedule-position {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(26rem, 1.3fr);
+	gap: var(--spacing-m);
+	margin-bottom: var(--spacing-s);
+	padding: var(--spacing-m);
+	border: var(--border-width-1) solid var(--theme-border);
+	border-radius: var(--component-radius-card);
+	background: var(--theme-surface-raised);
+}
+.schedule-position.is-under {
+	border-color: color-mix(in oklch, var(--theme-error) 45%, var(--theme-border));
+	background: color-mix(in oklch, var(--theme-error) 6%, var(--theme-surface-raised));
+}
+.schedule-position.is-ready {
+	border-color: color-mix(in oklch, var(--theme-success) 35%, var(--theme-border));
+}
+.schedule-position h3,
+.schedule-position p {
+	margin: var(--spacing-3xs) 0 0;
+}
+.schedule-position p:not(.eyebrow) {
+	color: var(--theme-text-muted);
+}
+.schedule-position__figures {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	overflow: hidden;
+	border: var(--border-width-1) solid var(--theme-border);
+	border-radius: var(--component-radius-field);
+}
+.schedule-position__figures span {
+	display: grid;
+	gap: var(--spacing-3xs);
+	min-width: 0;
+	padding: var(--spacing-xs);
+	border-right: var(--border-width-1) solid var(--theme-border);
+	color: var(--theme-text-muted);
+	font-size: var(--font-size--2);
+}
+.schedule-position__figures span:last-child {
+	border-right: 0;
+}
+.schedule-position__figures strong {
+	color: var(--theme-text);
+	overflow-wrap: anywhere;
+}
+@media (max-width: 72rem) {
+	.schedule-position {
+		grid-template-columns: 1fr;
+	}
+	.schedule-position__figures {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.schedule-position__figures span {
+		border-bottom: var(--border-width-1) solid var(--theme-border);
+	}
+	.schedule-position__figures span:nth-child(2n) {
+		border-right: 0;
+	}
+}
+@media (max-width: 36rem) {
+	.schedule-position__figures {
+		grid-template-columns: 1fr;
+	}
+	.schedule-position__figures span {
+		border-right: 0;
+	}
 }
 .capacity-run-list article {
 	display: grid;

@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-OA-.YYYY.-.#####",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["title", "action_type", "schedule", "due_date", "status", "completed_on", "rescheduled_to", "cancellation_reason", "target_section", "reference_doctype", "reference_name", "consequence_note", "notes"],
+ "fields": [
+  {"fieldname": "title", "fieldtype": "Data", "in_list_view": 1, "label": "Action", "reqd": 1},
+  {"fieldname": "action_type", "fieldtype": "Data", "in_list_view": 1, "label": "Action Type", "reqd": 1},
+  {"fieldname": "schedule", "fieldtype": "Link", "label": "Schedule", "options": "BulkBite Operational Schedule"},
+  {"fieldname": "due_date", "fieldtype": "Date", "in_list_view": 1, "label": "Due Date", "reqd": 1},
+  {"default": "Due", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Due\nCompleted\nRescheduled\nCancelled", "reqd": 1},
+  {"fieldname": "completed_on", "fieldtype": "Date", "label": "Completed On"},
+  {"fieldname": "rescheduled_to", "fieldtype": "Date", "label": "Rescheduled To"},
+  {"fieldname": "cancellation_reason", "fieldtype": "Small Text", "label": "Cancellation Reason"},
+  {"default": "operations", "fieldname": "target_section", "fieldtype": "Data", "label": "App Destination"},
+  {"fieldname": "reference_doctype", "fieldtype": "Link", "label": "Reference Type", "options": "DocType"},
+  {"fieldname": "reference_name", "fieldtype": "Dynamic Link", "label": "Reference", "options": "reference_doctype"},
+  {"fieldname": "consequence_note", "fieldtype": "Small Text", "label": "If Missed"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Operational Action",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "BulkBite Worker"},
+  {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "due_date",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

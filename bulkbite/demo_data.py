@@ -8,6 +8,7 @@ from frappe.utils.file_manager import save_file
 
 from bulkbite.api import (
 	approve_stock_audit,
+	allocate_finished_food,
 	create_stock_count_draft,
 	post_cost_invoice,
 	receive_stock_from_receipt,
@@ -21,6 +22,7 @@ from bulkbite.planning import build_plan_snapshot
 from bulkbite.stock_ledger import get_stock_balance, verify_stock_balances, verify_stock_event_chain
 from bulkbite.stock_production import round_operational_quantity
 from bulkbite.truth_ledger import verify_truth_event_chain
+from bulkbite.operational_actions import materialize_operational_actions
 
 
 # =============================================================================
@@ -44,6 +46,8 @@ def load_full_demo_data():
 		plan = ensure_demo_direction(master, workforce)
 		receipts = ensure_demo_receipts(master)
 		production = ensure_demo_production(plan, workforce)
+		containers = ensure_demo_containers(production)
+		operations = ensure_demo_operational_actions()
 		invoices = ensure_demo_cost_invoices(plan, finance_setup)
 		audit = ensure_demo_reconciliation()
 		supporting = ensure_demo_supporting_history(audit, master)
@@ -55,6 +59,8 @@ def load_full_demo_data():
 			"plan": plan,
 			"receipts": receipts,
 			"production": production,
+			"containers": containers,
+			"operations": operations,
 			"cost_invoices": invoices,
 			"stock_audit": audit,
 			"supporting_history": supporting,
@@ -133,8 +139,8 @@ def get_demo_data_summary():
 def ensure_demo_master_data():
 	"""Ensure suppliers, categories, locations, scan identities, offers, and price rules."""
 	for values in (
-		{"supplier_name": "Makro", "accountant_reference": "SUP-MAKRO", "notes": f"{DEMO_MARKER}. Dry-goods route."},
-		{"supplier_name": "Checkers", "accountant_reference": "SUP-CHECKERS", "notes": f"{DEMO_MARKER}. Fresh-food route."},
+		{"supplier_name": "Makro", "accountant_reference": "SUP-MAKRO", "delivery_lead_time_days": 4, "order_safety_days": 1, "notes": f"{DEMO_MARKER}. Dry-goods route with a four-day delivery assumption."},
+		{"supplier_name": "Checkers", "accountant_reference": "SUP-CHECKERS", "delivery_lead_time_days": 1, "order_safety_days": 1, "notes": f"{DEMO_MARKER}. Fresh-food route with a one-day delivery assumption."},
 		{"supplier_name": "Cape Food Packaging", "accountant_reference": "SUP-PACK", "notes": f"{DEMO_MARKER}. Packaging route."},
 	):
 		_ensure_named_doc("BulkBite Supplier", values["supplier_name"], values)
@@ -222,22 +228,44 @@ def ensure_demo_master_data():
 
 
 def _ensure_demo_recipe_instructions():
-	"""Keep one realistic recipe method available for testing scaled worker instructions."""
-	if not frappe.db.exists("BulkBite Recipe", "BB-RECIPE-00004"):
-		return
-	recipe = frappe.get_doc("BulkBite Recipe", "BB-RECIPE-00004")
-	recipe.instruction_guidance = "Run rice and ingredient preparation concurrently where the assigned team and clean equipment allow it. Review finished weight before portioning."
-	recipe.set("instruction_steps", [])
-	steps = [
-		(1, "Prepare rice", "Rinse the rice, measure the cooking water, and start the rice batch.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.25, 1, "Cook", "Rice is rinsed and water is measured against the scaled batch."),
-		(2, "Prepare vegetables and chicken", "Prepare potatoes and onions, then prepare the chicken separately using clean tools and surfaces.", "BB-ING-CHICKEN-BREAST, BB-ING-POTATOES, BB-ING-ONIONS", "Prep Station", "", 1, 15, 0.35, 1, "Prep", "Raw chicken remains separate from ready-to-eat surfaces and prepared vegetables."),
-		(3, "Start curry base", "Heat the oil, soften the onions, then add garlic and curry powder to form the curry base.", "BB-ING-SUNFLOWER-OIL, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC, BB-ING-CURRY-POWDER", "Curry Pot", "2", 0, 12, 0.15, 1, "Cook", "Onions are softened and the spice base is evenly mixed without scorching."),
-		(4, "Cook the curry", "Add chicken, potatoes, tomato and onion mix, stock, and scaled water. Cook until the batch reaches the recipe texture and the chicken is fully cooked according to the kitchen's verified food-safety procedure.", "BB-ING-CHICKEN-BREAST, BB-ING-POTATOES, BB-ING-TOMATO-ONION-MIX, BB-ING-STOCK-CUBES", "Curry Pot", "3", 0, 25, 0.4, 1, "Cook", "Use the kitchen's approved temperature and texture checks, then record any deviation."),
-		(5, "Finish and portion", "Combine the completed components as specified, confirm the total finished weight, and portion the batch into containers.", "BB-ING-PARBOILED-RICE", "Prep Station", "1, 4", 0, 10, 0.2, 2, "Portioning", "Finished weight and container count match what the team records for this run."),
-	]
-	for step in steps:
-		recipe.append("instruction_steps", dict(zip(("step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint"), step)))
-	recipe.save(ignore_permissions=True)
+	"""Keep four realistic demo methods available for scaled worker-instruction testing."""
+	recipe_steps = {
+		"BB-RECIPE-00001": [
+			(1, "Soak and start beans", "Rinse the beans and start them with the scaled water.", "BB-ING-DRY-BEANS", "Curry Pot", "", 1, 15, 0.2, 1, "Cook", "Beans are clean and the water quantity matches the scaled batch."),
+			(2, "Start rice", "Rinse the rice and start it in the rice pot.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.2, 1, "Cook", "Rice and water are measured before heating."),
+			(3, "Prepare stew vegetables", "Prepare potatoes, onions, garlic, and seasoning while the beans and rice cook.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC", "Prep Station", "", 1, 15, 0.3, 1, "Prep", "Prepared vegetables are even enough to cook consistently."),
+			(4, "Finish bean stew", "Build the seasoned base, add the prepared vegetables and cooked beans, then simmer to the approved texture.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CURRY-POWDER, BB-ING-STOCK-CUBES", "Curry Pot", "1, 3", 0, 25, 0.35, 1, "Cook", "Beans and potatoes are tender and the batch is evenly seasoned."),
+			(5, "Weigh and portion", "Confirm finished weight, record any variance, and portion the stew and rice.", "BB-ING-PARBOILED-RICE", "Prep Station", "2, 4", 0, 10, 0.15, 2, "Portioning", "Recorded food weight and container count match the finished batch."),
+		],
+		"BB-RECIPE-00002": [
+			(1, "Start rice", "Rinse and start the scaled rice batch.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.2, 1, "Cook", "Rice and water are measured."),
+			(2, "Prepare vegetables", "Prepare potatoes, onions, and garlic for the curry.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC", "Prep Station", "", 1, 15, 0.3, 1, "Prep", "Vegetables are evenly prepared."),
+			(3, "Build lentil curry", "Soften the onions, add seasoning, lentils, potatoes, tomato, stock, and scaled water.", "BB-ING-LENTILS, BB-ING-POTATOES, BB-ING-TOMATO-ONION-MIX, BB-ING-CURRY-POWDER", "Curry Pot", "2", 0, 25, 0.4, 1, "Cook", "The base is mixed without scorching."),
+			(4, "Finish and portion", "Cook to the approved texture, confirm total weight, and portion with rice.", "BB-ING-PARBOILED-RICE", "Prep Station", "1, 3", 0, 12, 0.2, 2, "Portioning", "Lentils and potatoes are tender and final weight is recorded."),
+		],
+		"BB-RECIPE-00003": [
+			(1, "Start pasta water", "Bring the scaled cooking water to temperature and prepare the pasta batch.", "BB-ING-BASIC-PASTA", "Rice Pot", "", 1, 10, 0.15, 1, "Cook", "Water and pasta quantities match the batch."),
+			(2, "Prepare sauce base", "Prepare onions and garlic, then soften them with the seasoning and tomato base.", "BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC, BB-ING-TOMATO-ONION-MIX", "Curry Pot", "", 1, 15, 0.25, 1, "Cook", "The tomato base is evenly mixed."),
+			(3, "Cook lentils and pasta", "Cook the lentil sauce and pasta concurrently, following the saved batch quantities.", "BB-ING-LENTILS, BB-ING-BASIC-PASTA", "Curry Pot", "1, 2", 0, 25, 0.35, 2, "Cook", "Pasta and lentils reach the approved texture."),
+			(4, "Combine and portion", "Combine as specified, confirm the finished weight, and portion the meal.", "BB-ING-BASIC-PASTA, BB-ING-LENTILS", "Prep Station", "3", 0, 10, 0.15, 2, "Portioning", "Final weight and container count are recorded."),
+		],
+		"BB-RECIPE-00004": [
+			(1, "Prepare rice", "Rinse the rice, measure the cooking water, and start the rice batch.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.25, 1, "Cook", "Rice is rinsed and water is measured against the scaled batch."),
+			(2, "Prepare vegetables and chicken", "Prepare potatoes and onions, then prepare the chicken separately using clean tools and surfaces.", "BB-ING-CHICKEN-BREAST, BB-ING-POTATOES, BB-ING-ONIONS", "Prep Station", "", 1, 15, 0.35, 1, "Prep", "Raw chicken remains separate from ready-to-eat surfaces and prepared vegetables."),
+			(3, "Start curry base", "Heat the oil, soften the onions, then add garlic and curry powder to form the curry base.", "BB-ING-SUNFLOWER-OIL, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC, BB-ING-CURRY-POWDER", "Curry Pot", "2", 0, 12, 0.15, 1, "Cook", "Onions are softened and the spice base is evenly mixed without scorching."),
+			(4, "Cook the curry", "Add chicken, potatoes, tomato and onion mix, stock, and scaled water. Cook until the batch reaches the recipe texture and the chicken is fully cooked according to the kitchen's verified food-safety procedure.", "BB-ING-CHICKEN-BREAST, BB-ING-POTATOES, BB-ING-TOMATO-ONION-MIX, BB-ING-STOCK-CUBES", "Curry Pot", "3", 0, 25, 0.4, 1, "Cook", "Use the kitchen's approved temperature and texture checks, then record any deviation."),
+			(5, "Finish and portion", "Combine the completed components as specified, confirm the total finished weight, and portion the batch into containers.", "BB-ING-PARBOILED-RICE", "Prep Station", "1, 4", 0, 10, 0.2, 2, "Portioning", "Finished weight and container count match what the team records for this run."),
+		],
+	}
+	for recipe_name, steps in recipe_steps.items():
+		if not frappe.db.exists("BulkBite Recipe", recipe_name):
+			continue
+		recipe = frappe.get_doc("BulkBite Recipe", recipe_name)
+		recipe.instruction_guidance = "Run independent cooking and preparation steps concurrently where the assigned team and clean equipment allow it. Review finished weight before portioning."
+		recipe.set("instruction_steps", [])
+		for step in steps:
+			recipe.append("instruction_steps", dict(zip(("step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint"), step)))
+		recipe.save(ignore_permissions=True)
 
 
 def _ensure_supplier_offers():
@@ -697,9 +725,28 @@ def ensure_demo_production(plan_name, workforce):
 				round_operational_quantity(flt(run.planned_output_qty) * output_factor),
 				measurements,
 				marker,
+				max(int(round(flt(run.planned_output_qty) * output_factor / 0.75)), 1),
 			)
 			submit_production_run(name)
 		posted.append(name)
+		run = frappe.get_doc("BulkBite Production Run", name)
+		allocation_specs = [
+			("Current Customers", min(flt(run.actual_output_qty), 20), f"Demo week {week} customers"),
+			("Internal Consumption", min(max(flt(run.actual_output_qty) - 20, 0), 2), f"Demo week {week} team meal"),
+		]
+		for allocation_type, quantity, reference in allocation_specs:
+			if quantity <= 0 or frappe.db.exists("BulkBite Finished Food Allocation", {"source_production_run": name, "allocation_type": allocation_type, "demand_period": reference}):
+				continue
+			allocate_finished_food({
+				"posting_date": production_date,
+				"finished_item": run.finished_item,
+				"source_location": "Finished Meals",
+				"source_production_run": name,
+				"allocation_type": allocation_type,
+				"demand_period": reference,
+				"quantity": quantity,
+				"notes": f"{DEMO_MARKER}. Finished-food allocation example.",
+			})
 
 	draft_marker = f"{DEMO_MARKER} NEXT CYCLE DRAFT"
 	draft = frappe.db.get_value("BulkBite Production Run", {"notes": ["like", f"%{draft_marker}%"]}, "name")
@@ -731,6 +778,119 @@ def ensure_demo_production(plan_name, workforce):
 
 
 # endregion PRODUCTION ACTUALS
+
+
+# =============================================================================
+# region CONTAINERS AND RECURRING WORK
+# =============================================================================
+
+
+def ensure_demo_containers(production):
+	"""Create a visible container fleet with clean, filled, customer, overdue, and maintenance examples."""
+	container_type = _ensure_named_doc(
+		"BulkBite Container Type",
+		"Standard 750 ml Reusable Container",
+		{
+			"container_type_name": "Standard 750 ml Reusable Container",
+			"enabled": 1,
+			"default_for_production": 1,
+			"capacity_qty": 0.75,
+			"capacity_uom": "Kg",
+			"replacement_price": 35,
+			"non_return_charge_multiplier": 2,
+			"expected_return_days": 7,
+			"notes": f"{DEMO_MARKER}. Default reusable customer container.",
+		},
+	)
+	states = [
+		("BB-CONT-001", "Clean", None, None),
+		("BB-CONT-002", "Clean", None, None),
+		("BB-CONT-003", "Filled", None, None),
+		("BB-CONT-004", "With Customer", "DEMO-CUSTOMER-04", "2026-09-03"),
+		("BB-CONT-005", "With Customer", "DEMO-CUSTOMER-05", "2026-08-20"),
+		("BB-CONT-006", "Maintenance", None, None),
+		("BB-CONT-007", "Lost", None, None),
+	]
+	assets = []
+	for code, state, customer, return_date in states:
+		asset = _ensure_named_doc(
+			"BulkBite Container Asset",
+			code,
+			{
+				"asset_code": code,
+				"container_type": container_type.name,
+				"lifecycle_state": state,
+				"current_customer_reference": customer,
+				"expected_return_date": return_date,
+				"acquisition_date": "2026-08-01",
+				"enabled": 1,
+				"notes": f"{DEMO_MARKER}. Container lifecycle example.",
+			},
+		)
+		assets.append(asset.name)
+	for code, movement, date, customer, run in [
+		("BB-CONT-003", "Filled for Production", "2026-08-25", None, production["posted"][-1]),
+		("BB-CONT-004", "Issued to Customer", "2026-08-27", "DEMO-CUSTOMER-04", production["posted"][-1]),
+		("BB-CONT-005", "Issued to Customer", "2026-08-13", "DEMO-CUSTOMER-05", production["posted"][1]),
+		("BB-CONT-006", "Sent to Maintenance", "2026-08-24", None, None),
+		("BB-CONT-007", "Marked Lost", "2026-08-29", "DEMO-CUSTOMER-07", production["posted"][-1]),
+	]:
+		if frappe.db.exists("BulkBite Container Movement", {"container_asset": code, "movement_type": movement, "posting_date": date}):
+			existing = frappe.db.get_value("BulkBite Container Movement", {"container_asset": code, "movement_type": movement, "posting_date": date}, ["name", "target_state"], as_dict=True)
+			target = {"Filled for Production": "Filled", "Issued to Customer": "With Customer", "Sent to Maintenance": "Maintenance", "Marked Lost": "Lost"}[movement]
+			frappe.db.set_value("BulkBite Container Movement", existing.name, "target_state", target, update_modified=False)
+			if movement == "Marked Lost":
+				frappe.db.set_value("BulkBite Container Movement", existing.name, "replacement_charge", 70, update_modified=False)
+			frappe.db.set_value("BulkBite Container Asset", code, {"lifecycle_state": target, "current_customer_reference": customer if target == "With Customer" else None, "expected_return_date": add_days(date, 7) if target == "With Customer" else None}, update_modified=False)
+			continue
+		asset = frappe.get_doc("BulkBite Container Asset", code)
+		source = {"Filled for Production": "Clean", "Issued to Customer": "Filled", "Sent to Maintenance": "Clean", "Marked Lost": "With Customer"}[movement]
+		asset.db_set({"lifecycle_state": source, "current_customer_reference": None, "expected_return_date": None}, update_modified=False)
+		doc = frappe.get_doc({
+			"doctype": "BulkBite Container Movement",
+			"posting_date": date,
+			"container_asset": code,
+			"movement_type": movement,
+			"customer_reference": customer,
+			"production_run": run,
+			"notes": f"{DEMO_MARKER}. Container movement example.",
+		}).insert(ignore_permissions=True)
+		doc.submit()
+	return {"type": container_type.name, "assets": assets}
+
+
+def ensure_demo_operational_actions():
+	"""Create repeating duties plus completed, missed, upcoming, and rescheduled examples."""
+	schedules = [
+		("Monthly stock reconciliation", "Stock Reconciliation", "Monthly", None, 28, "stock", "Count physical stock and approve any correcting stock event."),
+		("Monthly accountant export", "Accountant Export", "Monthly", None, 2, "export", "Export the prior period for accountant review."),
+		("Weekly container return review", "Container Reconciliation", "Weekly", "Friday", None, "operations", "Review overdue returns and record each return, loss, or maintenance issue."),
+	]
+	for name, action_type, recurrence, weekday, month_day, section, notes in schedules:
+		_ensure_named_doc("BulkBite Operational Schedule", name, {
+			"schedule_name": name,
+			"enabled": 1,
+			"action_type": action_type,
+			"recurrence": recurrence,
+			"interval": 1,
+			"day_of_week": weekday,
+			"day_of_month": month_day,
+			"lead_days": 4,
+			"default_section": section,
+			"start_date": "2026-08-01",
+			"notes": f"{DEMO_MARKER}. {notes}",
+		})
+	materialize_operational_actions(from_date="2026-08-01", to_date="2026-10-31")
+	completed = frappe.db.get_value("BulkBite Operational Action", {"schedule": "Monthly stock reconciliation", "due_date": "2026-08-28"}, "name")
+	if completed:
+		frappe.db.set_value("BulkBite Operational Action", completed, {"status": "Completed", "completed_on": "2026-08-28"}, update_modified=False)
+	rescheduled = frappe.db.get_value("BulkBite Operational Action", {"schedule": "Monthly accountant export", "due_date": "2026-09-02"}, "name")
+	if rescheduled:
+		frappe.db.set_value("BulkBite Operational Action", rescheduled, {"status": "Rescheduled", "rescheduled_to": "2026-09-04", "notes": f"{DEMO_MARKER}. Accountant requested a later handoff."}, update_modified=False)
+	return [row.name for row in frappe.get_all("BulkBite Operational Action", filters={"schedule": ["in", [row[0] for row in schedules]]}, fields=["name"])]
+
+
+# endregion CONTAINERS AND RECURRING WORK
 
 
 # =============================================================================

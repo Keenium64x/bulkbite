@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-CM-.YYYY.-.#####",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["posting_date", "container_asset", "container_type", "movement_type", "source_state", "target_state", "customer_reference", "production_run", "expected_return_date", "replacement_charge", "truth_event", "notes"],
+ "fields": [
+  {"default": "Today", "fieldname": "posting_date", "fieldtype": "Date", "in_list_view": 1, "label": "Movement Date", "reqd": 1},
+  {"fieldname": "container_asset", "fieldtype": "Link", "in_list_view": 1, "label": "Container", "options": "BulkBite Container Asset", "reqd": 1},
+  {"fieldname": "container_type", "fieldtype": "Link", "label": "Container Type", "options": "BulkBite Container Type", "read_only": 1, "reqd": 1},
+  {"fieldname": "movement_type", "fieldtype": "Select", "in_list_view": 1, "label": "Movement", "options": "Opening\nFilled for Production\nIssued to Customer\nReturned by Customer\nSent to Maintenance\nReturned from Maintenance\nMarked Lost\nRetired\nReconciliation Adjustment", "reqd": 1},
+  {"fieldname": "source_state", "fieldtype": "Data", "label": "From State", "read_only": 1},
+  {"fieldname": "target_state", "fieldtype": "Select", "label": "To State", "options": "Clean\nFilled\nWith Customer\nMaintenance\nLost\nRetired"},
+  {"fieldname": "customer_reference", "fieldtype": "Data", "label": "Customer Reference"},
+  {"fieldname": "production_run", "fieldtype": "Link", "label": "Production Run", "options": "BulkBite Production Run"},
+  {"fieldname": "expected_return_date", "fieldtype": "Date", "label": "Expected Return Date"},
+  {"fieldname": "replacement_charge", "fieldtype": "Currency", "label": "Pending Replacement Charge", "read_only": 1},
+  {"fieldname": "truth_event", "fieldtype": "Link", "label": "Truth Event", "options": "BulkBite Truth Event", "read_only": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0,
+ "is_submittable": 1,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Container Movement",
+ "permissions": [
+  {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "submit": 1, "write": 1},
+  {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "submit": 1, "write": 1},
+  {"create": 1, "read": 1, "role": "BulkBite Worker", "submit": 1, "write": 1},
+  {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"}
+ ],
+ "sort_field": "posting_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
