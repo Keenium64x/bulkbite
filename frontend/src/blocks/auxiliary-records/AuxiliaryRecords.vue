@@ -16,6 +16,10 @@ import {
   SystemOperationalButton,
   SystemSelect,
   SystemTextarea,
+	SystemTabs,
+	SystemTabsContent,
+	SystemTabsList,
+	SystemTabsTrigger,
 } from "@/desyium"
 import { auxiliaryRecordSystem, recordDefinition } from "@/forms/auxiliary-records.definition"
 import { DELETE_OUTCOME, DELETE_STAGE, deletionOutcomeAllowed, finalDeleteRequest, normalizeDeletionPlan, relatedTypeChoices } from "@/forms/auxiliary-record-deletion"
@@ -50,6 +54,10 @@ const deleteNames = ref([])
 const deleteOutcome = ref("")
 const deleteOutcomesByDoctype = reactive({})
 const currentListDoctype = ref("")
+const catalogueTab = ref("settings")
+const settingDoctypes = new Set(["BulkBite Settings", "BulkBite Operational Schedule", "BulkBite Container Type", "BulkBite Equipment Type"])
+const settingsCatalogue = computed(() => catalogue.value.filter((row) => settingDoctypes.has(row.doctype)))
+const recordCatalogue = computed(() => catalogue.value.filter((row) => !settingDoctypes.has(row.doctype)))
 const selectedForm = computed(() => catalogue.value.find((row) => row.doctype === props.doctype))
 const availableFilters = computed(() => {
   const preferred = recordDefinition(props.doctype).list?.filters || []
@@ -68,7 +76,7 @@ const pageTitle = computed(() => {
   if (props.mode === "create") return `Add ${selectedForm.value?.label || props.doctype}`
   if (props.mode === "edit") return `Edit ${selectedForm.value?.label || props.doctype}`
   if (props.mode === "list") return selectedForm.value?.label || props.doctype
-  return "Setup records"
+  return "Settings"
 })
 
 onMounted(loadCurrentView)
@@ -99,7 +107,7 @@ async function loadCurrentView() {
       Object.assign(tables, result.tables || {})
     }
   } catch (caught) {
-    error.value = caught?.message || "Setup records could not be loaded."
+    error.value = caught?.message || "Settings and records could not be loaded."
   } finally {
     loading.value = false
   }
@@ -115,7 +123,7 @@ async function applyListQuery() {
   loading.value = true
   error.value = ""
   try { await loadWorkspace(1) }
-  catch (caught) { error.value = caught?.message || "Setup records could not be filtered." }
+  catch (caught) { error.value = caught?.message || "Records could not be filtered." }
   finally { loading.value = false }
 }
 function filterOptions(filter) {
@@ -301,25 +309,21 @@ function coerceValue(field, value) {
   <section data-block="auxiliary-records" class="auxiliary-records workflow-block" aria-labelledby="auxiliary-records-heading">
     <header class="auxiliary-records__header">
       <div>
-        <p class="eyebrow">Setup</p>
+        <p class="eyebrow">System control</p>
         <h1 id="auxiliary-records-heading">{{ pageTitle }}</h1>
-        <p>{{ mode === "catalogue" ? "Create and maintain the records used by receipts, recipes, production, and stock counts." : "Changes become available to linked fields after saving." }}</p>
+        <p>{{ mode === "catalogue" ? "Set operational defaults, then manage the records used by receipts, recipes, production, and stock." : "Changes become available to linked fields after saving." }}</p>
       </div>
-      <SystemOperationalButton v-if="mode !== 'catalogue'" variant="subtle" @click="emit('navigate', { mode: 'catalogue' })">All setup records</SystemOperationalButton>
+      <SystemOperationalButton v-if="mode !== 'catalogue'" variant="subtle" @click="emit('navigate', { mode: 'catalogue' })">Settings and records</SystemOperationalButton>
     </header>
 
-    <div v-if="loading" class="state-message" role="status">Loading setup records...</div>
+    <div v-if="loading" class="state-message" role="status">Loading settings and records...</div>
     <div v-else-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
 
-    <div v-else-if="mode === 'catalogue'" class="auxiliary-records__catalogue">
-      <SystemCard v-for="form in catalogue" :key="form.doctype" class="auxiliary-records__card">
-        <div><SystemBadge>SETUP</SystemBadge><h2>{{ form.label }}</h2><p>{{ form.description }}</p></div>
-        <div class="button-row">
-          <SystemOperationalButton variant="subtle" @click="emit('navigate', { mode: 'list', doctype: form.doctype })">Manage</SystemOperationalButton>
-          <SystemOperationalButton v-if="form.can_create" variant="solid" theme="blue" @click="emit('navigate', { mode: 'create', doctype: form.doctype })">Add {{ form.singular_label }}</SystemOperationalButton>
-        </div>
-      </SystemCard>
-    </div>
+    <SystemTabs v-else-if="mode === 'catalogue'" v-model="catalogueTab" class="auxiliary-records__tabs">
+      <SystemTabsList><SystemTabsTrigger value="settings">Settings</SystemTabsTrigger><SystemTabsTrigger value="records">All records</SystemTabsTrigger></SystemTabsList>
+      <SystemTabsContent value="settings"><div class="auxiliary-records__catalogue"><SystemCard v-for="form in settingsCatalogue" :key="form.doctype" class="auxiliary-records__card"><div><SystemBadge>SETTING</SystemBadge><h2>{{ form.label }}</h2><p>{{ form.description }}</p></div><div class="button-row"><SystemOperationalButton v-if="form.is_single" variant="solid" @click="emit('navigate', { mode: 'edit', doctype: form.doctype, name: form.doctype })">Configure</SystemOperationalButton><template v-else><SystemOperationalButton variant="subtle" @click="emit('navigate', { mode: 'list', doctype: form.doctype })">Manage</SystemOperationalButton><SystemOperationalButton v-if="form.can_create" variant="solid" @click="emit('navigate', { mode: 'create', doctype: form.doctype })">Add {{ form.singular_label }}</SystemOperationalButton></template></div></SystemCard></div></SystemTabsContent>
+      <SystemTabsContent value="records"><div class="auxiliary-records__catalogue"><SystemCard v-for="form in recordCatalogue" :key="form.doctype" class="auxiliary-records__card"><div><SystemBadge>RECORDS</SystemBadge><h2>{{ form.label }}</h2><p>{{ form.description }}</p></div><div class="button-row"><SystemOperationalButton variant="subtle" @click="emit('navigate', { mode: 'list', doctype: form.doctype })">Manage</SystemOperationalButton><SystemOperationalButton v-if="form.can_create" variant="solid" @click="emit('navigate', { mode: 'create', doctype: form.doctype })">Add {{ form.singular_label }}</SystemOperationalButton></div></SystemCard></div></SystemTabsContent>
+    </SystemTabs>
 
     <section v-else-if="mode === 'list'" class="auxiliary-records__list">
       <div class="section-heading"><div><p class="eyebrow">Manage records</p><h2>{{ selectedForm?.label }}</h2></div><SystemOperationalButton v-if="selectedForm?.can_create" theme="blue" variant="solid" @click="emit('navigate', { mode: 'create', doctype })">Add {{ selectedForm.singular_label }}</SystemOperationalButton></div>

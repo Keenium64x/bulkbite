@@ -930,7 +930,7 @@ function openRecipeRecords(create = false) {
 				<div class="metric-board">
 					<div>
 						<strong>{{ instructionPlan.steps.length }}</strong
-						><span>reviewed steps</span>
+						><span>method tasks</span>
 					</div>
 					<div>
 						<strong>{{ instructionPlan.worker_lanes.length }}</strong
@@ -939,7 +939,7 @@ function openRecipeRecords(create = false) {
 					<div>
 						<strong
 							>{{ quantity(instructionPlan.estimated_elapsed_minutes) }} min</strong
-						><span>estimated elapsed time</span>
+						><span>scheduled kitchen time</span>
 					</div>
 					<div>
 						<strong>{{ instructionPlan.equipment.length }}</strong
@@ -950,10 +950,9 @@ function openRecipeRecords(create = false) {
 					<summary>
 						Scaled ingredients <span>{{ instructionPlan.ingredients.length }}</span>
 					</summary>
-					<div class="instruction-ingredient-grid">
+					<div class="instruction-ingredient-list">
 						<article v-for="item in instructionPlan.ingredients" :key="item.item_code">
-							<div class="ingredient-quantity"><strong>{{ quantity(item.quantity) }} {{ item.uom }}</strong><span>weigh raw</span></div>
-							<div><strong>{{ item.item_name }}</strong><p v-if="item.piece_count_estimate">About {{ item.piece_count_estimate }} {{ item.piece_count_label }}</p><p v-else-if="item.prepared_yield_factor !== 1">Expected yield: {{ quantity(item.prepared_quantity) }} {{ item.uom }} prepared</p><small v-if="item.preparation_yield_note">{{ item.preparation_yield_note }}</small></div>
+							<div><strong>{{ item.item_name }}</strong><small v-if="item.preparation_yield_note">{{ item.preparation_yield_note }}</small></div><span><b>{{ quantity(item.quantity) }} {{ item.uom }}</b> raw<span v-if="item.piece_count_estimate"> · about {{ item.piece_count_estimate }} {{ item.piece_count_label }}</span><span v-else-if="item.prepared_yield_factor !== 1"> · {{ quantity(item.prepared_quantity) }} {{ item.uom }} prepared</span></span>
 						</article>
 					</div>
 				</details>
@@ -964,15 +963,13 @@ function openRecipeRecords(create = false) {
 					</summary>
 					<div class="worker-lane-grid">
 						<article v-for="lane in instructionPlan.worker_lanes" :key="lane.lane">
-							<strong>Worker {{ lane.lane }}</strong>
+							<header><span>Worker</span><strong>{{ lane.lane }}</strong><small>{{ quantity(lane.available_at) }} min assigned</small></header>
 							<ol>
 								<li
 									v-for="step in lane.steps"
 									:key="`${lane.lane}-${step.step_number}`"
 								>
-									<span
-										>{{ step.start_minute }} to {{ step.end_minute }} min</span
-									>{{ step.step_name }}
+									<span class="lane-time">{{ step.start_minute }} to {{ step.end_minute }} min</span><strong>{{ step.step_number }}. {{ step.step_name }}</strong><small>{{ step.duration_minutes }} min<span v-if="step.equipment_type"> · {{ step.equipment_type }}</span></small><SystemBadge v-if="step.is_critical" theme="red">CRITICAL</SystemBadge>
 								</li>
 							</ol>
 						</article>
@@ -983,11 +980,11 @@ function openRecipeRecords(create = false) {
 						Step-by-step method <span>{{ instructionPlan.steps.length }}</span>
 					</summary>
 					<div class="instruction-step-list">
-						<article v-for="step in instructionPlan.steps" :key="step.step_number">
-							<SystemBadge>STEP {{ step.step_number }}</SystemBadge>
-							<div>
-								<strong>{{ step.step_name }}</strong>
-								<p>{{ step.instruction }}</p>
+						<details v-for="step in instructionPlan.steps" :key="step.task_id" class="method-task">
+							<summary><span class="method-task__number">{{ step.step_number }}</span><span class="method-task__title"><strong>{{ step.step_name }}</strong><small>{{ step.scheduled_start }} to {{ step.scheduled_end }} min · Worker {{ step.assigned_workers.join(', ') }}<span v-if="step.equipment_type"> · {{ step.equipment_type }}</span></small></span><SystemBadge v-if="step.is_critical" theme="red">CRITICAL</SystemBadge><span class="method-task__expand">Details</span></summary>
+							<div class="method-task__body">
+								<p>{{ step.objective || step.instruction }}</p>
+								<ol class="method-substeps"><li v-for="substep in step.substeps" :key="substep.order"><span>{{ substep.order }}</span><div><p>{{ substep.instruction }}</p><small v-if="substep.check">Check: {{ substep.check }}</small></div></li></ol>
 								<small v-if="step.ingredients.length"
 									>Use
 									{{
@@ -998,20 +995,20 @@ function openRecipeRecords(create = false) {
 											)
 											.join(", ")
 									}}.</small
-								><small
+								><small class="method-task__cpm"
 									>{{ step.estimated_minutes }} min · {{ step.minimum_workers }}
 									{{ step.minimum_workers === 1 ? "worker" : "workers" }} ·
 									{{ step.batch_count }}
 									{{ step.batch_count === 1 ? "batch" : "batches"
 									}}<span v-if="step.equipment_type">
-										· {{ step.equipment_type }}</span
-									></small
+										· {{ step.equipment_type }}</span>
+									 · ES {{ step.early_start }} · EF {{ step.early_finish }} · LS {{ step.late_start }} · LF {{ step.late_finish }} · {{ step.slack_minutes }} min slack</small
 								>
 								<p v-if="step.quality_checkpoint" class="quality-check">
 									<strong>Check:</strong> {{ step.quality_checkpoint }}
 								</p>
 							</div>
-						</article>
+						</details>
 					</div>
 				</details>
 				<details v-if="instructionPlan.equipment.length" class="instruction-group">
@@ -1585,6 +1582,12 @@ function openRecipeRecords(create = false) {
 	gap: var(--spacing-xs);
 	padding: 0 var(--spacing-s) var(--spacing-s);
 }
+.instruction-ingredient-list { display:grid; padding:0 var(--spacing-s) var(--spacing-s); border-top:var(--border-width-1) solid var(--theme-border); }
+.instruction-ingredient-list article { display:flex; align-items:center; justify-content:space-between; gap:var(--spacing-s); padding:var(--spacing-xs) 0; border-bottom:var(--border-width-1) solid var(--theme-border); }
+.instruction-ingredient-list article:last-child { border-bottom:0; }
+.instruction-ingredient-list article>div { display:grid; gap:var(--spacing-3xs); }
+.instruction-ingredient-list small,.instruction-ingredient-list article>span { color:var(--theme-text-muted); }
+.instruction-ingredient-list b { color:var(--theme-text); font-variant-numeric:tabular-nums; }
 .instruction-ingredient-grid article,
 .worker-lane-grid article {
 	display: grid;
@@ -1593,6 +1596,10 @@ function openRecipeRecords(create = false) {
 	border-radius: var(--component-radius-field);
 	background: var(--theme-secondary);
 }
+.worker-lane-grid article header { display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:var(--spacing-3xs) var(--spacing-xs);padding-bottom:var(--spacing-xs);border-bottom:var(--border-width-1) solid var(--theme-border); }
+.worker-lane-grid article header>span { text-transform:uppercase;letter-spacing:.06em;font-size:var(--font-size--2); }
+.worker-lane-grid article header>strong { font-size:var(--font-size-2); }
+.worker-lane-grid article header>small { grid-column:1/-1;color:var(--theme-text-muted); }
 .instruction-ingredient-grid article {
 	grid-template-columns: minmax(7rem, 0.45fr) minmax(0, 1fr);
 	align-items: start;
@@ -1631,26 +1638,31 @@ function openRecipeRecords(create = false) {
 	padding-left: var(--spacing-m);
 }
 .worker-lane-grid li {
-	padding-left: var(--spacing-2xs);
+	display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--spacing-3xs) var(--spacing-xs);padding:var(--spacing-xs);border-left:3px solid var(--theme-border);border-radius:0 var(--component-radius-control) var(--component-radius-control) 0;background:var(--theme-surface-raised);
 }
-.worker-lane-grid li span {
+.worker-lane-grid li .lane-time {
+	grid-column:1/-1;
 	display: block;
 	font-size: var(--font-size--2);
 }
+.worker-lane-grid li>small { color:var(--theme-text-muted); }
 .instruction-step-list {
 	display: grid;
 	gap: var(--spacing-xs);
 	padding: 0 var(--spacing-s) var(--spacing-s);
 }
-.instruction-step-list article {
-	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
-	align-items: start;
-	gap: var(--spacing-s);
-	padding: var(--spacing-s);
-	border-radius: var(--component-radius-field);
-	background: var(--theme-secondary);
-}
+.method-task { overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface-raised); }
+.method-task>summary { display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:var(--spacing-xs);padding:var(--spacing-s);cursor:pointer;list-style:none; }
+.method-task>summary::-webkit-details-marker { display:none; }
+.method-task__number { display:grid;place-items:center;width:2.25rem;height:2.25rem;border-radius:999px;background:var(--theme-secondary);color:var(--theme-text);font-weight:var(--font-weight-semibold); }
+.method-task__title { display:grid;gap:var(--spacing-3xs);min-width:0; }
+.method-task__title small,.method-task__expand { color:var(--theme-text-muted);font-size:var(--font-size--2); }
+.method-task__body { display:grid;gap:var(--spacing-xs);padding:0 var(--spacing-s) var(--spacing-s) calc(var(--spacing-s) + 2.25rem + var(--spacing-xs));border-top:var(--border-width-1) solid var(--theme-border); }
+.method-substeps { display:grid;gap:var(--spacing-xs);margin:var(--spacing-xs) 0 0;padding:0;list-style:none; }
+.method-substeps li { display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--spacing-xs); }
+.method-substeps li>span { display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:999px;background:var(--theme-secondary);color:var(--theme-text);font-weight:var(--font-weight-semibold); }
+.method-substeps p { margin:0; }
+.method-substeps small,.method-task__cpm { color:var(--theme-text-muted); }
 .instruction-step-list p {
 	margin: var(--spacing-3xs) 0;
 }
@@ -1914,6 +1926,10 @@ function openRecipeRecords(create = false) {
 	.instruction-step-list article {
 		grid-template-columns: 1fr;
 	}
+	.instruction-ingredient-list article { align-items:flex-start;flex-direction:column; }
+	.method-task>summary { grid-template-columns:auto minmax(0,1fr); }
+	.method-task>summary>:nth-child(n+3) { grid-column:2;justify-self:start; }
+	.method-task__body { padding-left:var(--spacing-s); }
 	.instruction-ingredient-grid article,
 	.container-suggestion {
 		grid-template-columns: 1fr;

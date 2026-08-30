@@ -75,6 +75,7 @@ export const getOperationalCalendar = (fromDate, toDate) => call("bulkbite.api.g
 export const getContainerPosition = () => call("bulkbite.api.get_container_position", {}, "GET")
 export const getContainerSuggestion = (outputQty) => call("bulkbite.api.get_container_suggestion", { output_qty: outputQty }, "GET")
 export const updateOperationalAction = (name, action, newDate, reason) => call("bulkbite.api.update_operational_action", { name, action, new_date: newDate, reason })
+export const createCustomOperationalAction = (payload) => call("bulkbite.api.create_custom_operational_action", payload)
 export const recordContainerMovement = (payload) => call("bulkbite.api.record_container_movement", { payload })
 export const allocateFinishedFood = (payload) => call("bulkbite.api.allocate_finished_food", { payload })
 export const getBuyingRecommendation = (planName, location = "Ingredients", horizonWeeks = 4) => call("bulkbite.api.get_buying_recommendation", { plan_name: planName, location, horizon_weeks: horizonWeeks }, "GET")

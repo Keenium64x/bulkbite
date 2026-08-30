@@ -616,6 +616,8 @@ _AUXILIARY_FORM_DOCTYPES = {
 	"BulkBite Container Type": {"label": "Container types", "singular_label": "container type", "description": "Reusable container capacity, replacement price, and expected return rules."},
 	"BulkBite Container Asset": {"label": "Containers", "singular_label": "container", "description": "Individually tracked reusable containers and their current lifecycle state."},
 	"BulkBite Operational Schedule": {"label": "Operational schedules", "singular_label": "schedule", "description": "Repeating stock counts, accountant exports, container checks, and other duties."},
+	"BulkBite Operational Action": {"label": "Calendar actions", "singular_label": "calendar action", "description": "One-off operational duties and dated occurrences created by recurring schedules."},
+	"BulkBite Settings": {"label": "Operational defaults", "singular_label": "setting", "description": "Global kitchen planning defaults and AI method-generation controls."},
 }
 _AUXILIARY_FIELD_TYPES = {"Data", "Int", "Float", "Currency", "Date", "Select", "Check", "Small Text", "Text", "Long Text", "Link", "Table"}
 _AUXILIARY_LIST_FILTER_TYPES = {"Check", "Date", "Link", "Select"}
@@ -628,17 +630,20 @@ _AUXILIARY_DELETE_MAX_RECORDS = 1000
 def get_auxiliary_form_catalogue():
 	"""Return the permission-aware supporting-record destinations used by linked fields."""
 	_require_app_user()
-	return [
-		{
+	rows = []
+	for doctype, copy in _AUXILIARY_FORM_DOCTYPES.items():
+		if not frappe.has_permission(doctype, "read"):
+			continue
+		is_single = bool(frappe.get_meta(doctype).issingle)
+		rows.append({
 			"doctype": doctype,
 			**copy,
-			"can_create": frappe.has_permission(doctype, "create"),
-			"can_read": frappe.has_permission(doctype, "read"),
-			"can_delete": frappe.has_permission(doctype, "delete"),
-		}
-		for doctype, copy in _AUXILIARY_FORM_DOCTYPES.items()
-		if frappe.has_permission(doctype, "read")
-	]
+			"is_single": is_single,
+			"can_create": not is_single and frappe.has_permission(doctype, "create"),
+			"can_read": True,
+			"can_delete": not is_single and frappe.has_permission(doctype, "delete"),
+		})
+	return rows
 
 
 @frappe.whitelist(methods=["GET"])
@@ -722,15 +727,16 @@ def get_auxiliary_record_workspace(doctype, search=None, page=1, page_size=25, f
 @frappe.whitelist(methods=["GET"])
 def get_auxiliary_record(doctype, name=None):
 	"""Return one safe metadata contract plus values for create or edit."""
-	_require_auxiliary_doctype(doctype, "read" if name else "create")
+	is_single = bool(frappe.get_meta(doctype).issingle)
+	_require_auxiliary_doctype(doctype, "read" if name or is_single else "create")
 	contract = _auxiliary_form_contract(doctype)
 	contract["permissions"] = {
 		"read": bool(frappe.has_permission(doctype, "read")),
 		"write": bool(frappe.has_permission(doctype, "write")) and not (name and _is_archived_setup_record(doctype, name)),
-		"delete": bool(frappe.has_permission(doctype, "delete")) and not (name and _is_archived_setup_record(doctype, name)),
+		"delete": not is_single and bool(frappe.has_permission(doctype, "delete")) and not (name and _is_archived_setup_record(doctype, name)),
 	}
-	doc = frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
-	if name:
+	doc = frappe.get_single(doctype) if is_single else frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
+	if name or is_single:
 		doc.check_permission("read")
 	return {
 		"contract": contract,
@@ -742,14 +748,15 @@ def get_auxiliary_record(doctype, name=None):
 @frappe.whitelist(methods=["POST"])
 def save_auxiliary_record(doctype, values, tables=None, name=None):
 	"""Create or update only fields exposed by the approved auxiliary contract."""
-	_require_auxiliary_doctype(doctype, "write" if name else "create")
+	is_single = bool(frappe.get_meta(doctype).issingle)
+	_require_auxiliary_doctype(doctype, "write" if name or is_single else "create")
 	if name and _is_archived_setup_record(doctype, name):
 		frappe.throw(_("This record is retained as historical identity and cannot be changed."), frappe.PermissionError)
 	contract = _auxiliary_form_contract(doctype)
 	allowed_values = {field["name"] for section in contract["sections"] for field in section["fields"] if not field["read_only"]}
 	allowed_tables = {table["name"]: table for table in contract["tables"]}
-	doc = frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
-	doc.check_permission("write" if name else "create")
+	doc = frappe.get_single(doctype) if is_single else frappe.get_doc(doctype, name) if name else frappe.new_doc(doctype)
+	doc.check_permission("write" if name or is_single else "create")
 	for fieldname, value in _as_dict(values).items():
 		if fieldname in allowed_values:
 			doc.set(fieldname, value)
@@ -1672,6 +1679,27 @@ def update_operational_action(name, action, new_date=None, reason=None):
 			"notes": _("Rescheduled from {0}.").format(doc.name),
 		}).insert()
 	return get_operational_calendar_snapshot()
+
+
+@frappe.whitelist(methods=["POST"])
+def create_custom_operational_action(title, due_date, consequence_note=None, target_section="operations", notes=None):
+	"""Create one manager-owned calendar action without a recurring schedule."""
+	_require_roles("BulkBite Manager")
+	if not str(title or "").strip():
+		frappe.throw(_("Enter an action title."))
+	if not due_date:
+		frappe.throw(_("Choose when the action is due."))
+	doc = frappe.get_doc({
+		"doctype": "BulkBite Operational Action",
+		"title": str(title).strip(),
+		"action_type": "Custom",
+		"due_date": getdate(due_date),
+		"status": "Due",
+		"target_section": target_section or "operations",
+		"consequence_note": consequence_note,
+		"notes": notes,
+	}).insert()
+	return {"action": doc.name, "calendar": get_operational_calendar_snapshot()}
 
 
 @frappe.whitelist(methods=["POST"])

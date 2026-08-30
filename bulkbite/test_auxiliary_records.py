@@ -8,10 +8,24 @@ from bulkbite.api import (
 	_auxiliary_deletion_plan,
 	_resolve_auxiliary_delete_execution,
 	delete_auxiliary_records,
+	get_auxiliary_form_catalogue,
 )
 
 
 class TestAuxiliaryRecordDeletion(TestCase):
+	@patch("bulkbite.api.frappe.get_meta")
+	@patch("bulkbite.api.frappe.has_permission", return_value=True)
+	@patch("bulkbite.api._require_app_user")
+	def test_single_settings_are_configurable_but_never_creatable_or_deletable(self, _require, _permission, get_meta):
+		get_meta.side_effect = lambda doctype: MagicMock(issingle=doctype == "BulkBite Settings")
+
+		catalogue = get_auxiliary_form_catalogue()
+		settings = next(row for row in catalogue if row["doctype"] == "BulkBite Settings")
+
+		self.assertTrue(settings["is_single"])
+		self.assertFalse(settings["can_create"])
+		self.assertFalse(settings["can_delete"])
+
 	def document(self, doctype, name):
 		return frappe._dict(
 			doctype=doctype,

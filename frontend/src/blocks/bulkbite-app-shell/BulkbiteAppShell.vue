@@ -278,10 +278,10 @@ useNativePullToRefresh(refreshCurrentWorkflow)
       </div>
 
       <footer class="app-shell__sidebar-footer">
-        <nav class="app-shell__fixed-setup" aria-label="All setup records">
-          <SystemLink href="/bulkbite/setup" class="app-shell__utility-link" :title="sidebarCollapsed ? 'All setup' : undefined" :aria-label="sidebarCollapsed ? 'All setup' : undefined" @click.prevent="navigateSidebar({ mode: 'catalogue' })">
+        <nav class="app-shell__fixed-setup" aria-label="Settings and records">
+          <SystemLink href="/bulkbite/setup" class="app-shell__utility-link" :title="sidebarCollapsed ? 'Settings' : undefined" :aria-label="sidebarCollapsed ? 'Settings' : undefined" @click.prevent="navigateSidebar({ mode: 'catalogue' })">
             <span class="app-shell__sidebar-icon" aria-hidden="true"><Settings /></span>
-            <span class="app-shell__utility-label">All setup</span>
+            <span class="app-shell__utility-label">Settings</span>
             <ChevronRight class="app-shell__utility-arrow" aria-hidden="true" />
           </SystemLink>
         </nav>
@@ -416,7 +416,7 @@ useNativePullToRefresh(refreshCurrentWorkflow)
             <p class="app-shell__mobile-group-label">Setup</p>
             <SystemDrawerClose as-child>
               <SystemLink href="/bulkbite/setup" class="app-shell__mobile-drawer-link" @click.prevent="navigateMobile({ mode: 'catalogue' })">
-                <span class="app-shell__mobile-link-label"><Settings aria-hidden="true" /><span>All setup</span></span><ChevronRight aria-hidden="true" />
+                <span class="app-shell__mobile-link-label"><Settings aria-hidden="true" /><span>Settings</span></span><ChevronRight aria-hidden="true" />
               </SystemLink>
             </SystemDrawerClose>
           </nav>
@@ -562,7 +562,7 @@ useNativePullToRefresh(refreshCurrentWorkflow)
 .app-shell__conflict-versions section{min-width:0}
 .app-shell__conflict-versions p{margin-bottom:var(--spacing-3xs);color:var(--theme-text-muted);font-size:var(--font-size--2);font-weight:var(--font-weight-700)}
 .app-shell__conflict-versions pre{max-width:100%;max-height:10rem;overflow:auto;margin:0;padding:var(--spacing-xs);border-radius:var(--component-radius-button);background:var(--theme-canvas);font:inherit;font-size:var(--font-size--2);white-space:pre-wrap;overflow-wrap:anywhere}
-.app-shell__conflict-error{color:var(--theme-danger-text,#8f1d18)}
+.app-shell__conflict-error{color:var(--theme-danger-text,var(--theme-error))}
 .app-shell__conflict-actions{display:flex!important;flex-wrap:wrap;justify-content:flex-end;gap:var(--spacing-xs)}
 @media(max-width:36rem){:global(.app-shell__conflict-dialog){width:calc(100vw - 1rem)!important;max-height:92dvh!important;padding:var(--spacing-s)!important}.app-shell__conflict-versions{grid-template-columns:1fr}.app-shell__conflict-actions{display:grid!important;grid-template-columns:1fr}.app-shell__conflict-actions :deep(button){width:100%!important}}
 </style>

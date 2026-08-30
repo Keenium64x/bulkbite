@@ -237,16 +237,16 @@ def _ensure_demo_recipe_instructions():
 	"""Keep four realistic demo methods available for scaled worker-instruction testing."""
 	recipe_steps = {
 		"BB-RECIPE-00001": [
-			(1, "Soak and start beans", "Rinse the beans and start them with the scaled water.", "BB-ING-DRY-BEANS", "Curry Pot", "", 1, 15, 0.2, 1, "Cook", "Beans are clean and the water quantity matches the scaled batch."),
+			(1, "Soak and start beans", "Rinse the beans under cold water and remove any damaged beans. Crumble the saved stock portion into the curry pot, add the saved water quantity, bring it to a controlled boil, then reduce to a steady simmer. Stir and check the liquid level until the beans are tender.", "BB-ING-DRY-BEANS", "Curry Pot", "", 1, 15, 0.2, 1, "Cook", "Beans are clean, tender, and the water quantity matches the scaled batch."),
 			(2, "Start rice", "Rinse the rice and start it in the rice pot.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.2, 1, "Cook", "Rice and water are measured before heating."),
-			(3, "Prepare stew vegetables", "Prepare potatoes, onions, garlic, and seasoning while the beans and rice cook.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC", "Prep Station", "", 1, 15, 0.3, 1, "Prep", "Prepared vegetables are even enough to cook consistently."),
+			(3, "Prepare stew vegetables", "Weigh the potatoes and onions before preparation. Wash the potatoes, remove damaged parts, cut them into even pieces, then peel and dice the onions. Measure the garlic and keep each prepared ingredient separate until the stew base is ready.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC", "Prep Station", "", 1, 15, 0.3, 1, "Prep", "Prepared vegetables are even enough to cook consistently."),
 			(4, "Finish bean stew", "Build the seasoned base, add the prepared vegetables and cooked beans, then simmer to the approved texture.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CURRY-POWDER, BB-ING-STOCK-CUBES", "Curry Pot", "1, 3", 0, 25, 0.35, 1, "Cook", "Beans and potatoes are tender and the batch is evenly seasoned."),
 			(5, "Weigh and portion", "Confirm finished weight, record any variance, and portion the stew and rice.", "BB-ING-PARBOILED-RICE", "Prep Station", "2, 4", 0, 10, 0.15, 2, "Portioning", "Recorded food weight and container count match the finished batch."),
 		],
 		"BB-RECIPE-00002": [
 			(1, "Start rice", "Rinse and start the scaled rice batch.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.2, 1, "Cook", "Rice and water are measured."),
 			(2, "Prepare vegetables", "Prepare potatoes, onions, and garlic for the curry.", "BB-ING-POTATOES, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC", "Prep Station", "", 1, 15, 0.3, 1, "Prep", "Vegetables are evenly prepared."),
-			(3, "Build lentil curry", "Soften the onions, add seasoning, lentils, potatoes, tomato, stock, and scaled water.", "BB-ING-LENTILS, BB-ING-POTATOES, BB-ING-TOMATO-ONION-MIX, BB-ING-CURRY-POWDER", "Curry Pot", "2", 0, 25, 0.4, 1, "Cook", "The base is mixed without scorching."),
+			(3, "Build lentil curry", "Rinse the lentils under cold water until the runoff is mostly clear. Soften the onions in the curry pot without browning them, stir in the seasoning, then add lentils, potatoes, tomato, crumbled stock, and the saved water quantity. Bring to a controlled boil, reduce to a simmer, stir from the bottom, and cook until the lentils and potatoes are tender.", "BB-ING-LENTILS, BB-ING-POTATOES, BB-ING-TOMATO-ONION-MIX, BB-ING-CURRY-POWDER", "Curry Pot", "2", 0, 25, 0.4, 1, "Cook", "The base is mixed without scorching and the lentils are tender."),
 			(4, "Finish and portion", "Cook to the approved texture, confirm total weight, and portion with rice.", "BB-ING-PARBOILED-RICE", "Prep Station", "1, 3", 0, 12, 0.2, 2, "Portioning", "Lentils and potatoes are tender and final weight is recorded."),
 		],
 		"BB-RECIPE-00003": [
@@ -864,6 +864,11 @@ def ensure_demo_containers(production):
 
 def ensure_demo_operational_actions():
 	"""Create repeating duties plus completed, missed, upcoming, and rescheduled examples."""
+	settings = frappe.get_single("BulkBite Settings")
+	settings.kitchen_default_slack_minutes = 10
+	settings.use_ai_kitchen_instructions = 1
+	settings.kitchen_settings_note = f"{DEMO_MARKER}. AI proposes method detail; recipe quantities and CPM scheduling remain deterministic."
+	settings.save(ignore_permissions=True)
 	schedules = [
 		("Monthly stock reconciliation", "Stock Reconciliation", "Monthly", None, 28, "stock", "Count physical stock and approve any correcting stock event."),
 		("Monthly accountant export", "Accountant Export", "Monthly", None, 2, "export", "Export the prior period for accountant review."),

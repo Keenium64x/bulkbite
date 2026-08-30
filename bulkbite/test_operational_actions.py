@@ -1,14 +1,46 @@
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import frappe
 
 from bulkbite.bulkbite.doctype.bulkbite_container_type.bulkbite_container_type import BulkBiteContainerType
-from bulkbite.operational_actions import build_operational_action_snapshot, get_default_container_suggestion
+from bulkbite.api import create_custom_operational_action
+from bulkbite.operational_actions import _action_configuration, build_operational_action_snapshot, get_default_container_suggestion
 
 
 class TestOperationalNextAction(TestCase):
+	@patch("bulkbite.api.get_operational_calendar_snapshot", return_value={"actions": []})
+	@patch("bulkbite.api.frappe.get_doc")
+	@patch("bulkbite.api._require_roles")
+	def test_custom_action_is_created_as_one_off_calendar_work(self, _require, get_doc, calendar):
+		doc = MagicMock(name="BB-OA-2026-00001")
+		doc.name = "BB-OA-2026-00001"
+		get_doc.return_value.insert.return_value = doc
+
+		result = create_custom_operational_action("Check freezer", "2026-09-02", "Frozen stock may be lost.", "stock", "Count and record temperatures.")
+
+		payload = get_doc.call_args.args[0]
+		self.assertEqual(payload["action_type"], "Custom")
+		self.assertNotIn("schedule", payload)
+		self.assertEqual(payload["target_section"], "stock")
+		self.assertEqual(result["action"], "BB-OA-2026-00001")
+		self.assertEqual(result["calendar"], {"actions": []})
+
+	def test_recurring_occurrence_configures_its_schedule(self):
+		target = _action_configuration(SimpleNamespace(name="ACTION-1", schedule="Monthly accountant export"))
+
+		self.assertEqual(target["doctype"], "BulkBite Operational Schedule")
+		self.assertEqual(target["name"], "Monthly accountant export")
+		self.assertEqual(target["label"], "Configure schedule")
+
+	def test_one_off_occurrence_configures_the_action_itself(self):
+		target = _action_configuration(SimpleNamespace(name="ACTION-2", schedule=None))
+
+		self.assertEqual(target["doctype"], "BulkBite Operational Action")
+		self.assertEqual(target["name"], "ACTION-2")
+		self.assertEqual(target["label"], "Configure action")
+
 	def test_overdue_recurring_work_has_priority_over_buying_and_production(self):
 		calendar = {
 			"actions": [SimpleNamespace(display_status="Missed", title="Stock count", action_type="Stock Reconciliation", consequence_note="Count stock.", due_date="2026-08-01", target_section="stock")],

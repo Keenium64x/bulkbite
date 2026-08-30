@@ -1,0 +1,23 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["kitchen_default_slack_minutes", "use_ai_kitchen_instructions", "kitchen_settings_note"],
+ "fields": [
+  {"default": "10", "description": "Operational buffer shown in CPM calculations. It does not change task durations.", "fieldname": "kitchen_default_slack_minutes", "fieldtype": "Float", "label": "Default Kitchen Slack (Minutes)", "non_negative": 1, "reqd": 1},
+  {"default": "1", "fieldname": "use_ai_kitchen_instructions", "fieldtype": "Check", "label": "Generate Kitchen Methods with AI"},
+  {"description": "Recipe quantities remain authoritative. AI may propose method tasks and substeps only.", "fieldname": "kitchen_settings_note", "fieldtype": "Small Text", "label": "Kitchen Planning Note"}
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Settings",
+ "permissions": [
+  {"read": 1, "role": "BulkBite Worker"},
+  {"read": 1, "write": 1, "role": "BulkBite Manager"},
+  {"read": 1, "write": 1, "role": "System Manager"}
+ ],
+ "states": [],
+ "track_changes": 1
+}

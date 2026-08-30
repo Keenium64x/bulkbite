@@ -96,6 +96,7 @@ def get_operational_calendar_snapshot(from_date=None, to_date=None):
 	today = getdate(nowdate())
 	for row in rows:
 		row["display_status"] = "Missed" if row.status == "Due" and getdate(row.due_date) < today else row.status
+		row["configuration"] = _action_configuration(row)
 	return {
 		"from_date": start,
 		"to_date": end,
@@ -106,6 +107,15 @@ def get_operational_calendar_snapshot(from_date=None, to_date=None):
 			"completed": sum(row.display_status == "Completed" for row in rows),
 			"rescheduled": sum(row.display_status == "Rescheduled" for row in rows),
 		},
+	}
+
+
+def _action_configuration(action):
+	"""Resolve the exact settings record which owns one calendar occurrence."""
+	return {
+		"doctype": "BulkBite Operational Schedule" if action.schedule else "BulkBite Operational Action",
+		"name": action.schedule or action.name,
+		"label": "Configure schedule" if action.schedule else "Configure action",
 	}
 
 
