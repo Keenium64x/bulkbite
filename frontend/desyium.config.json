@@ -13,6 +13,7 @@
     "styles": "src/styles/desyium"
   },
   "components": [
+    "accordion",
     "badge",
     "button",
     "calendar",
@@ -26,6 +27,7 @@
     "dialog",
     "drawer",
     "file-uploader",
+    "flow",
     "form-control",
     "link",
     "linked-record-field",

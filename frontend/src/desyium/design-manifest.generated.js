@@ -5,6 +5,7 @@ export const designManifest = Object.freeze({
   "preset": "app",
   "theme": "bulkbite-operations",
   "components": [
+    "accordion",
     "badge",
     "button",
     "calendar",
@@ -18,6 +19,7 @@ export const designManifest = Object.freeze({
     "dialog",
     "drawer",
     "file-uploader",
+    "flow",
     "form-control",
     "link",
     "linked-record-field",
