@@ -5,13 +5,14 @@ import Block2 from "../blocks/bulkbite-app-shell/BulkbiteAppShell.vue"
 import Block3 from "../blocks/buying-plan/BuyingPlan.vue"
 import Block4 from "../blocks/document-review/DocumentReview.vue"
 import Block5 from "../blocks/employee-management/EmployeeManagement.vue"
-import Block6 from "../blocks/monthly-planning/MonthlyPlanning.vue"
-import Block7 from "../blocks/native-availability-state/NativeAvailabilityState.vue"
-import Block8 from "../blocks/price-history/PriceHistory.vue"
-import Block9 from "../blocks/production-measurement/ProductionMeasurement.vue"
-import Block10 from "../blocks/receipt-intake/ReceiptIntake.vue"
-import Block11 from "../blocks/stock-overview/StockOverview.vue"
-import Block12 from "../blocks/stock-reconciliation/StockReconciliation.vue"
+import Block6 from "../blocks/kitchen-execution-plan/KitchenExecutionPlan.vue"
+import Block7 from "../blocks/monthly-planning/MonthlyPlanning.vue"
+import Block8 from "../blocks/native-availability-state/NativeAvailabilityState.vue"
+import Block9 from "../blocks/price-history/PriceHistory.vue"
+import Block10 from "../blocks/production-measurement/ProductionMeasurement.vue"
+import Block11 from "../blocks/receipt-intake/ReceiptIntake.vue"
+import Block12 from "../blocks/stock-overview/StockOverview.vue"
+import Block13 from "../blocks/stock-reconciliation/StockReconciliation.vue"
 
 export const SystemAccountantExport = Block0
 export const SystemAuxiliaryRecords = Block1
@@ -19,13 +20,14 @@ export const SystemBulkbiteAppShell = Block2
 export const SystemBuyingPlan = Block3
 export const SystemDocumentReview = Block4
 export const SystemEmployeeManagement = Block5
-export const SystemMonthlyPlanning = Block6
-export const SystemNativeAvailabilityState = Block7
-export const SystemPriceHistory = Block8
-export const SystemProductionMeasurement = Block9
-export const SystemReceiptIntake = Block10
-export const SystemStockOverview = Block11
-export const SystemStockReconciliation = Block12
+export const SystemKitchenExecutionPlan = Block6
+export const SystemMonthlyPlanning = Block7
+export const SystemNativeAvailabilityState = Block8
+export const SystemPriceHistory = Block9
+export const SystemProductionMeasurement = Block10
+export const SystemReceiptIntake = Block11
+export const SystemStockOverview = Block12
+export const SystemStockReconciliation = Block13
 
 export const installedBlocks = Object.freeze([
   {
@@ -318,6 +320,54 @@ export const installedBlocks = Object.freeze([
     "motionContract": {
       "mode": "still",
       "justification": "Workforce records and capacity status must be immediately readable; only provider control feedback moves."
+    },
+    "scope": "project"
+  },
+  {
+    "id": "kitchen-execution-plan",
+    "name": "Kitchen Execution Plan",
+    "job": "Create a standalone run-addressable Kitchen Plan block with team assignment, practical capacity, equipment-aware batches, CPM graph, worker lanes, instructions, and actual timing. Production retains measured output, ingredients, containers, allocations, draft and posting.",
+    "category": "Project",
+    "source": "@/blocks/kitchen-execution-plan/KitchenExecutionPlan.vue",
+    "public": "SystemKitchenExecutionPlan",
+    "registrySource": "sources/blocks/kitchen-execution-plan",
+    "projectSource": "src/blocks/kitchen-execution-plan",
+    "components": [
+      "badge",
+      "card",
+      "chart",
+      "checkbox-shadcn",
+      "form-control",
+      "operational-button",
+      "select"
+    ],
+    "primitives": [],
+    "incomingHandoff": "Production has saved a measurable draft run with one recipe, output target, date, and stock theory. The cook opens this run-addressable page to build the executable kitchen plan.",
+    "outgoingHandoff": "The cook returns to Production with the saved team, kitchen window, actual elapsed time, and a deterministic equipment-aware method ready for measured usage and posting.",
+    "responsiveBehaviour": "Keep the capacity decision first. At intermediate and mobile widths stack team controls, allow the CPM canvas to pan and zoom inside its own boundary, preserve a structured task-list alternative, and prevent the page or mobile shell from overflowing.",
+    "layoutContract": {
+      "strategy": "grid",
+      "pageAlignment": "grid",
+      "padding": "var(--spacing-xl-2xl) 0",
+      "gap": "var(--spacing-m)",
+      "containment": "A compact run header and practical capacity decision precede team assignment, the bounded CPM canvas, raw weigh list, worker lanes, method details, equipment batches, and actual timing."
+    },
+    "surfaceContract": {
+      "placement": "none",
+      "semanticOwner": "[data-block='kitchen-execution-plan']",
+      "scope": "none",
+      "edgeTreatment": "none",
+      "boundaryReason": null,
+      "contentSeparation": "Content padding does not define primitive bounds.",
+      "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+    },
+    "actionContract": {
+      "primaryPreset": "operational-action",
+      "secondaryPreset": "secondary-action"
+    },
+    "motionContract": {
+      "mode": "still",
+      "justification": "The CPM graph supports direct pan and zoom only. Capacity state, dependency meaning, and task order do not depend on animation."
     },
     "scope": "project"
   },

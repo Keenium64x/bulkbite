@@ -68,6 +68,7 @@ export const planAuxiliaryRecordDeletion = (doctype, names, defaultOutcome = "de
 export const deleteAuxiliaryRecords = (request) => call("bulkbite.api.delete_auxiliary_records", { doctype: request.doctype, names: request.names, plan_token: request.planToken, outcome: request.outcome, outcomes_by_doctype: request.outcomesByDoctype, approved: request.approved })
 export const getRecipeExpectation = (recipe, plannedOutputQty, sourceLocation) => call("bulkbite.api.get_recipe_expectation", { recipe, planned_output_qty: plannedOutputQty, source_location: sourceLocation }, "GET")
 export const getProductionInstructions = (recipe, outputQty, teamSize) => call("bulkbite.api.get_production_instructions", { recipe, output_qty: outputQty, team_size: teamSize }, "GET")
+export const getKitchenPlanSnapshot = (runName) => call("bulkbite.api.get_kitchen_plan_snapshot", { run_name: runName }, "GET")
 export const createAdHocProductionRun = (recipe, plannedOutputQty, productionDate, sourceLocation = "Ingredients", targetLocation = "Finished Meals") => call("bulkbite.api.create_ad_hoc_production_run", { recipe, planned_output_qty: plannedOutputQty, production_date: productionDate, source_location: sourceLocation, target_location: targetLocation })
 export const getFinishedFoodPosition = (itemCode = "", location = "Finished Meals") => call("bulkbite.api.get_finished_food_position", { item_code: itemCode, location }, "GET")
 export const getProductionHistorySnapshot = (planName = "") => call("bulkbite.api.get_production_history_snapshot", { plan_name: planName }, "GET")

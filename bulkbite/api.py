@@ -1478,6 +1478,32 @@ def get_production_instructions(recipe, output_qty, team_size=1):
 	return build_run_instruction_plan(recipe, output_qty, team_size)
 
 
+@frappe.whitelist(methods=["GET"])
+def get_kitchen_plan_snapshot(run_name):
+	"""Load one saved production run and its deterministic cooking plan."""
+	_require_roles("BulkBite Worker", "BulkBite Manager")
+	run = frappe.get_doc("BulkBite Production Run", run_name)
+	run.check_permission("read")
+	team_size = len([row for row in run.employees or [] if row.completion_status not in {"Absent", "Cancelled"}])
+	if not team_size and run.team_template:
+		team_size = frappe.db.count(
+			"BulkBite Team Template Member",
+			{"parent": run.team_template, "parenttype": "BulkBite Team Template", "enabled": 1},
+		)
+	team_size = max(int(team_size or 1), 1)
+	return {
+		"run": _serialize_run(run),
+		"instructions": build_run_instruction_plan(run.recipe, run.planned_output_qty, team_size),
+		"employees": frappe.get_all(
+			"BulkBite Employee",
+			filters={"status": "Active", "available_for_production": 1},
+			fields=["name as value", "full_name as label", "employee_type", "available_hours_per_run"],
+			order_by="full_name",
+		),
+		"team_templates": _get_team_templates(),
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 def create_production_run(payload=None):
 	_require_roles("BulkBite Worker", "BulkBite Manager")

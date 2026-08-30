@@ -29,6 +29,7 @@ def build_run_instruction_plan(recipe_name, output_qty, team_size=1):
 	workers = max(int(team_size or 1), 1)
 	settings = _instruction_settings()
 	steps, source, generation_warnings = _resolve_task_graph(recipe, output_qty, ingredients, equipment, workers, settings)
+	steps = _expand_equipment_batches(steps, ingredients, equipment)
 	schedule = calculate_kitchen_schedule(
 		steps,
 		workers,
@@ -36,6 +37,8 @@ def build_run_instruction_plan(recipe_name, output_qty, team_size=1):
 		settings["kitchen_default_slack_minutes"],
 	)
 	steps = _attach_ingredient_truth(schedule["tasks"], ingredients)
+	for step in steps:
+		step["equipment_name"] = (equipment.get(step.get("equipment_type")) or {}).get("equipment_type_name")
 	return {
 		"recipe": recipe.name,
 		"recipe_name": recipe.recipe_name,
@@ -94,9 +97,10 @@ def _resolve_task_graph(recipe, output_qty, ingredients, equipment, team_size, s
 		try:
 			proposal = propose_kitchen_tasks(
 				{"recipe": recipe.name, "recipe_name": recipe.recipe_name, "guidance": recipe.instruction_guidance, "output_qty": output_qty, "output_uom": recipe.output_uom},
-			ingredients,
-			list(equipment.values()),
-			team_size,
+				ingredients,
+				list(equipment.values()),
+				team_size,
+				_recent_timing_evidence(recipe.name),
 			)
 			if proposal and proposal.tasks:
 				return validate_task_graph(
@@ -115,24 +119,113 @@ def _build_reviewed_tasks(recipe, output_qty, ingredients, equipment):
 	steps = []
 	for raw in sorted(recipe.instruction_steps or [], key=lambda row: int(row.step_number or 0)):
 		items = [ingredient_by_code[code] for code in _csv(raw.ingredient_items) if code in ingredient_by_code]
-		equipment_row = equipment.get(raw.equipment_type) or {}
-		batch_capacity = flt(equipment_row.get("total_concurrent_capacity"))
-		batch_basis = sum(flt(item["quantity"]) for item in items) or output_qty
-		batches = max(math.ceil(batch_basis / batch_capacity), 1) if batch_capacity > 0 else 1
 		duration = flt(raw.duration_minutes) + flt(raw.duration_per_kg_minutes) * output_qty
 		step_number = int(raw.step_number)
 		steps.append({
 			"task_id": str(step_number), "title": raw.step_name, "objective": raw.instruction,
+			"recipe_step_number": step_number,
 			"ingredient_item_codes": [item["item_code"] for item in items], "equipment_type": raw.equipment_type,
 			"depends_on_task_ids": [str(number) for number in _step_numbers(raw.depends_on_steps)],
 			"can_run_concurrently": bool(raw.can_run_concurrently),
 			"requires_active_worker": bool(getattr(raw, "requires_active_worker", True)),
 			"minimum_workers": max(int(raw.minimum_workers or 1), 1),
 			"worker_role": raw.worker_role, "quality_checkpoint": raw.quality_checkpoint,
-			"batch_count": batches, "duration_minutes": round(max(duration, 1) * batches, 1),
+			"duration_minutes": round(max(duration, 1), 1),
 			"substeps": _fallback_substeps(raw.instruction, raw.quality_checkpoint),
 		})
 	return steps
+
+
+def _expand_equipment_batches(tasks, ingredients, equipment):
+	"""Turn equipment pressure into schedulable batch nodes instead of a label."""
+	ingredient_by_code = {row["item_code"]: row for row in ingredients}
+	expanded_ids = {}
+	batch_specs = {}
+	for task in tasks:
+		equipment_row = equipment.get(task.get("equipment_type")) or {}
+		capacity = flt(equipment_row.get("capacity_qty"))
+		prepared_load = sum(
+			flt(ingredient_by_code.get(code, {}).get("prepared_quantity"))
+			for code in task.get("ingredient_item_codes") or []
+		)
+		batch_count = max(math.ceil(prepared_load / capacity), 1) if capacity > 0 and prepared_load > 0 else 1
+		expanded_ids[task["task_id"]] = [
+			task["task_id"] if batch_count == 1 else f"{task['task_id']}::batch-{index}"
+			for index in range(1, batch_count + 1)
+		]
+		batch_specs[task["task_id"]] = (batch_count, prepared_load, capacity, equipment_row)
+
+	expanded = []
+	task_by_id = {task["task_id"]: task for task in tasks}
+	for task in tasks:
+		batch_count, prepared_load, capacity, equipment_row = batch_specs[task["task_id"]]
+		for batch_index, task_id in enumerate(expanded_ids[task["task_id"]], start=1):
+			dependency_ids = _batch_dependency_ids(
+				task,
+				batch_index,
+				batch_count,
+				task_by_id,
+				expanded_ids,
+			)
+			batch_load = min(capacity, max(prepared_load - capacity * (batch_index - 1), 0)) if capacity > 0 else prepared_load
+			expanded.append({
+				**task,
+				"task_id": task_id,
+				"source_task_id": task["task_id"],
+				"title": task["title"] if batch_count == 1 else _("{0}, batch {1} of {2}").format(task["title"], batch_index, batch_count),
+				"step_name": task["step_name"] if batch_count == 1 else _("{0}, batch {1} of {2}").format(task["step_name"], batch_index, batch_count),
+				"depends_on_task_ids": dependency_ids,
+				"batch_count": batch_count,
+				"batch_index": batch_index,
+				"prepared_load_qty": round_operational_quantity(prepared_load),
+				"batch_load_qty": round_operational_quantity(batch_load),
+				"batch_capacity_qty": round_operational_quantity(capacity),
+				"batch_capacity_uom": equipment_row.get("capacity_uom"),
+			})
+	return validate_task_graph(
+		expanded,
+		ingredient_by_code.keys(),
+		equipment.keys(),
+	)
+
+
+def _batch_dependency_ids(task, batch_index, batch_count, task_by_id, expanded_ids):
+	dependencies = []
+	current_ingredients = set(task.get("ingredient_item_codes") or [])
+	for dependency in task.get("depends_on_task_ids") or []:
+		dependency_ids = expanded_ids[dependency]
+		dependency_task = task_by_id[dependency]
+		matching_pipeline = (
+			batch_count > 1
+			and len(dependency_ids) == batch_count
+			and bool(current_ingredients.intersection(dependency_task.get("ingredient_item_codes") or []))
+		)
+		dependencies.extend([dependency_ids[batch_index - 1]] if matching_pipeline else dependency_ids)
+	return dependencies
+
+
+def _recent_timing_evidence(recipe_name, limit=8):
+	"""Return read-only timing evidence so AI estimates can reference actual runs."""
+	try:
+		rows = frappe.get_all(
+			"BulkBite Production Run",
+			filters={"recipe": recipe_name, "docstatus": 1, "actual_elapsed_hours": (">", 0)},
+			fields=["name", "production_date", "actual_output_qty", "actual_elapsed_hours", "actual_team_size"],
+			order_by="production_date desc, modified desc",
+			limit=limit,
+		)
+		return [
+			{
+				"run": row.name,
+				"production_date": row.production_date,
+				"output_qty": round_operational_quantity(row.actual_output_qty),
+				"elapsed_minutes": round(flt(row.actual_elapsed_hours) * 60, 1),
+				"team_size": int(row.actual_team_size or 0),
+			}
+			for row in rows
+		]
+	except Exception:
+		return []
 
 
 def _fallback_substeps(instruction, quality_checkpoint):
@@ -177,6 +270,8 @@ def _instruction_warnings(recipe, steps, equipment):
 	for step in steps:
 		if step["equipment_type"] and step["equipment_type"] not in equipment:
 			warnings.append(_("Step {0} needs {1}, but no enabled equipment is configured.").format(step["step_number"], step["equipment_type"]))
+		elif step.get("equipment_type") and not flt((equipment.get(step["equipment_type"]) or {}).get("capacity_qty")):
+			warnings.append(_("{0} has no usable batch capacity, so {1} cannot be split into equipment batches.").format(step["equipment_type"], step["step_name"]))
 	return warnings
 
 

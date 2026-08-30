@@ -26,7 +26,7 @@ class TestProductionInstructions(TestCase):
 			{"item_code": "RICE", "item_name": "Rice", "expected_qty": 15, "uom": "Kg"},
 			{"item_code": "SAUCE", "item_name": "Sauce", "expected_qty": 10, "uom": "Kg"},
 		]}
-		equipment = {"POT": {"name": "POT", "equipment_type_name": "Cooking pot", "capacity_uom": "Kg", "total_concurrent_capacity": 10, "quantity_available": 2, "concurrent_batch_limit": 1}}
+		equipment = {"POT": {"name": "POT", "equipment_type_name": "10 kg cooking pot", "capacity_qty": 10, "capacity_uom": "Kg", "total_concurrent_capacity": 20, "quantity_available": 2, "concurrent_batch_limit": 1}}
 		with (
 			patch("bulkbite.production_instructions.frappe.get_doc", return_value=recipe),
 			patch("bulkbite.production_instructions.frappe.db.get_value", side_effect=lambda _doctype, item_code, _fields, as_dict=True: {"prepared_yield_factor": 2.5 if item_code == "RICE" else 1, "average_piece_weight_g": 200 if item_code == "SAUCE" else 0, "piece_count_label": "medium sauce vegetables" if item_code == "SAUCE" else "", "preparation_yield_note": None}),
@@ -40,12 +40,16 @@ class TestProductionInstructions(TestCase):
 		self.assertEqual(result["ingredients"][0]["quantity"], 15)
 		self.assertEqual(result["ingredients"][0]["prepared_quantity"], 37.5)
 		self.assertEqual(result["ingredients"][1]["piece_count_estimate"], 50)
-		self.assertEqual(result["steps"][0]["batch_count"], 2)
-		self.assertEqual(result["steps"][2]["depends_on_steps"], [1, 2])
-		self.assertEqual(result["estimated_elapsed_minutes"], 25)
-		self.assertEqual(result["critical_path_minutes"], 25)
-		self.assertTrue(result["steps"][2]["is_critical"])
-		self.assertEqual(result["steps"][2]["assigned_workers"], [1, 2])
+		rice_batches = [step for step in result["steps"] if step["source_task_id"] == "1"]
+		combine = next(step for step in result["steps"] if step["source_task_id"] == "3")
+		self.assertEqual(len(rice_batches), 4)
+		self.assertEqual(rice_batches[0]["batch_count"], 4)
+		self.assertEqual(rice_batches[-1]["batch_load_qty"], 7.5)
+		self.assertEqual(len(combine["depends_on_steps"]), 5)
+		self.assertEqual(result["estimated_elapsed_minutes"], 33)
+		self.assertEqual(result["critical_path_minutes"], 15)
+		self.assertTrue(combine["is_critical"])
+		self.assertEqual(combine["assigned_workers"], [1, 2])
 		self.assertEqual(len(result["worker_lanes"]), 2)
 		self.assertEqual(result["equipment"], [equipment["POT"]])
 

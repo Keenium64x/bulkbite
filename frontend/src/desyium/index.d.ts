@@ -72,6 +72,7 @@ export declare const SystemBulkbiteAppShell: Component
 export declare const SystemBuyingPlan: Component
 export declare const SystemDocumentReview: Component
 export declare const SystemEmployeeManagement: Component
+export declare const SystemKitchenExecutionPlan: Component
 export declare const SystemMonthlyPlanning: Component
 export declare const SystemNativeAvailabilityState: Component
 export declare const SystemPriceHistory: Component
