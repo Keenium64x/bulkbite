@@ -3,7 +3,6 @@ import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
 	SystemBadge,
-	SystemCheckboxShadcn,
 	SystemDatePicker,
 	SystemFormControl,
 	SystemLinkedRecordField,
@@ -19,7 +18,6 @@ import {
 	getFinishedFoodPosition,
 	getContainerSuggestion,
 	getProductionHistorySnapshot,
-	getProductionInstructions,
 	getRecipeExpectation,
 	saveProductionEmployees,
 	submitProductionRun,
@@ -75,7 +73,6 @@ const offlineNotice = ref("");
 const dirtySinceSave = ref(false);
 const adHocMode = ref(false);
 const finishedFood = ref(null);
-const instructionPlan = ref(null);
 const history = ref(null);
 const manuallyOverriddenUsage = new Set();
 const allocation = reactive({
@@ -215,7 +212,6 @@ async function hydrateStation(value) {
 		finishedContainerCount.value = 0;
 		containerCountManuallySet.value = false;
 		containerSuggestion.value = null;
-		instructionPlan.value = null;
 		if (runtimeConfig.isNative) {
 			await restoreLocalProductionDraft().catch(() => {});
 			await reconcileQueuedProduction().catch(() => {});
@@ -224,7 +220,6 @@ async function hydrateStation(value) {
 		return;
 	}
 	adHocMode.value = false;
-	instructionPlan.value = null;
 	productionDate.value = run.value?.production_date || row.planned_date || localToday();
 	actualOutput.value = roundQuantity(
 		run.value?.actual_output_qty ?? row.remaining_output_qty ?? row.planned_output_qty,
@@ -501,8 +496,10 @@ async function saveRun() {
 			await clearFormDraft("production-run").catch(() => {});
 			dirtySinceSave.value = false;
 		}
+		return Boolean(run.value?.name && !queuedMutationId.value);
 	} catch (exception) {
 		error.value = exception.message;
+		return false;
 	} finally {
 		busy.value = false;
 	}
@@ -604,24 +601,6 @@ function roundQuantity(value) {
 function quantity(value) {
 	return roundQuantity(value).toLocaleString("en-ZA", { maximumFractionDigits: 3 });
 }
-const employeeOptions = computed(() => props.snapshot?.options?.employees || []);
-const attendanceOptions = ["Completed", "Absent", "Cancelled"].map((value) => ({
-	label: value,
-	value,
-}));
-const employeeByName = computed(
-	() => new Map(employeeOptions.value.map((option) => [option.value, option])),
-);
-const planningRate = computed(() =>
-	Number(props.plan?.workforce?.planning_labour_minutes_per_kg || 0),
-);
-const runOutput = computed(() =>
-	Number(actualOutput.value || selectedRow.value?.planned_output_qty || 0),
-);
-const teamTemplates = computed(() => props.snapshot?.options?.team_templates || []);
-const teamTemplateOptions = computed(() =>
-	teamTemplates.value.map((row) => ({ label: row.template_name, value: row.name })),
-);
 const recipeOptions = computed(() =>
 	(props.snapshot?.options?.recipes || []).map((row) => ({
 		label: row.recipe_name,
@@ -633,206 +612,6 @@ const directionOptions = [
 	{ label: "Repeat this planned meal next time", value: "Repeat Meal" },
 	{ label: "Off-plan meal, leave direction where it is", value: "Off Plan" },
 ];
-const actualTeam = computed(() =>
-	employeeRows.filter((row) => row.completion_status === "Completed" && row.employee),
-);
-const availableTeamHours = computed(() =>
-	actualTeam.value.reduce((sum, row) => sum + Number(row.available_hours || 0), 0),
-);
-const labourHours = computed(() =>
-	actualTeam.value.reduce(
-		(sum, row) => sum + Number(row.custom_hours ? row.hours_worked : actualElapsedHours.value),
-		0,
-	),
-);
-const actualRate = computed(() =>
-	runOutput.value ? (Number(actualElapsedHours.value || 0) * 60) / runOutput.value : 0,
-);
-const actualLabourRate = computed(() =>
-	runOutput.value ? (labourHours.value * 60) / runOutput.value : 0,
-);
-const plannedTakt = computed(() =>
-	runOutput.value && Number(scheduledElapsedHours.value) > 0
-		? (Number(scheduledElapsedHours.value) * 60) / runOutput.value
-		: 0,
-);
-const frozenTakt = computed(() =>
-	Number(plannedTakt.value || run.value?.planned_takt_minutes_per_kg || planningRate.value || 0),
-);
-const taktVariance = computed(() =>
-	actualRate.value && frozenTakt.value ? actualRate.value - frozenTakt.value : 0,
-);
-const paceStatus = computed(() =>
-	!actualRate.value || !frozenTakt.value
-		? "Not measured"
-		: Math.abs(taktVariance.value) <= 0.1
-			? "On pace"
-			: taktVariance.value < 0
-				? "Faster than takt"
-				: "Slower than takt",
-);
-const scheduledKitchenMinutes = computed(() =>
-	Number(instructionPlan.value?.estimated_elapsed_minutes || 0),
-);
-const requiredTeamHours = computed(() =>
-	(instructionPlan.value?.steps || []).reduce(
-		(sum, step) =>
-			sum +
-			(Number(step.estimated_minutes || 0) *
-				(step.requires_active_worker === false ? 0 : Number(step.minimum_workers || 1))) /
-				60,
-		0,
-	),
-);
-const capacityWindowMinutes = computed(() => Number(scheduledElapsedHours.value || 0) * 60);
-const requiredPeople = computed(() =>
-	Number(scheduledElapsedHours.value) > 0
-		? Math.ceil(requiredTeamHours.value / Number(scheduledElapsedHours.value))
-		: 0,
-);
-const workerCapacityRows = computed(() =>
-	(instructionPlan.value?.worker_lanes || []).map((lane) => {
-		const employee = actualTeam.value[Number(lane.lane) - 1];
-		const availableMinutes = Number(employee?.available_hours || 0) * 60;
-		const scheduledMinutes = Number(lane.available_at || 0);
-		return {
-			lane: lane.lane,
-			availableMinutes,
-			scheduledMinutes,
-			shortfallMinutes: Math.max(scheduledMinutes - availableMinutes, 0),
-		};
-	}),
-);
-const capacityStatus = computed(() => {
-	if (!instructionPlan.value || !actualTeam.value.length || !capacityWindowMinutes.value)
-		return "Capacity not ready";
-	if (
-		scheduledKitchenMinutes.value > capacityWindowMinutes.value + 0.1 ||
-		requiredTeamHours.value > availableTeamHours.value + 0.01 ||
-		workerCapacityRows.value.some((row) => row.shortfallMinutes > 0.1)
-	)
-		return "Under capacity";
-	if (
-		Math.abs(scheduledKitchenMinutes.value - capacityWindowMinutes.value) <= 0.1 ||
-		Math.abs(requiredTeamHours.value - availableTeamHours.value) <= 0.01
-	)
-		return "At capacity";
-	return "Spare capacity";
-});
-const peopleGap = computed(() => Math.max(requiredPeople.value - actualTeam.value.length, 0));
-const capacityShortfallHours = computed(() =>
-	Math.max(
-		(scheduledKitchenMinutes.value - capacityWindowMinutes.value) / 60,
-		requiredTeamHours.value - availableTeamHours.value,
-		...workerCapacityRows.value.map((row) => row.shortfallMinutes / 60),
-		0,
-	),
-);
-const expectedMethodPace = computed(() =>
-	runOutput.value ? scheduledKitchenMinutes.value / runOutput.value : 0,
-);
-const cpmStages = computed(() => {
-	const stages = new Map();
-	for (const step of instructionPlan.value?.steps || []) {
-		const start = Number(step.early_start || 0);
-		if (!stages.has(start)) stages.set(start, []);
-		stages.get(start).push(step);
-	}
-	return [...stages.entries()]
-		.sort(([left], [right]) => left - right)
-		.map(([start, steps], index) => ({
-			index,
-			start,
-			steps: steps.sort((left, right) => left.step_number - right.step_number),
-		}));
-});
-function workerName(laneNumber) {
-	const row = actualTeam.value[Number(laneNumber) - 1];
-	return row?.employee_name || employeeByName.value.get(row?.employee)?.label || `Worker ${laneNumber}`;
-}
-function workerCapacity(laneNumber) {
-	return workerCapacityRows.value.find((row) => row.lane === laneNumber) || {};
-}
-function assignedWorkerNames(step) {
-	const names = (step.assigned_workers || []).map(workerName).join(", ");
-	return names || "Unattended equipment time";
-}
-function assistInstruction(step) {
-	const workers = (step.assisting_workers || []).map(workerName).join(" and ");
-	const prefix = step.after_step_number
-		? `After step ${step.after_step_number}, `
-		: "When you are free, ";
-	return `${prefix}help ${workers} with step ${step.step_number}, ${step.step_name}.`;
-}
-watch(
-	() => actualTeam.value.length,
-	() => {
-		if (instructionPlan.value) openInstructions();
-	},
-);
-function addEmployee() {
-	if (draftLocked.value) return;
-	employeeRows.push({
-		employee: "",
-		available_hours: Number(scheduledElapsedHours.value || 0),
-		custom_hours: false,
-		hours_worked: Number(actualElapsedHours.value || 0),
-		completion_status: "Completed",
-		notes: "",
-	});
-	dirtySinceSave.value = true;
-}
-function removeEmployee(index) {
-	if (draftLocked.value) return;
-	employeeRows.splice(index, 1);
-	dirtySinceSave.value = true;
-}
-function changeEmployee(row, employeeName) {
-	if (draftLocked.value) return;
-	row.employee = employeeName;
-	row.employee_name = employeeByName.value.get(employeeName)?.label || "";
-	row.available_hours = Number(
-		employeeByName.value.get(employeeName)?.available_hours_per_run ||
-			scheduledElapsedHours.value ||
-			0,
-	);
-	row.hours_worked = Number(
-		actualElapsedHours.value ||
-			employeeByName.value.get(employeeName)?.available_hours_per_run ||
-			0,
-	);
-	dirtySinceSave.value = true;
-}
-function applyTeamTemplate() {
-	if (draftLocked.value) return;
-	const template = teamTemplates.value.find((row) => row.name === teamTemplate.value);
-	if (!template) return;
-	scheduledElapsedHours.value = Number(
-		run.value?.scheduled_elapsed_hours ||
-			template.default_elapsed_hours ||
-			selectedCapacityWindow.value?.scheduled_elapsed_hours ||
-			0,
-	);
-	employeeRows.splice(
-		0,
-		employeeRows.length,
-		...template.members.map((member) => ({
-			employee: member.employee,
-			employee_name: member.employee_name,
-			employee_type: member.employee_type,
-			available_hours: Number(
-				member.default_hours_override ||
-					employeeByName.value.get(member.employee)?.available_hours_per_run ||
-					scheduledElapsedHours.value,
-			),
-			custom_hours: Number(member.default_hours_override || 0) > 0,
-			hours_worked: Number(actualElapsedHours.value || 0),
-			completion_status: "Completed",
-			notes: "",
-		})),
-	);
-	dirtySinceSave.value = true;
-}
 async function changeRecipe(recipe) {
 	selectedRecipe.value = recipe;
 	if (run.value || !recipe) return;
@@ -935,23 +714,15 @@ function setFinishedContainerCount(value) {
 }
 async function openInstructions() {
 	error.value = "";
-	if (!selectedRecipe.value || Number(actualOutput.value) <= 0)
-		return (error.value = "Choose a meal and food quantity before opening instructions.");
-	busy.value = true;
-	try {
-		instructionPlan.value = await getProductionInstructions(
-			selectedRecipe.value,
-			roundQuantity(actualOutput.value),
-			Math.max(actualTeam.value.length || Number(run.value?.actual_team_size || 0) || 1, 1),
-		);
-	} catch (exception) {
-		error.value = exception.message;
-	} finally {
-		busy.value = false;
+	if (!selectedRecipe.value || Number(plannedOutput.value) <= 0)
+		return (error.value = "Choose a meal and run target before building the cooking plan.");
+	if (!run.value || dirtySinceSave.value) {
+		const saved = await saveRun();
+		if (!saved) return;
 	}
-}
-function closeInstructions() {
-	instructionPlan.value = null;
+	if (queuedMutationId.value)
+		return (error.value = "Connect and synchronize this production draft before opening its cooking plan.");
+	await router.push({ name: "BulkBiteKitchenPlan", params: { runName: run.value.name } });
 }
 function openRecipeRecords(create = false) {
 	router.push({
@@ -1032,154 +803,6 @@ function openRecipeRecords(create = false) {
 			>
 		</div>
 		<template v-else-if="selectedRow || adHocMode">
-			<section v-if="instructionPlan" class="data-section instruction-workspace">
-				<div class="section-heading">
-					<div>
-						<p class="eyebrow">Kitchen instructions</p>
-						<h2>{{ instructionPlan.recipe_name }}</h2>
-						<p>
-							Scaled for {{ quantity(instructionPlan.output_qty) }}
-							{{ instructionPlan.output_uom }} with {{ instructionPlan.team_size }}
-							{{ instructionPlan.team_size === 1 ? "worker" : "workers" }}.
-							Ingredient quantities come from the saved recipe.
-						</p>
-					</div>
-					<SystemOperationalButton variant="outline" @click="closeInstructions"
-						>Hide kitchen plan</SystemOperationalButton
-					>
-				</div>
-				<div
-					v-if="instructionPlan.warnings?.length"
-					class="state-message state-message--error"
-				>
-					<p v-for="warning in instructionPlan.warnings" :key="warning">{{ warning }}</p>
-				</div>
-				<div
-					class="production-capacity-decision"
-					:class="capacityStatus === 'Under capacity' ? 'is-under' : capacityStatus === 'Capacity not ready' ? 'is-neutral' : 'is-ready'"
-				>
-					<div>
-						<p class="eyebrow">Practical capacity</p>
-						<h3>{{ capacityStatus }}</h3>
-						<p v-if="capacityStatus === 'Capacity not ready'">
-							Choose the team, set each person’s available hours, and enter the kitchen window below.
-						</p>
-						<p v-else-if="capacityStatus === 'Under capacity'">
-							The current method needs about {{ quantity(capacityShortfallHours) }} more hours of capacity. Add people, increase the kitchen window, or improve the method before starting.
-						</p>
-						<p v-else>
-							The selected team and kitchen window can complete this method at the current schedule.
-						</p>
-					</div>
-					<div class="capacity-evidence-grid">
-						<div><strong>{{ quantity(instructionPlan.estimated_elapsed_minutes) }} min</strong><span>method completion</span></div>
-						<div><strong>{{ quantity(capacityWindowMinutes) }} min</strong><span>kitchen window</span></div>
-						<div><strong>{{ quantity(requiredTeamHours) }} h</strong><span>team-hours needed</span></div>
-						<div><strong>{{ quantity(availableTeamHours) }} h</strong><span>team-hours available</span></div>
-						<div><strong>{{ quantity(expectedMethodPace) }} min/kg</strong><span>expected method pace</span></div>
-						<div><strong>{{ quantity(frozenTakt) }} min/kg</strong><span>slowest allowed pace</span></div>
-						<div><strong>{{ requiredPeople }}</strong><span>minimum people by team-hours</span></div>
-						<div><strong>{{ actualTeam.length }}</strong><span>people selected</span></div>
-					</div>
-					<p v-if="capacityStatus === 'Under capacity' && peopleGap" class="capacity-action">Add at least {{ peopleGap }} {{ peopleGap === 1 ? 'person' : 'people' }} by team-hours, then rebuild the method schedule. Equipment and dependencies may still require a longer window.</p>
-				</div>
-				<details class="instruction-group" open>
-					<summary>
-						Scaled ingredients <span>{{ instructionPlan.ingredients.length }}</span>
-					</summary>
-					<div class="instruction-ingredient-list">
-						<article v-for="item in instructionPlan.ingredients" :key="item.item_code">
-							<div><strong>{{ item.item_name }}</strong><small>Weigh this amount before cooking.</small></div><span><b>{{ quantity(item.quantity) }} {{ item.uom }}</b> to weigh<span v-if="item.piece_count_estimate"> · about {{ item.piece_count_estimate }} {{ item.piece_count_label }}</span></span>
-						</article>
-					</div>
-				</details>
-				<details class="instruction-group cpm-flow-group" open>
-					<summary>Critical path flow <span>{{ instructionPlan.critical_path_minutes }} min CPM path</span></summary>
-					<div class="cpm-flow" aria-label="Kitchen critical path and dependency flow">
-						<div v-for="stage in cpmStages" :key="stage.start" class="cpm-stage">
-							<div class="cpm-stage__time"><span>Earliest start</span><strong>{{ quantity(stage.start) }} min</strong></div>
-							<div class="cpm-stage__tasks">
-								<article v-for="step in stage.steps" :key="step.task_id" :class="{ 'is-critical': step.is_critical }">
-									<div><span>Step {{ step.step_number }}</span><SystemBadge v-if="step.is_critical" theme="red">Critical</SystemBadge></div>
-									<strong>{{ step.step_name }}</strong>
-									<small>{{ assignedWorkerNames(step) }} · {{ quantity(step.estimated_minutes) }} min</small>
-									<small v-if="step.depends_on_steps?.length">After {{ step.depends_on_steps.map((number) => `step ${number}`).join(', ') }}</small><small v-else>Can start when the kitchen opens</small>
-								</article>
-							</div>
-							<span v-if="stage.index < cpmStages.length - 1" class="cpm-stage__connector" aria-hidden="true">↓</span>
-						</div>
-					</div>
-				</details>
-				<details class="instruction-group" open>
-					<summary>
-						Concurrent worker lanes
-						<span>{{ instructionPlan.worker_lanes.length }}</span>
-					</summary>
-					<div class="worker-lane-grid">
-						<article v-for="lane in instructionPlan.worker_lanes" :key="lane.lane">
-							<header><span>Worker {{ lane.lane }}</span><strong>{{ workerName(lane.lane) }}</strong><small>Latest scheduled finish {{ quantity(lane.available_at) }} min · available until {{ quantity(workerCapacity(lane.lane).availableMinutes) }} min<span v-if="lane.assist_steps?.length"> · {{ lane.assist_steps.length }} assist {{ lane.assist_steps.length === 1 ? 'handoff' : 'handoffs' }}</span></small><SystemBadge v-if="workerCapacity(lane.lane).shortfallMinutes > 0" theme="red">Finishes {{ quantity(workerCapacity(lane.lane).shortfallMinutes) }} min late</SystemBadge></header>
-							<ol>
-								<li
-									v-for="step in lane.steps"
-									:key="`${lane.lane}-${step.kind || 'primary'}-${step.step_number}-${step.start_minute}`"
-									:class="{ 'is-assist': step.kind === 'assist' }"
-								>
-									<span class="lane-time">{{ step.start_minute }} to {{ step.end_minute }} min</span><strong>{{ step.kind === 'assist' ? assistInstruction(step) : `${step.step_number}. ${step.step_name}` }}</strong><small>{{ step.duration_minutes }} min<span v-if="step.equipment_type"> · {{ step.equipment_type }}</span></small><SystemBadge v-if="step.kind === 'assist'" theme="green">Assist</SystemBadge><SystemBadge v-else-if="step.is_critical" theme="red">Critical</SystemBadge>
-								</li>
-							</ol>
-						</article>
-					</div>
-				</details>
-				<details class="instruction-group" open>
-					<summary>
-						Step-by-step method <span>{{ instructionPlan.steps.length }}</span>
-					</summary>
-					<div class="instruction-step-list">
-						<details v-for="step in instructionPlan.steps" :key="step.task_id" class="method-task">
-							<summary><span class="method-task__number">{{ step.step_number }}</span><span class="method-task__title"><strong>{{ step.step_name }}</strong><small>{{ step.scheduled_start }} to {{ step.scheduled_end }} min · {{ assignedWorkerNames(step) }}<span v-if="step.equipment_type"> · {{ step.equipment_type }}</span></small></span><SystemBadge v-if="step.is_critical" theme="red">Critical</SystemBadge><span class="method-task__expand">Open method</span></summary>
-							<div class="method-task__body">
-								<p>{{ step.objective || step.instruction }}</p>
-								<ol class="method-substeps"><li v-for="substep in step.substeps" :key="substep.order"><span>{{ substep.order }}</span><div><p>{{ substep.instruction }}</p><small v-if="substep.check">Check: {{ substep.check }}</small></div></li></ol>
-								<small v-if="step.ingredients.length"
-									>Use
-									{{
-										step.ingredients
-											.map(
-												(item) =>
-															`${quantity(item.quantity)} ${item.uom} raw ${item.item_name}${item.piece_count_estimate ? `, about ${item.piece_count_estimate} ${item.piece_count_label}` : ""}`,
-											)
-											.join(", ")
-									}}.</small
-								><small class="method-task__cpm"
-									>{{ step.estimated_minutes }} min · {{ step.requires_active_worker === false ? "unattended equipment interval" : `${step.minimum_workers} ${step.minimum_workers === 1 ? "worker" : "workers"}` }} ·
-									{{ step.batch_count }}
-									{{ step.batch_count === 1 ? "batch" : "batches"
-									}}<span v-if="step.equipment_type">
-										· {{ step.equipment_type }}</span>
-									 · ES {{ step.early_start }} · EF {{ step.early_finish }} · LS {{ step.late_start }} · LF {{ step.late_finish }} · {{ step.slack_minutes }} min slack</small
-								>
-								<p v-if="step.quality_checkpoint" class="quality-check">
-									<strong>Check:</strong> {{ step.quality_checkpoint }}
-								</p>
-							</div>
-						</details>
-					</div>
-				</details>
-				<details v-if="instructionPlan.equipment.length" class="instruction-group">
-					<summary>
-						Equipment capacity <span>{{ instructionPlan.equipment.length }}</span>
-					</summary>
-					<div class="instruction-ingredient-grid">
-						<article v-for="item in instructionPlan.equipment" :key="item.name">
-							<strong>{{ item.equipment_type_name }}</strong
-							><span
-								>{{ quantity(item.total_concurrent_capacity) }}
-								{{ item.capacity_uom }} concurrent</span
-							>
-						</article>
-					</div>
-				</details>
-			</section>
 				<section class="form-section">
 					<div class="section-heading">
 						<div>
@@ -1259,7 +882,7 @@ function openRecipeRecords(create = false) {
 							variant="outline"
 							:loading="busy"
 							@click="openInstructions"
-							>Build kitchen plan</SystemOperationalButton
+							>Build cooking plan</SystemOperationalButton
 						><SystemOperationalButton variant="ghost" @click="openRecipeRecords(false)"
 							>Edit recipe method</SystemOperationalButton
 						>
@@ -1388,145 +1011,6 @@ function openRecipeRecords(create = false) {
 						:rows="3"
 						:disabled="draftLocked"
 					/>
-				</section>
-				<section class="data-section">
-					<div class="section-heading">
-						<div>
-							<p class="eyebrow">Production team</p>
-							<h2>Set the team, then record what happened</h2>
-							<p>
-								Choose the people available for this run before building the kitchen plan. After cooking, enter the total elapsed time and any individual hours that differed.
-							</p>
-						</div>
-						<div class="button-row">
-							<SystemOperationalButton
-								variant="ghost"
-								@click="emit('open-employees')"
-								>Manage employees</SystemOperationalButton
-							><SystemOperationalButton
-								variant="outline"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-								@click="addEmployee"
-								>Add employee</SystemOperationalButton
-							>
-						</div>
-					</div>
-					<div class="team-template-row">
-						<SystemSelect
-							v-model="teamTemplate"
-							label="Team template"
-							:options="teamTemplateOptions"
-							placeholder="Choose a saved team"
-							:disabled="Boolean(run?.docstatus) || draftLocked"
-						/><SystemOperationalButton
-							variant="outline"
-							:disabled="Boolean(run?.docstatus) || draftLocked || !teamTemplate"
-							@click="applyTeamTemplate"
-							>Apply team template</SystemOperationalButton
-						><SystemFormControl
-							v-model="scheduledElapsedHours"
-							label="Kitchen time available (hours)"
-							type="number"
-							step="0.1"
-							min="0"
-							:disabled="Boolean(run?.docstatus) || draftLocked"
-						/>
-					</div>
-					<div class="execution-time-capture">
-						<div><span>Run result</span><strong>How long did the food actually take?</strong><small>Enter this once the cooking and packing work is complete.</small></div>
-						<SystemFormControl
-							v-model="actualElapsedHours"
-							label="Actual elapsed time (hours)"
-							type="number"
-							step="0.1"
-							min="0"
-							:disabled="Boolean(run?.docstatus) || draftLocked"
-						/>
-					</div>
-					<div
-						class="run-performance-card"
-						:class="paceStatus === 'Slower than takt' ? 'is-under' : 'is-ready'"
-					>
-						<div>
-							<span>Actual production pace</span><strong>{{ paceStatus }}</strong>
-							<p>
-								{{ quantity(actualTeam.length) }} people worked
-								{{ quantity(actualElapsedHours) }} elapsed hours, creating
-								{{ quantity(labourHours) }} labour-hours.
-							</p>
-						</div>
-						<div>
-							<SystemBadge
-								:theme="paceStatus === 'Slower than takt' ? 'red' : 'green'"
-								>{{ quantity(actualRate) }} min/kg elapsed pace</SystemBadge
-							><small>{{ quantity(frozenTakt) }} min/kg slowest allowed pace</small><small>{{ quantity(actualLabourRate) }} labour min/kg recorded</small>
-						</div>
-					</div>
-					<div class="employee-assignment-list">
-						<article v-for="(row, index) in employeeRows" :key="index">
-							<SystemSelect
-								:model-value="row.employee"
-								label="Employee"
-								:options="employeeOptions"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-								@update:model-value="changeEmployee(row, $event)"
-							/><SystemSelect
-								v-model="row.completion_status"
-								label="Work status"
-								:options="attendanceOptions"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-							/><SystemFormControl
-								v-model="row.available_hours"
-								label="Hours available"
-								type="number"
-								step="0.1"
-								min="0"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-							/><SystemCheckboxShadcn
-								v-model="row.custom_hours"
-								label="Custom actual hours"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-							/><SystemFormControl
-								v-if="row.custom_hours"
-								v-model="row.hours_worked"
-								label="Hours worked"
-								type="number"
-								step="0.1"
-								min="0"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-							/>
-							<div v-else class="calculated-hours">
-								<span>Hours worked</span
-								><strong
-									>{{
-										row.completion_status === "Completed"
-											? quantity(actualElapsedHours)
-											: "0"
-									}}
-									h</strong
-								>
-							</div>
-							<SystemFormControl
-								v-model="row.notes"
-								label="Notes"
-								:disabled="Boolean(run?.docstatus) || draftLocked"
-							/><SystemOperationalButton
-								v-if="!run?.docstatus"
-								variant="ghost"
-								:disabled="draftLocked"
-								@click="removeEmployee(index)"
-								>Remove</SystemOperationalButton
-							><small v-if="row.payment_basis"
-								>{{ row.payment_basis }} · R
-								{{ Number(row.payment_rate || 0).toFixed(2) }} · R
-								{{ Number(row.payable_amount || 0).toFixed(2) }} payable</small
-							>
-						</article>
-						<p v-if="!employeeRows.length" class="state-message">
-							No team members captured yet. Apply a team template or add the people
-							who worked.
-						</p>
-					</div>
 				</section>
 				<footer class="posting-bar">
 					<div>
@@ -1720,194 +1204,6 @@ function openRecipeRecords(create = false) {
 .instruction-actions {
 	margin-bottom: var(--spacing-s);
 }
-.instruction-workspace {
-	display: grid;
-	gap: var(--spacing-s);
-}
-.production-capacity-decision {
-	display: grid;
-	grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.3fr);
-	gap: var(--spacing-m);
-	padding: var(--spacing-m);
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-card);
-	background: var(--theme-surface-raised);
-}
-.production-capacity-decision.is-under {
-	border-color: color-mix(in oklch, var(--theme-error) 54%, var(--theme-border));
-	background: color-mix(in oklch, var(--theme-error) 9%, var(--theme-surface-raised));
-}
-.production-capacity-decision.is-ready {
-	border-color: color-mix(in oklch, var(--theme-success) 46%, var(--theme-border));
-	background: color-mix(in oklch, var(--theme-success) 7%, var(--theme-surface-raised));
-}
-.production-capacity-decision h3 {
-	margin: var(--spacing-3xs) 0;
-	font-size: var(--font-size-3);
-}
-.production-capacity-decision p:not(.eyebrow),
-.production-capacity-decision span {
-	color: var(--theme-text-muted);
-}
-.capacity-evidence-grid {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: var(--spacing-xs);
-}
-.capacity-evidence-grid > div {
-	display: grid;
-	align-content: center;
-	gap: var(--spacing-3xs);
-	min-width: 0;
-	padding: var(--spacing-xs);
-	border-radius: var(--component-radius-control);
-	background: color-mix(in oklch, var(--theme-surface-raised) 82%, transparent);
-}
-.capacity-evidence-grid strong {
-	font-size: var(--font-size-1);
-	font-variant-numeric: tabular-nums;
-}
-.capacity-evidence-grid span {
-	font-size: var(--font-size--2);
-}
-.capacity-action {
-	grid-column: 1/-1;
-	margin: 0;
-	padding-top: var(--spacing-xs);
-	border-top: var(--border-width-1) solid color-mix(in oklch, var(--theme-error) 28%, var(--theme-border));
-}
-.instruction-group {
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-card);
-	background: var(--theme-surface-raised);
-	overflow: hidden;
-}
-.instruction-group > summary {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--spacing-s);
-	padding: var(--spacing-s);
-	cursor: pointer;
-	font-weight: var(--font-weight-semibold);
-}
-.instruction-group > summary span {
-	color: var(--theme-text-muted);
-	font-size: var(--font-size--2);
-}
-.instruction-ingredient-grid,
-.worker-lane-grid {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: var(--spacing-xs);
-	padding: 0 var(--spacing-s) var(--spacing-s);
-}
-.instruction-ingredient-list { display:grid; padding:0 var(--spacing-s) var(--spacing-s); border-top:var(--border-width-1) solid var(--theme-border); }
-.instruction-ingredient-list article { display:flex; align-items:center; justify-content:space-between; gap:var(--spacing-s); padding:var(--spacing-xs) 0; border-bottom:var(--border-width-1) solid var(--theme-border); }
-.instruction-ingredient-list article:last-child { border-bottom:0; }
-.instruction-ingredient-list article>div { display:grid; gap:var(--spacing-3xs); }
-.instruction-ingredient-list small,.instruction-ingredient-list article>span { color:var(--theme-text-muted); }
-.instruction-ingredient-list b { color:var(--theme-text); font-variant-numeric:tabular-nums; }
-.cpm-flow { display:grid;gap:0;padding:0 var(--spacing-s) var(--spacing-s); }
-.cpm-stage { position:relative;display:grid;grid-template-columns:7rem minmax(0,1fr);gap:var(--spacing-s);padding-bottom:var(--spacing-m); }
-.cpm-stage:last-child { padding-bottom:0; }
-.cpm-stage__time { display:grid;align-content:start;gap:var(--spacing-3xs);padding-top:var(--spacing-xs);color:var(--theme-text-muted); }
-.cpm-stage__time span { font-size:var(--font-size--2); }
-.cpm-stage__time strong { color:var(--theme-text);font-variant-numeric:tabular-nums; }
-.cpm-stage__tasks { display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:var(--spacing-xs); }
-.cpm-stage__tasks article { display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface-raised); }
-.cpm-stage__tasks article.is-critical { border-color:color-mix(in oklch,var(--theme-error) 46%,var(--theme-border));box-shadow:inset 3px 0 0 color-mix(in oklch,var(--theme-error) 72%,transparent); }
-.cpm-stage__tasks article>div { display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-xs);color:var(--theme-text-muted);font-size:var(--font-size--2); }
-.cpm-stage__tasks article>small { color:var(--theme-text-muted); }
-.cpm-stage__connector { position:absolute;bottom:var(--spacing-3xs);left:calc(7rem + var(--spacing-s) + var(--spacing-s));display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:999px;background:var(--theme-secondary);color:var(--theme-text-muted);font-weight:var(--font-weight-semibold); }
-.instruction-ingredient-grid article,
-.worker-lane-grid article {
-	display: grid;
-	gap: var(--spacing-3xs);
-	padding: var(--spacing-s);
-	border-radius: var(--component-radius-field);
-	background: var(--theme-secondary);
-}
-.worker-lane-grid article header { display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;gap:var(--spacing-3xs) var(--spacing-xs);padding-bottom:var(--spacing-xs);border-bottom:var(--border-width-1) solid var(--theme-border); }
-.worker-lane-grid article header>span { text-transform:uppercase;letter-spacing:.06em;font-size:var(--font-size--2); }
-.worker-lane-grid article header>strong { font-size:var(--font-size-2); }
-.worker-lane-grid article header>small { grid-column:1/-1;color:var(--theme-text-muted); }
-.instruction-ingredient-grid article {
-	grid-template-columns: minmax(7rem, 0.45fr) minmax(0, 1fr);
-	align-items: start;
-	gap: var(--spacing-xs);
-}
-.instruction-ingredient-grid article p,
-.instruction-ingredient-grid article small {
-	margin: var(--spacing-3xs) 0 0;
-	color: var(--theme-text-muted);
-}
-.ingredient-quantity {
-	display: grid;
-	gap: var(--spacing-3xs);
-	padding: var(--spacing-xs);
-	border-radius: var(--component-radius-control);
-	background: var(--theme-surface-raised);
-}
-.ingredient-quantity strong {
-	font-size: var(--font-size-1);
-	font-variant-numeric: tabular-nums;
-}
-.ingredient-quantity span {
-	font-size: var(--font-size--2);
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
-}
-.instruction-ingredient-grid span,
-.worker-lane-grid span,
-.instruction-step-list small {
-	color: var(--theme-text-muted);
-}
-.worker-lane-grid ol {
-	display: grid;
-	gap: var(--spacing-xs);
-	margin: var(--spacing-xs) 0 0;
-	padding-left: var(--spacing-m);
-}
-.worker-lane-grid li {
-	display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--spacing-3xs) var(--spacing-xs);padding:var(--spacing-xs);border-left:3px solid var(--theme-border);border-radius:0 var(--component-radius-control) var(--component-radius-control) 0;background:var(--theme-surface-raised);
-}
-.worker-lane-grid li.is-assist { border-left-color:color-mix(in oklch,var(--theme-success) 64%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 6%,var(--theme-surface-raised)); }
-.worker-lane-grid li .lane-time {
-	grid-column:1/-1;
-	display: block;
-	font-size: var(--font-size--2);
-}
-.worker-lane-grid li>small { color:var(--theme-text-muted); }
-.instruction-step-list {
-	display: grid;
-	gap: var(--spacing-xs);
-	padding: 0 var(--spacing-s) var(--spacing-s);
-}
-.method-task { overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface-raised); }
-.method-task>summary { display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:var(--spacing-xs);padding:var(--spacing-s);cursor:pointer;list-style:none; }
-.method-task>summary::-webkit-details-marker { display:none; }
-.method-task__number { display:grid;place-items:center;width:2.25rem;height:2.25rem;border-radius:999px;background:var(--theme-secondary);color:var(--theme-text);font-weight:var(--font-weight-semibold); }
-.method-task__title { display:grid;gap:var(--spacing-3xs);min-width:0; }
-.method-task__title small,.method-task__expand { color:var(--theme-text-muted);font-size:var(--font-size--2); }
-.method-task__body { display:grid;gap:var(--spacing-xs);padding:0 var(--spacing-s) var(--spacing-s) calc(var(--spacing-s) + 2.25rem + var(--spacing-xs));border-top:var(--border-width-1) solid var(--theme-border); }
-.method-substeps { display:grid;gap:var(--spacing-xs);margin:var(--spacing-xs) 0 0;padding:0;list-style:none; }
-.method-substeps li { display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--spacing-xs); }
-.method-substeps li>span { display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:999px;background:var(--theme-secondary);color:var(--theme-text);font-weight:var(--font-weight-semibold); }
-.method-substeps p { margin:0; }
-.method-substeps small,.method-task__cpm { color:var(--theme-text-muted); }
-.instruction-step-list p {
-	margin: var(--spacing-3xs) 0;
-}
-.instruction-step-list small {
-	display: block;
-	margin-top: var(--spacing-3xs);
-}
-.quality-check {
-	padding: var(--spacing-xs);
-	border-radius: var(--component-radius-field);
-	background: var(--theme-surface-raised);
-}
 .container-suggestion {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1956,62 +1252,6 @@ function openRecipeRecords(create = false) {
 	margin-top: var(--spacing-3xs);
 	color: var(--theme-text-muted);
 }
-.team-template-row {
-	display: grid;
-	grid-template-columns: minmax(14rem, 1fr) auto minmax(12rem, 0.7fr);
-	align-items: end;
-	gap: var(--spacing-s);
-	margin-bottom: var(--spacing-s);
-}
-.execution-time-capture {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.38fr);
-	align-items: end;
-	gap: var(--spacing-s);
-	margin-bottom: var(--spacing-s);
-	padding: var(--spacing-s);
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-card);
-	background: var(--theme-secondary);
-}
-.execution-time-capture > div { display:grid;gap:var(--spacing-3xs); }
-.execution-time-capture span,.execution-time-capture small { color:var(--theme-text-muted); }
-.run-performance-card {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--spacing-s);
-	margin-bottom: var(--spacing-s);
-	padding: var(--spacing-m);
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-card);
-}
-.run-performance-card.is-under {
-	border-color: color-mix(in oklch, var(--theme-error) 52%, var(--theme-border));
-	background: color-mix(in oklch, var(--theme-error) 10%, var(--theme-surface-raised));
-}
-.run-performance-card.is-ready {
-	border-color: color-mix(in oklch, var(--theme-success) 52%, var(--theme-border));
-	background: color-mix(in oklch, var(--theme-success) 10%, var(--theme-surface-raised));
-}
-.run-performance-card span,
-.run-performance-card p,
-.run-performance-card small {
-	color: var(--theme-text-muted);
-}
-.run-performance-card strong {
-	display: block;
-	margin-top: var(--spacing-3xs);
-	font-size: var(--font-size-2);
-}
-.run-performance-card p {
-	margin: var(--spacing-3xs) 0 0;
-}
-.run-performance-card > div:last-child {
-	display: grid;
-	justify-items: end;
-	gap: var(--spacing-3xs);
-}
 .calculated-hours {
 	display: grid;
 	align-content: center;
@@ -2035,99 +1275,6 @@ function openRecipeRecords(create = false) {
 .production-topline > .button-row {
 	justify-content: flex-end;
 }
-.run-capacity-card {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--spacing-s);
-	margin-bottom: var(--spacing-s);
-	padding: var(--spacing-m);
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-card);
-}
-.run-capacity-card.is-under {
-	border-color: color-mix(in oklch, var(--theme-error) 52%, var(--theme-border));
-	background: color-mix(in oklch, var(--theme-error) 10%, var(--theme-surface-raised));
-}
-.run-capacity-card.is-ready {
-	border-color: color-mix(in oklch, var(--theme-success) 52%, var(--theme-border));
-	background: color-mix(in oklch, var(--theme-success) 10%, var(--theme-surface-raised));
-}
-.run-capacity-card span,
-.run-capacity-card p,
-.run-capacity-card small {
-	color: var(--theme-text-muted);
-}
-.run-capacity-card strong {
-	display: block;
-	margin-top: var(--spacing-3xs);
-	font-size: var(--font-size-2);
-}
-.run-capacity-card p {
-	margin: var(--spacing-3xs) 0 0;
-}
-.run-capacity-card > div:last-child {
-	display: grid;
-	justify-items: end;
-	gap: var(--spacing-3xs);
-}
-.employee-assignment-list {
-	display: grid;
-	gap: var(--spacing-xs);
-}
-.employee-assignment-list article {
-	display: grid;
-	grid-template-columns: 1fr 0.65fr 0.65fr 0.75fr 0.75fr 1fr auto;
-	align-items: end;
-	gap: var(--spacing-xs);
-	padding: var(--spacing-s);
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-card);
-	background: var(--theme-secondary);
-}
-.employee-assignment-list article > small {
-	grid-column: 1/-1;
-	color: var(--theme-text-muted);
-}
-@media (max-width: 70rem) {
-	.production-capacity-decision { grid-template-columns:1fr; }
-	.capacity-evidence-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-	.employee-assignment-list article {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-	.employee-assignment-list article > *:last-of-type {
-		justify-self: start;
-	}
-}
-@media (max-width: 52rem) {
-	.production-topline,
-	.production-topline > .field-grid {
-		display: grid;
-		grid-template-columns: 1fr;
-		width: 100%;
-	}
-	.production-topline > .button-row {
-		justify-content: stretch;
-	}
-	.production-topline > .button-row > * {
-		flex: 1 1 auto;
-	}
-	.employee-assignment-list article {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-}
-@media (max-width: 44rem) {
-	.employee-assignment-list article {
-		grid-template-columns: 1fr;
-	}
-	.run-capacity-card {
-		align-items: flex-start;
-		flex-direction: column;
-	}
-	.run-capacity-card > div:last-child {
-		justify-items: start;
-	}
-}
 @media (max-width: 70rem) {
 	.production-direction-grid {
 		grid-template-columns: 1fr 1fr;
@@ -2138,55 +1285,19 @@ function openRecipeRecords(create = false) {
 	.allocation-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
-	.instruction-ingredient-grid,
-	.worker-lane-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-}
-@media (max-width: 52rem) {
-	.team-template-row {
-		grid-template-columns: 1fr 1fr;
-	}
-	.team-template-row > *:first-child {
-		grid-column: 1/-1;
-	}
 }
 @media (max-width: 44rem) {
 	.production-direction-grid,
-	.team-template-row,
 	.allocation-grid,
-	.instruction-ingredient-grid,
-		.worker-lane-grid {
-			grid-template-columns: 1fr;
-		}
-	.production-capacity-decision,
-	.execution-time-capture { grid-template-columns:1fr; }
-	.capacity-evidence-grid { grid-template-columns:1fr 1fr; }
-	.cpm-stage { grid-template-columns:1fr;gap:var(--spacing-xs); }
-	.cpm-stage__time { grid-template-columns:auto 1fr;align-items:baseline; }
-	.cpm-stage__connector { left:calc(50% - .875rem); }
-	.production-direction-grid > *:last-child,
-	.team-template-row > *:first-child {
+	.container-suggestion {
+		grid-template-columns: 1fr;
+	}
+	.production-direction-grid > *:last-child {
 		grid-column: auto;
 	}
-	.run-performance-card,
 	.allocation-history article {
 		align-items: flex-start;
 		flex-direction: column;
-	}
-	.run-performance-card > div:last-child {
-		justify-items: start;
-	}
-	.instruction-step-list article {
-		grid-template-columns: 1fr;
-	}
-	.instruction-ingredient-list article { align-items:flex-start;flex-direction:column; }
-	.method-task>summary { grid-template-columns:auto minmax(0,1fr); }
-	.method-task>summary>:nth-child(n+3) { grid-column:2;justify-self:start; }
-	.method-task__body { padding-left:var(--spacing-s); }
-	.instruction-ingredient-grid article,
-	.container-suggestion {
-		grid-template-columns: 1fr;
 	}
 }
 </style>

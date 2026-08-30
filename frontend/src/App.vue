@@ -8,6 +8,7 @@ import {
 	SystemBuyingPlan,
 	SystemDocumentReview,
 	SystemEmployeeManagement,
+	SystemKitchenExecutionPlan,
 	SystemMonthlyPlanning,
 	SystemNativeAvailabilityState,
 	SystemProductionMeasurement,
@@ -60,6 +61,7 @@ const auxiliaryMode = computed(() => {
 	if (route.meta.auxiliaryCatalogue) return "catalogue";
 	return "";
 });
+const kitchenPlanMode = computed(() => route.name === "BulkBiteKitchenPlan");
 const activeSection = ref(resolveInitialSection());
 const employeeReturnSection = ref("production");
 const snapshot = ref(null);
@@ -76,13 +78,20 @@ const currentUser = computed(
 
 function navigate(id) {
 	if (typeof id === "object") return navigateAuxiliary(id);
-	if (route.path.startsWith("/bulkbite/setup")) router.push("/bulkbite");
+	if (route.path.startsWith("/bulkbite/setup") || kitchenPlanMode.value) router.push("/bulkbite");
 	activeSection.value = id;
 	window.localStorage.setItem(activeSectionStorageKey, id);
 	const url = new URL(window.location.href);
 	id === "overview" ? url.searchParams.delete("work") : url.searchParams.set("work", id);
 	window.history.replaceState({}, "", url);
 	requestAnimationFrame(() => document.querySelector(".app-shell__work")?.focus());
+}
+
+async function closeKitchenPlan() {
+	activeSection.value = "production";
+	window.localStorage.setItem(activeSectionStorageKey, "production");
+	await router.push({ path: "/bulkbite", query: { work: "production" } });
+	await loadAll();
 }
 
 function openEmployees(origin) {
@@ -249,6 +258,13 @@ watch(
 			:doctype="String(route.params.doctype || '')"
 			:record-name="String(route.params.name || '')"
 			@navigate="navigateAuxiliary"
+		/>
+		<SystemKitchenExecutionPlan
+			v-else-if="kitchenPlanMode"
+			:run-name="String(route.params.runName || '')"
+			@close="closeKitchenPlan"
+			@open-employees="navigate('employees')"
+			@changed="loadAll"
 		/>
 		<SystemStockOverview
 			v-else-if="activeSection === 'overview'"

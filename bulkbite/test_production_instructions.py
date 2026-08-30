@@ -2,7 +2,8 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from bulkbite.production_instructions import build_run_instruction_plan
+from bulkbite.kitchen_scheduler import KitchenScheduleError
+from bulkbite.production_instructions import _expand_equipment_batches, build_run_instruction_plan
 
 
 # =============================================================================
@@ -11,6 +12,29 @@ from bulkbite.production_instructions import build_run_instruction_plan
 
 
 class TestProductionInstructions(TestCase):
+	def test_equipment_batching_refuses_an_incompatible_capacity_unit(self):
+		tasks = [{
+			"task_id": "cook-pasta",
+			"step_number": 1,
+			"step_name": "Cook spaghetti",
+			"title": "Cook spaghetti",
+			"objective": "Cook the prepared spaghetti.",
+			"instruction": "Cook the prepared spaghetti.",
+			"ingredient_item_codes": ["SPAGHETTI"],
+			"equipment_type": "TEN-LITRE-POT",
+			"depends_on_task_ids": [],
+			"duration_minutes": 10,
+			"estimated_minutes": 10,
+			"minimum_workers": 1,
+			"requires_active_worker": True,
+			"substeps": [],
+		}]
+		ingredients = [{"item_code": "SPAGHETTI", "prepared_quantity": 50, "uom": "Kg"}]
+		equipment = {"TEN-LITRE-POT": {"equipment_type_name": "10 L pot", "capacity_qty": 10, "capacity_uom": "Litre"}}
+
+		with self.assertRaisesRegex(KitchenScheduleError, "usable Kg capacity"):
+			_expand_equipment_batches(tasks, ingredients, equipment)
+
 	def test_recipe_quantities_batches_dependencies_and_lanes_are_deterministic(self):
 		recipe = SimpleNamespace(
 			name="RECIPE-001",
@@ -47,7 +71,9 @@ class TestProductionInstructions(TestCase):
 		self.assertEqual(rice_batches[-1]["batch_load_qty"], 7.5)
 		self.assertEqual(len(combine["depends_on_steps"]), 5)
 		self.assertEqual(result["estimated_elapsed_minutes"], 33)
-		self.assertEqual(result["critical_path_minutes"], 15)
+		self.assertEqual(result["critical_path_minutes"], 33)
+		self.assertEqual(result["steps"][0]["early_start"], 0)
+		self.assertEqual(result["steps"][2]["early_start"], 10)
 		self.assertTrue(combine["is_critical"])
 		self.assertEqual(combine["assigned_workers"], [1, 2])
 		self.assertEqual(len(result["worker_lanes"]), 2)

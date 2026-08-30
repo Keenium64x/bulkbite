@@ -138,6 +138,7 @@ def calculate_kitchen_schedule(tasks, team_size, equipment_capacity=None, defaul
 		task["is_critical"] = task["slack_minutes"] <= default_slack + 0.001
 
 	_scheduled, worker_lanes, resource_duration = _assign_resources(by_id, order, successors, team_size, equipment_capacity)
+	_apply_resource_constrained_cpm(by_id, worker_lanes, resource_duration, default_slack)
 	ordered_tasks = sorted(by_id.values(), key=lambda task: (task["scheduled_start"], task["step_number"]))
 	for task in ordered_tasks:
 		for field in ("early_start", "early_finish", "late_start", "late_finish", "slack_minutes", "scheduled_start", "scheduled_end"):
@@ -145,7 +146,8 @@ def calculate_kitchen_schedule(tasks, team_size, equipment_capacity=None, defaul
 	return {
 		"tasks": ordered_tasks,
 		"worker_lanes": worker_lanes,
-		"critical_path_minutes": round(project_duration, 1),
+		"logical_dependency_minutes": round(project_duration, 1),
+		"critical_path_minutes": round(resource_duration, 1),
 		"resource_constrained_minutes": round(resource_duration, 1),
 		"default_slack_minutes": round(max(float(default_slack_minutes or 0), 0.0), 1),
 	}
@@ -186,6 +188,7 @@ def _assign_resources(by_id, order, successors, team_size, equipment_capacity):
 		task["scheduled_start"] = start
 		task["scheduled_end"] = end
 		task["assigned_workers"] = sorted(index + 1 for index in selected_workers)
+		task["equipment_slot"] = equipment_slot + 1 if equipment_slot is not None else None
 		for index in selected_workers:
 			workers[index] = end
 			lanes[index]["available_at"] = end
@@ -205,6 +208,44 @@ def _assign_resources(by_id, order, successors, team_size, equipment_capacity):
 		unscheduled.remove(task["task_id"])
 	_attach_assist_opportunities(lanes, by_id, max(completed_at.values(), default=0.0))
 	return by_id, lanes, max(completed_at.values(), default=0.0)
+
+
+def _apply_resource_constrained_cpm(by_id, lanes, schedule_finish, default_slack):
+	"""Calculate safe start windows from the actual worker and equipment sequence."""
+	successors = defaultdict(set)
+	for task in by_id.values():
+		for dependency in task["depends_on_task_ids"]:
+			successors[dependency].add(task["task_id"])
+	for lane in lanes:
+		primary = [row for row in lane["steps"] if row.get("kind") != "assist"]
+		primary.sort(key=lambda row: (row["start_minute"], row["end_minute"], row["step_number"]))
+		for current, following in zip(primary, primary[1:]):
+			if current["task_id"] != following["task_id"]:
+				successors[current["task_id"]].add(following["task_id"])
+	equipment_lanes = defaultdict(list)
+	for task in by_id.values():
+		if task.get("equipment_type") and task.get("equipment_slot"):
+			equipment_lanes[(task["equipment_type"], task["equipment_slot"])].append(task)
+	for tasks in equipment_lanes.values():
+		tasks.sort(key=lambda row: (row["scheduled_start"], row["scheduled_end"], row["step_number"]))
+		for current, following in zip(tasks, tasks[1:]):
+			if current["task_id"] != following["task_id"]:
+				successors[current["task_id"]].add(following["task_id"])
+
+	buffered_finish = schedule_finish + max(float(default_slack or 0), 0.0)
+	for task in by_id.values():
+		task["early_start"] = task["scheduled_start"]
+		task["early_finish"] = task["scheduled_end"]
+	for task in sorted(by_id.values(), key=lambda row: (row["scheduled_start"], row["scheduled_end"], row["step_number"]), reverse=True):
+		task["late_finish"] = min((by_id[child]["late_start"] for child in successors[task["task_id"]]), default=buffered_finish)
+		task["late_start"] = task["late_finish"] - task["duration_minutes"]
+		task["slack_minutes"] = max(task["late_start"] - task["scheduled_start"], 0.0)
+		task["is_critical"] = task["slack_minutes"] <= max(float(default_slack or 0), 0.0) + 0.001
+	for lane in lanes:
+		for row in lane["steps"]:
+			task = by_id.get(row["task_id"])
+			if task:
+				row["is_critical"] = task["is_critical"]
 
 
 def _resource_priority(task, workers, equipment_slots, completed_at, team_size):

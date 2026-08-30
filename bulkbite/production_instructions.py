@@ -144,10 +144,23 @@ def _expand_equipment_batches(tasks, ingredients, equipment):
 	for task in tasks:
 		equipment_row = equipment.get(task.get("equipment_type")) or {}
 		capacity = flt(equipment_row.get("capacity_qty"))
-		prepared_load = sum(
-			flt(ingredient_by_code.get(code, {}).get("prepared_quantity"))
+		load_rows = [
+			ingredient_by_code[code]
 			for code in task.get("ingredient_item_codes") or []
-		)
+			if code in ingredient_by_code and flt(ingredient_by_code[code].get("prepared_quantity")) > 0
+		]
+		prepared_load = sum(flt(row.get("prepared_quantity")) for row in load_rows)
+		load_uom = _single_load_uom(task, load_rows)
+		capacity_uom = _normalized_capacity_uom(equipment_row.get("capacity_uom"))
+		if capacity > 0 and prepared_load > 0 and load_uom != capacity_uom:
+			raise KitchenScheduleError(
+				_("{0} measures batch capacity in {1}, but {2} is loaded in {3}. Configure a usable {3} capacity for this equipment and food before building the cooking plan.").format(
+					equipment_row.get("equipment_type_name") or task.get("equipment_type"),
+					equipment_row.get("capacity_uom") or _("an unspecified unit"),
+					task.get("step_name") or task.get("title"),
+					load_rows[0].get("uom"),
+				)
+			)
 		batch_count = max(math.ceil(prepared_load / capacity), 1) if capacity > 0 and prepared_load > 0 else 1
 		expanded_ids[task["task_id"]] = [
 			task["task_id"] if batch_count == 1 else f"{task['task_id']}::batch-{index}"
@@ -187,6 +200,32 @@ def _expand_equipment_batches(tasks, ingredients, equipment):
 		ingredient_by_code.keys(),
 		equipment.keys(),
 	)
+
+
+def _single_load_uom(task, load_rows):
+	"""Return one comparable load unit, refusing mixed physical measures."""
+	units = {_normalized_capacity_uom(row.get("uom")) for row in load_rows}
+	if len(units) > 1:
+		raise KitchenScheduleError(
+			_("{0} combines ingredients measured in incompatible units. Split it into unit-specific equipment tasks before calculating batches.").format(
+				task.get("step_name") or task.get("title")
+			)
+		)
+	return next(iter(units), "")
+
+
+def _normalized_capacity_uom(value):
+	return {
+		"kg": "kg",
+		"kilogram": "kg",
+		"kilograms": "kg",
+		"l": "litre",
+		"litre": "litre",
+		"litres": "litre",
+		"liter": "litre",
+		"liters": "litre",
+		"each": "each",
+	}.get(str(value or "").strip().lower(), str(value or "").strip().lower())
 
 
 def _batch_dependency_ids(task, batch_index, batch_count, task_by_id, expanded_ids):

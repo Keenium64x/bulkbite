@@ -36,6 +36,7 @@ const teamTemplate = ref("")
 const kitchenWindowHours = ref(0)
 const actualElapsedHours = ref(0)
 const employeeRows = reactive([])
+const graphTheme = reactive({ surface: "transparent", criticalSurface: "transparent", text: "currentColor", border: "currentColor", critical: "currentColor" })
 
 const run = computed(() => workspace.value?.run || null)
 const employeeOptions = computed(() => workspace.value?.employees || [])
@@ -73,7 +74,15 @@ const capacityShortfallHours = computed(() => Math.max(
 const actualPace = computed(() => outputQty.value && actualElapsedHours.value ? Number(actualElapsedHours.value) * 60 / outputQty.value : 0)
 const paceStatus = computed(() => !actualPace.value || !slowestAllowedPace.value ? "Not measured" : actualPace.value <= slowestAllowedPace.value ? "Within takt" : "Slower than takt")
 
-onMounted(loadWorkspace)
+onMounted(() => {
+  const styles = window.getComputedStyle(document.documentElement)
+  graphTheme.surface = styles.getPropertyValue("--theme-surface-raised").trim() || "transparent"
+  graphTheme.criticalSurface = styles.getPropertyValue("--theme-secondary").trim() || graphTheme.surface
+  graphTheme.text = styles.getPropertyValue("--theme-text").trim() || "currentColor"
+  graphTheme.border = styles.getPropertyValue("--theme-border").trim() || "currentColor"
+  graphTheme.critical = styles.getPropertyValue("--theme-primary").trim() || graphTheme.border
+  loadWorkspace()
+})
 
 async function loadWorkspace() {
   busy.value = true
@@ -195,15 +204,15 @@ const graphOption = computed(() => {
       symbol: "roundRect",
       symbolSize: [190, 94],
       itemStyle: {
-        color: step.is_critical ? "#FDEBE5" : "#FFFDF9",
-        borderColor: step.is_critical ? "#E14709" : "#A9A49B",
+        color: step.is_critical ? graphTheme.criticalSurface : graphTheme.surface,
+        borderColor: step.is_critical ? graphTheme.critical : graphTheme.border,
         borderWidth: step.is_critical ? 2.5 : 1.5,
       },
       label: { formatter: `${step.step_number}. ${truncate(step.step_name, 24)}\n${time(step.scheduled_start)} to ${time(step.scheduled_end)}\n${startWindow(step)}` },
       step,
     }
   })
-  const edges = steps.flatMap((step) => (step.depends_on_task_ids || []).map((source) => ({ source, target: step.task_id, lineStyle: { width: step.is_critical ? 2.5 : 1.4, color: step.is_critical ? "#E14709" : "#A9A49B" } })))
+  const edges = steps.flatMap((step) => (step.depends_on_task_ids || []).map((source) => ({ source, target: step.task_id, lineStyle: { width: step.is_critical ? 2.5 : 1.4, color: step.is_critical ? graphTheme.critical : graphTheme.border } })))
   return {
     animation: false,
     tooltip: { trigger: "item", confine: true, formatter: graphTooltip },
@@ -217,7 +226,7 @@ const graphOption = computed(() => {
       edgeSymbol: ["none", "arrow"],
       edgeSymbolSize: [0, 10],
       lineStyle: { opacity: 0.9, curveness: 0.06 },
-      label: { show: true, color: "#252522", fontSize: 11, lineHeight: 17, align: "center", verticalAlign: "middle" },
+      label: { show: true, color: graphTheme.text, fontSize: 11, lineHeight: 17, align: "center", verticalAlign: "middle" },
       emphasis: { focus: "adjacency", scale: 1.04 },
     }],
   }

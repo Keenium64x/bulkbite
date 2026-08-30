@@ -12,6 +12,7 @@ const router = createRouter({
   history: runtimeConfig.isNative ? createWebHashHistory() : createWebHistory(),
   routes: [
     { path: "/bulkbite/prices", name: "BulkBitePriceHistory", component: PriceHistoryPage },
+    { path: "/bulkbite/production/:runName/kitchen-plan", name: "BulkBiteKitchenPlan", component: App, meta: { kitchenPlan: true } },
     { path: "/bulkbite/setup", name: "BulkBiteSetup", component: App, meta: { auxiliaryCatalogue: true } },
     { path: "/bulkbite/setup/:doctype", name: "BulkBiteSetupList", component: App, meta: { auxiliaryList: true } },
     { path: "/bulkbite/setup/:doctype/new", name: "AuxiliaryRecordCreate", component: App, meta: { auxiliaryRecord: true } },

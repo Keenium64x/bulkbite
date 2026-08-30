@@ -17,6 +17,22 @@ class TestKitchenScheduler(TestCase):
 		self.assertEqual(result["resource_constrained_minutes"], 25)
 		self.assertTrue(by_id["rice"]["is_critical"])
 		self.assertEqual(by_id["combine"]["assigned_workers"], [1, 2])
+		self.assertEqual(by_id["combine"]["late_start"], 20)
+
+	def test_resource_contention_changes_the_operational_critical_path(self):
+		tasks = validate_task_graph([
+			{"task_id": "one", "title": "Batch one", "duration_minutes": 10, "equipment_type": "POT"},
+			{"task_id": "two", "title": "Batch two", "duration_minutes": 10, "equipment_type": "POT"},
+			{"task_id": "finish", "title": "Finish", "duration_minutes": 5, "depends_on_task_ids": ["one", "two"]},
+		], set(), {"POT"})
+
+		result = calculate_kitchen_schedule(tasks, 2, {"POT": 1})
+		by_id = {task["task_id"]: task for task in result["tasks"]}
+
+		self.assertEqual(result["logical_dependency_minutes"], 15)
+		self.assertEqual(result["critical_path_minutes"], 25)
+		self.assertEqual(by_id["two"]["early_start"], 10)
+		self.assertEqual(by_id["finish"]["early_start"], 20)
 
 	def test_unknown_ingredient_and_cycles_are_rejected(self):
 		with self.assertRaises(KitchenScheduleError):
