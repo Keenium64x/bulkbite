@@ -1,6 +1,6 @@
 {
  "actions": [], "doctype": "DocType", "editable_grid": 1, "engine": "InnoDB",
- "field_order": ["step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint"],
+ "field_order": ["step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "requires_active_worker", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint"],
  "fields": [
   {"fieldname": "step_number", "fieldtype": "Int", "in_list_view": 1, "label": "Step", "reqd": 1},
   {"fieldname": "step_name", "fieldtype": "Data", "in_list_view": 1, "label": "Step Name", "reqd": 1},
@@ -9,6 +9,7 @@
   {"fieldname": "equipment_type", "fieldtype": "Link", "label": "Equipment Type", "options": "BulkBite Equipment Type"},
   {"description": "Comma-separated step numbers which must finish first.", "fieldname": "depends_on_steps", "fieldtype": "Data", "label": "Depends On Steps"},
   {"default": "0", "fieldname": "can_run_concurrently", "fieldtype": "Check", "label": "Can Run Concurrently"},
+  {"default": "1", "fieldname": "requires_active_worker", "fieldtype": "Check", "label": "Requires Active Worker"},
   {"default": "0", "fieldname": "duration_minutes", "fieldtype": "Float", "label": "Base Duration (Minutes)", "non_negative": 1},
   {"default": "0", "fieldname": "duration_per_kg_minutes", "fieldtype": "Float", "label": "Minutes per Kg", "non_negative": 1},
   {"default": "1", "fieldname": "minimum_workers", "fieldtype": "Int", "label": "Minimum Workers", "non_negative": 1},

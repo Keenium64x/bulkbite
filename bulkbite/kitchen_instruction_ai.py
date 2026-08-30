@@ -54,7 +54,7 @@ def _prompt(recipe_context, ingredients, equipment, team_size):
 
 The ingredients and quantities are authoritative. Never add, remove, replace, or recalculate ingredients. Do not write any ingredient quantity inside objective or substep prose because BulkBite displays the authoritative quantities separately. Use only the supplied ingredient item codes and equipment type IDs. The task graph must be connected, acyclic, and cover preparation, cooking, combining, quality checks, and packing where applicable.
 
-Each task needs a realistic duration, dependencies, minimum workers, and detailed ordered substeps. Substeps must explain the physical method clearly enough for a worker to follow, such as rinsing lentils, preparing stock, boiling, simmering, and checking doneness. Prefer safe observable checks when the supplied recipe guidance does not justify an exact temperature or time. Identify tasks that can happen at the same time by giving them the same dependencies. Do not assign final workers or calculate CPM values. BulkBite does that deterministically.
+Each task needs a realistic duration, dependencies, minimum workers, and detailed ordered substeps. Substeps must explain the physical method clearly enough for a worker to follow, such as rinsing lentils, preparing stock, boiling, simmering, and checking doneness. Prefer safe observable checks when the supplied recipe guidance does not justify an exact temperature or time. Split hands-on starting or checking work from unattended simmering, baking, resting, or cooling. Set requires_active_worker to false only for a genuinely unattended interval. That interval must still retain its equipment and dependency truth. Set can_run_concurrently only for preparation or portioning work where another free worker can safely help. Identify tasks that can happen at the same time through their dependencies. Do not assign final workers or calculate CPM values. BulkBite does that deterministically.
 
 Recipe context:
 {frappe.as_json(recipe_context)}
@@ -86,11 +86,13 @@ def _response_schema():
 			"depends_on_task_ids": {"type": "ARRAY", "items": {"type": "STRING"}},
 			"duration_minutes": {"type": "NUMBER"},
 			"minimum_workers": {"type": "INTEGER"},
+			"can_run_concurrently": {"type": "BOOLEAN"},
+			"requires_active_worker": {"type": "BOOLEAN"},
 			"worker_role": {"type": "STRING"},
 			"quality_checkpoint": {"type": "STRING"},
 			"substeps": {"type": "ARRAY", "items": substep},
 		},
-		"required": ["task_id", "title", "objective", "ingredient_item_codes", "depends_on_task_ids", "duration_minutes", "minimum_workers", "worker_role", "quality_checkpoint", "substeps"],
+		"required": ["task_id", "title", "objective", "ingredient_item_codes", "depends_on_task_ids", "duration_minutes", "minimum_workers", "can_run_concurrently", "requires_active_worker", "worker_role", "quality_checkpoint", "substeps"],
 	}
 	return {"type": "OBJECT", "properties": {"tasks": {"type": "ARRAY", "items": task}, "notes": {"type": "STRING"}}, "required": ["tasks", "notes"]}
 

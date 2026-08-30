@@ -49,6 +49,7 @@ def validate_task_graph(tasks, ingredient_codes=None, equipment_codes=None):
 			"duration_minutes": round(duration, 1),
 			"estimated_minutes": round(duration, 1),
 			"minimum_workers": max(int(task.get("minimum_workers") or 1), 1),
+			"requires_active_worker": bool(task.get("requires_active_worker", True)),
 			"substeps": _normalize_substeps(task.get("substeps")),
 		})
 		_reject_untrusted_quantity_text(normalized[-1])
@@ -160,9 +161,17 @@ def _assign_resources(by_id, order, successors, team_size, equipment_capacity):
 		ready = [by_id[task_id] for task_id in unscheduled if all(parent in completed_at for parent in by_id[task_id]["depends_on_task_ids"])]
 		if not ready:
 			raise KitchenScheduleError("No dependency-ready kitchen task could be scheduled.")
-		ready.sort(key=lambda task: (_earliest_resource_start(task, workers, equipment_slots, completed_at, team_size), not task["is_critical"], task["step_number"]))
+		ready.sort(
+			key=lambda task: _resource_priority(
+				task,
+				workers,
+				equipment_slots,
+				completed_at,
+				team_size,
+			)
+		)
 		task = ready[0]
-		worker_count = min(task["minimum_workers"], team_size)
+		worker_count = min(task["minimum_workers"], team_size) if task["requires_active_worker"] else 0
 		selected_workers = sorted(range(team_size), key=lambda index: workers[index])[:worker_count]
 		dependency_ready = max((completed_at[parent] for parent in task["depends_on_task_ids"]), default=0.0)
 		worker_ready = max((workers[index] for index in selected_workers), default=0.0)
@@ -194,11 +203,87 @@ def _assign_resources(by_id, order, successors, team_size, equipment_capacity):
 			equipment_slots[task["equipment_type"]][equipment_slot] = end
 		completed_at[task["task_id"]] = end
 		unscheduled.remove(task["task_id"])
+	_attach_assist_opportunities(lanes, by_id, max(completed_at.values(), default=0.0))
 	return by_id, lanes, max(completed_at.values(), default=0.0)
 
 
+def _resource_priority(task, workers, equipment_slots, completed_at, team_size):
+	"""Keep a single worker in reviewed recipe order while retaining parallel CPM priority."""
+	earliest_start = _earliest_resource_start(task, workers, equipment_slots, completed_at, team_size)
+	if team_size == 1:
+		return (task["step_number"], earliest_start)
+	return (earliest_start, not task["is_critical"], task["step_number"])
+
+
+def _attach_assist_opportunities(lanes, by_id, schedule_finish):
+	"""Fill safe lane gaps with advisory help on overlapping parallel preparation."""
+	for lane in lanes:
+		primary_steps = sorted(lane["steps"], key=lambda row: (row["start_minute"], row["step_number"]))
+		gaps = _lane_gaps(primary_steps, schedule_finish)
+		assists = []
+		for gap_start, gap_end, preceding_step in gaps:
+			candidate = _best_assist_task(lane["lane"], gap_start, gap_end, by_id)
+			if not candidate:
+				continue
+			assist_start = max(gap_start, candidate["scheduled_start"])
+			assist_end = min(gap_end, candidate["scheduled_end"])
+			assists.append({
+				"kind": "assist",
+				"task_id": candidate["task_id"],
+				"step_number": candidate["step_number"],
+				"step_name": candidate["step_name"],
+				"start_minute": round(assist_start, 1),
+				"end_minute": round(assist_end, 1),
+				"duration_minutes": round(assist_end - assist_start, 1),
+				"equipment_type": candidate["equipment_type"],
+				"is_critical": candidate["is_critical"],
+				"assisting_workers": candidate["assigned_workers"],
+				"after_step_number": preceding_step,
+			})
+		lane["assist_steps"] = assists
+		lane["steps"] = sorted(
+			[*primary_steps, *assists],
+			key=lambda row: (row["start_minute"], row.get("kind") == "assist", row["step_number"]),
+		)
+
+
+def _lane_gaps(steps, schedule_finish):
+	gaps = []
+	cursor = 0.0
+	preceding_step = None
+	for step in steps:
+		if step["start_minute"] > cursor:
+			gaps.append((cursor, step["start_minute"], preceding_step))
+		cursor = max(cursor, step["end_minute"])
+		preceding_step = step["step_number"]
+	if schedule_finish > cursor:
+		gaps.append((cursor, schedule_finish, preceding_step))
+	return gaps
+
+
+def _best_assist_task(lane_number, gap_start, gap_end, by_id):
+	candidates = [
+		task
+		for task in by_id.values()
+		if task.get("can_run_concurrently")
+		and lane_number not in task.get("assigned_workers", [])
+		and task.get("scheduled_start", 0) < gap_end
+		and task.get("scheduled_end", 0) > gap_start
+	]
+	if not candidates:
+		return None
+	return min(
+		candidates,
+		key=lambda task: (
+			not task["is_critical"],
+			-max(0, min(gap_end, task["scheduled_end"]) - max(gap_start, task["scheduled_start"])),
+			task["step_number"],
+		),
+	)
+
+
 def _earliest_resource_start(task, workers, equipment_slots, completed_at, team_size):
-	worker_count = min(task["minimum_workers"], team_size)
+	worker_count = min(task["minimum_workers"], team_size) if task["requires_active_worker"] else 0
 	selected_workers = sorted(range(team_size), key=lambda index: workers[index])[:worker_count]
 	dependency_ready = max((completed_at[parent] for parent in task["depends_on_task_ids"]), default=0.0)
 	worker_ready = max((workers[index] for index in selected_workers), default=0.0)
