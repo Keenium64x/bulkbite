@@ -403,29 +403,47 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 
 
 def _select_required_output_runs(schedule, opening_output_qty, required_output_qty, labour_minutes_per_kg):
-	"""Allocate only the remaining food target to auto runs while preserving fixed surplus."""
-	remaining_output = max(flt(required_output_qty) - flt(opening_output_qty), 0)
+	"""Preserve pinned runs and share the remaining target fairly across balanced runs."""
+	runs = [dict(supplied) for supplied in schedule or []]
+	pinned = [run for run in runs if run.get("output_mode") == "Fixed"]
+	balanced = [run for run in runs if run.get("output_mode") != "Fixed"]
+	pinned_output = sum(max(flt(run.get("planned_output_qty")), 0) for run in pinned)
+	remaining_output = max(flt(required_output_qty) - flt(opening_output_qty) - pinned_output, 0)
+	capacities = {id(run): _run_output_capacity(run, labour_minutes_per_kg) for run in balanced}
+	allocations = {id(run): 0.0 for run in balanced}
+	open_runs = [run for run in balanced if capacities[id(run)] > 0]
+
+	while remaining_output > 0.0005 and open_runs:
+		share = remaining_output / len(open_runs)
+		allocated_this_pass = 0.0
+		next_open = []
+		for run in open_runs:
+			available = max(capacities[id(run)] - allocations[id(run)], 0)
+			allocation = min(share, available)
+			allocations[id(run)] += allocation
+			allocated_this_pass += allocation
+			if available - allocation > 0.0005:
+				next_open.append(run)
+		remaining_output -= allocated_this_pass
+		if allocated_this_pass <= 0.0005:
+			break
+		open_runs = next_open
+
 	selected = []
-	for supplied in schedule or []:
-		run = dict(supplied)
-		configured_output = flt(run.get("planned_output_qty"))
-		capacity_output = 0
-		if flt(labour_minutes_per_kg) > 0:
-			team_hours = flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0)
-			capacity_output = team_hours * 60 / flt(labour_minutes_per_kg)
-		if run.get("output_mode") == "Fixed":
-			planned_output = configured_output
-		else:
-			if remaining_output <= 0:
-				continue
-			available_output = configured_output or capacity_output
-			planned_output = min(max(remaining_output, 0), available_output)
+	for run in runs:
+		planned_output = max(flt(run.get("planned_output_qty")), 0) if run.get("output_mode") == "Fixed" else allocations.get(id(run), 0)
 		if planned_output <= 0:
 			continue
 		run["planned_output_qty"] = round(planned_output, 3)
 		selected.append(run)
-		remaining_output -= planned_output
 	return selected
+
+
+def _run_output_capacity(run, labour_minutes_per_kg):
+	if flt(labour_minutes_per_kg) > 0:
+		team_hours = flt(run.get("scheduled_elapsed_hours")) * max(int(run.get("planned_people") or run.get("team_size") or 0), 0)
+		return team_hours * 60 / flt(labour_minutes_per_kg)
+	return max(flt(run.get("planned_output_qty")), 0)
 
 
 def _group_capacity_runs(capacity_runs):

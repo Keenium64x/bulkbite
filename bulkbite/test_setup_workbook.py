@@ -41,6 +41,72 @@ class TestControlledSpreadsheetWorkspace(IntegrationTestCase):
 			if file_path.exists():
 				file_path.unlink()
 
+	def test_recipe_workbook_applies_reviewed_instruction_steps(self):
+		suffix = frappe.generate_hash(length=8).upper()
+		finished_item = f"MEAL-{suffix}"
+		ingredient_item = f"ING-{suffix}"
+		file_doc, file_path = self._workbook_file(
+			["Recipe Name", "Finished Item Code", "Finished Item Name", "Recipe Output (Kg)", "Row Type", "Ingredient Item Code", "Ingredient Item Name", "Ingredient Quantity", "Ingredient Unit", "Instruction Step", "Instruction Name", "Instruction", "Instruction Ingredient Items", "Instruction Depends On Steps", "Instruction Minimum Workers", "Kitchen Planning Guidance"],
+			[
+				[f"Instruction recipe {suffix}", finished_item, f"Instruction meal {suffix}", 10, "Ingredient", ingredient_item, f"Instruction ingredient {suffix}", 2.5, "Kg", None, None, None, None, None, None, "Prepare ingredients before heating."],
+				[f"Instruction recipe {suffix}", finished_item, f"Instruction meal {suffix}", 10, "Instruction", None, None, None, None, 1, "Prepare", "Measure the ingredient.", ingredient_item, None, 1, "Prepare ingredients before heating."],
+				[f"Instruction recipe {suffix}", finished_item, f"Instruction meal {suffix}", 10, "Instruction", None, None, None, None, 2, "Cook", "Cook and verify the finished weight.", ingredient_item, "1", 2, "Prepare ingredients before heating."],
+			],
+		)
+		try:
+			stock_before = frappe.db.count("BulkBite Stock Event")
+			inspection = inspect_workspace_file("recipes", file_doc.file_url)
+			preview = preview_workspace_import("recipes", file_doc.file_url, inspection["suggested_mapping"])
+			self.assertEqual(preview["counts"]["error"], 0)
+			self.assertEqual(len(preview["recipes"][0]["instruction_steps"]), 2)
+			applied = apply_workspace_import(preview["name"])
+			recipe_name = applied["result"]["inserted"][0]
+			recipe = frappe.get_doc("BulkBite Recipe", recipe_name)
+			self.assertEqual([step.step_number for step in recipe.instruction_steps], [1, 2])
+			self.assertEqual(recipe.instruction_guidance, "Prepare ingredients before heating.")
+			self.assertEqual(frappe.db.count("BulkBite Stock Event"), stock_before)
+		finally:
+			if file_path.exists():
+				file_path.unlink()
+
+	def test_recipe_instruction_dependency_must_exist(self):
+		suffix = frappe.generate_hash(length=8).upper()
+		file_doc, file_path = self._workbook_file(
+			["Recipe Name", "Finished Item Code", "Finished Item Name", "Recipe Output (Kg)", "Row Type", "Ingredient Item Code", "Ingredient Item Name", "Ingredient Quantity", "Ingredient Unit", "Instruction Step", "Instruction Name", "Instruction", "Instruction Depends On Steps"],
+			[
+				[f"Dependency recipe {suffix}", f"MEAL-{suffix}", f"Dependency meal {suffix}", 10, "Ingredient", f"ING-{suffix}", f"Dependency ingredient {suffix}", 2, "Kg", None, None, None, None],
+				[f"Dependency recipe {suffix}", f"MEAL-{suffix}", f"Dependency meal {suffix}", 10, "Instruction", None, None, None, None, 1, "Cook", "Cook the meal.", "9"],
+			],
+		)
+		try:
+			inspection = inspect_workspace_file("recipes", file_doc.file_url)
+			preview = preview_workspace_import("recipes", file_doc.file_url, inspection["suggested_mapping"])
+			self.assertEqual(preview["counts"]["error"], 1)
+			self.assertIn("dependencies do not exist", " ".join(preview["recipes"][0]["instruction_steps"][0]["errors"]))
+		finally:
+			if file_path.exists():
+				file_path.unlink()
+
+	def test_legacy_recipe_update_preserves_existing_instructions(self):
+		recipe = frappe.get_doc("BulkBite Recipe", "BB-RECIPE-00004")
+		if not recipe.instruction_steps:
+			self.skipTest("The local demo recipe has no instruction steps.")
+		original_steps = [step.step_name for step in recipe.instruction_steps]
+		ingredient = recipe.ingredients[0]
+		file_doc, file_path = self._workbook_file(
+			["Recipe ID", "Recipe Name", "Finished Item Code", "Recipe Output (Kg)", "Ingredient Item Code", "Ingredient Quantity", "Ingredient Unit"],
+			[[recipe.name, recipe.recipe_name, recipe.finished_item, recipe.nominal_output_qty, ingredient.item_code, ingredient.qty, ingredient.uom]],
+		)
+		try:
+			inspection = inspect_workspace_file("recipes", file_doc.file_url)
+			preview = preview_workspace_import("recipes", file_doc.file_url, inspection["suggested_mapping"])
+			self.assertEqual(preview["counts"]["error"], 0)
+			apply_workspace_import(preview["name"])
+			self.assertEqual([step.step_name for step in frappe.get_doc("BulkBite Recipe", recipe.name).instruction_steps], original_steps)
+		finally:
+			if file_path.exists():
+				file_path.unlink()
+
 	def test_new_recipe_item_without_name_is_blocked_in_review(self):
 		file_doc, file_path = self._workbook_file(
 			["Recipe Name", "Finished Item Code", "Recipe Output (Kg)", "Ingredient Item Code", "Ingredient Quantity"],

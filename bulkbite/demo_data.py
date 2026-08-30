@@ -156,6 +156,15 @@ def ensure_demo_master_data():
 	):
 		_ensure_named_doc("BulkBite Location", values["location_name"], values)
 
+	for values in (
+		{"equipment_type_name": "Rice Pot", "capacity_qty": 25, "capacity_uom": "Kg", "quantity_available": 1, "concurrent_batch_limit": 1, "enabled": 1, "notes": f"{DEMO_MARKER}. Rice cooking vessel."},
+		{"equipment_type_name": "Curry Pot", "capacity_qty": 35, "capacity_uom": "Kg", "quantity_available": 1, "concurrent_batch_limit": 1, "enabled": 1, "notes": f"{DEMO_MARKER}. Main curry cooking vessel."},
+		{"equipment_type_name": "Prep Station", "capacity_qty": 20, "capacity_uom": "Kg", "quantity_available": 2, "concurrent_batch_limit": 1, "enabled": 1, "notes": f"{DEMO_MARKER}. Separate ingredient preparation surface."},
+	):
+		_ensure_named_doc("BulkBite Equipment Type", values["equipment_type_name"], values)
+
+	_ensure_demo_recipe_instructions()
+
 	item_updates = {
 		"BB-ING-POTATOES": ("Vegetables", "6001000000011"),
 		"BB-ING-ONIONS": ("Vegetables", "6001000000028"),
@@ -210,6 +219,25 @@ def ensure_demo_master_data():
 		"supplier_offers": offers,
 		"price_adjustments": adjustments,
 	}
+
+
+def _ensure_demo_recipe_instructions():
+	"""Keep one realistic recipe method available for testing scaled worker instructions."""
+	if not frappe.db.exists("BulkBite Recipe", "BB-RECIPE-00004"):
+		return
+	recipe = frappe.get_doc("BulkBite Recipe", "BB-RECIPE-00004")
+	recipe.instruction_guidance = "Run rice and ingredient preparation concurrently where the assigned team and clean equipment allow it. Review finished weight before portioning."
+	recipe.set("instruction_steps", [])
+	steps = [
+		(1, "Prepare rice", "Rinse the rice, measure the cooking water, and start the rice batch.", "BB-ING-PARBOILED-RICE", "Rice Pot", "", 1, 10, 0.25, 1, "Cook", "Rice is rinsed and water is measured against the scaled batch."),
+		(2, "Prepare vegetables and chicken", "Prepare potatoes and onions, then prepare the chicken separately using clean tools and surfaces.", "BB-ING-CHICKEN-BREAST, BB-ING-POTATOES, BB-ING-ONIONS", "Prep Station", "", 1, 15, 0.35, 1, "Prep", "Raw chicken remains separate from ready-to-eat surfaces and prepared vegetables."),
+		(3, "Start curry base", "Heat the oil, soften the onions, then add garlic and curry powder to form the curry base.", "BB-ING-SUNFLOWER-OIL, BB-ING-ONIONS, BB-ING-CRUSHED-GARLIC, BB-ING-CURRY-POWDER", "Curry Pot", "2", 0, 12, 0.15, 1, "Cook", "Onions are softened and the spice base is evenly mixed without scorching."),
+		(4, "Cook the curry", "Add chicken, potatoes, tomato and onion mix, stock, and scaled water. Cook until the batch reaches the recipe texture and the chicken is fully cooked according to the kitchen's verified food-safety procedure.", "BB-ING-CHICKEN-BREAST, BB-ING-POTATOES, BB-ING-TOMATO-ONION-MIX, BB-ING-STOCK-CUBES", "Curry Pot", "3", 0, 25, 0.4, 1, "Cook", "Use the kitchen's approved temperature and texture checks, then record any deviation."),
+		(5, "Finish and portion", "Combine the completed components as specified, confirm the total finished weight, and portion the batch into containers.", "BB-ING-PARBOILED-RICE", "Prep Station", "1, 4", 0, 10, 0.2, 2, "Portioning", "Finished weight and container count match what the team records for this run."),
+	]
+	for step in steps:
+		recipe.append("instruction_steps", dict(zip(("step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint"), step)))
+	recipe.save(ignore_permissions=True)
 
 
 def _ensure_supplier_offers():

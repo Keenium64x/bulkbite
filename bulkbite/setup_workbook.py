@@ -25,10 +25,24 @@ RECIPE_FIELDS = [
 	{"fieldname": "finished_item", "label": "Finished Item Code", "required": True, "aliases": ["finished item"]},
 	{"fieldname": "finished_item_name", "label": "Finished Item Name"},
 	{"fieldname": "nominal_output_qty", "label": "Recipe Output (Kg)", "required": True, "aliases": ["yield", "output"]},
-	{"fieldname": "ingredient_item", "label": "Ingredient Item Code", "required": True, "aliases": ["ingredient"]},
+	{"fieldname": "row_type", "label": "Row Type", "aliases": ["type"]},
+	{"fieldname": "ingredient_item", "label": "Ingredient Item Code", "aliases": ["ingredient"]},
 	{"fieldname": "ingredient_item_name", "label": "Ingredient Item Name"},
-	{"fieldname": "ingredient_qty", "label": "Ingredient Quantity", "required": True, "aliases": ["quantity", "qty"]},
+	{"fieldname": "ingredient_qty", "label": "Ingredient Quantity", "aliases": ["quantity", "qty"]},
 	{"fieldname": "ingredient_uom", "label": "Ingredient Unit", "aliases": ["unit", "uom"]},
+	{"fieldname": "instruction_step", "label": "Instruction Step", "aliases": ["step", "step number"]},
+	{"fieldname": "instruction_name", "label": "Instruction Name", "aliases": ["step name"]},
+	{"fieldname": "instruction", "label": "Instruction", "aliases": ["instruction text"]},
+	{"fieldname": "instruction_ingredient_items", "label": "Instruction Ingredient Items"},
+	{"fieldname": "instruction_equipment_type", "label": "Instruction Equipment Type"},
+	{"fieldname": "instruction_depends_on_steps", "label": "Instruction Depends On Steps"},
+	{"fieldname": "instruction_can_run_concurrently", "label": "Instruction Can Run Concurrently"},
+	{"fieldname": "instruction_duration_minutes", "label": "Instruction Base Duration (Minutes)"},
+	{"fieldname": "instruction_duration_per_kg_minutes", "label": "Instruction Minutes per Kg"},
+	{"fieldname": "instruction_minimum_workers", "label": "Instruction Minimum Workers"},
+	{"fieldname": "instruction_worker_role", "label": "Instruction Worker Role"},
+	{"fieldname": "instruction_quality_checkpoint", "label": "Instruction Quality Checkpoint"},
+	{"fieldname": "instruction_guidance", "label": "Kitchen Planning Guidance"},
 	{"fieldname": "notes", "label": "Notes"},
 ]
 
@@ -149,8 +163,14 @@ def _preview_recipes(rows, mapping):
 		row = _normalize_recipe_source_row(row)
 		key = _text(row.get("recipe_id")) or _text(row.get("recipe_name"))
 		key = f"row-{index}" if not key else key
-		group = groups.setdefault(key, {"recipe_id": _text(row.get("recipe_id")), "recipe_name": _text(row.get("recipe_name")), "version": cint(row.get("version") or 1), "recipe_status": _text(row.get("status")) or "Approved", "finished_item": _text(row.get("finished_item")), "finished_item_name": _text(row.get("finished_item_name")), "nominal_output_qty": flt(row.get("nominal_output_qty")), "notes": _text(row.get("notes")), "ingredients": [], "errors": []})
-		group["ingredients"].append({"row_number": index, "item_code": _text(row.get("ingredient_item")), "item_name": _text(row.get("ingredient_item_name")), "qty": flt(row.get("ingredient_qty")), "uom": _stock_uom(row.get("ingredient_uom")), "errors": []})
+		group = groups.setdefault(key, {"recipe_id": _text(row.get("recipe_id")), "recipe_name": _text(row.get("recipe_name")), "version": cint(row.get("version") or 1), "recipe_status": _text(row.get("status")) or "Approved", "finished_item": _text(row.get("finished_item")), "finished_item_name": _text(row.get("finished_item_name")), "nominal_output_qty": flt(row.get("nominal_output_qty")), "instruction_guidance": _text(row.get("instruction_guidance")), "notes": _text(row.get("notes")), "ingredients": [], "instruction_steps": [], "errors": []})
+		if not group.get("instruction_guidance"):
+			group["instruction_guidance"] = _text(row.get("instruction_guidance"))
+		row_type = _recipe_row_type(row)
+		if row_type == "Instruction":
+			group["instruction_steps"].append(_instruction_from_source(row, index))
+		else:
+			group["ingredients"].append({"row_number": index, "item_code": _text(row.get("ingredient_item")), "item_name": _text(row.get("ingredient_item_name")), "qty": flt(row.get("ingredient_qty")), "uom": _stock_uom(row.get("ingredient_uom")), "errors": []})
 	return _review_recipe_proposal({"target": "recipes", "mapping": mapping, "recipes": list(groups.values())})
 
 
@@ -164,6 +184,7 @@ def _review_recipe_proposal(proposal):
 		row["finished_item"] = _text(row.get("finished_item"))
 		row["finished_item_name"] = _text(row.get("finished_item_name"))
 		row["recipe_status"] = _text(row.get("recipe_status")) or "Approved"
+		row["instruction_guidance"] = _text(row.get("instruction_guidance"))
 		row["version"] = max(cint(row.get("version") or 1), 1)
 		row["nominal_output_qty"] = flt(row.get("nominal_output_qty"))
 		if not row["recipe_name"]: row["errors"].append("Recipe Name is required.")
@@ -193,7 +214,9 @@ def _review_recipe_proposal(proposal):
 			ingredients.append(item)
 		if not ingredients: row["errors"].append("Add at least one ingredient.")
 		row["ingredients"] = ingredients
-		row["status"] = "error" if row["errors"] or any(item["errors"] for item in ingredients) else ("update" if identity else "insert")
+		steps = _review_instruction_steps(row.get("instruction_steps") or [], seen_items)
+		row["instruction_steps"] = steps
+		row["status"] = "error" if row["errors"] or any(item["errors"] for item in ingredients) or any(step["errors"] for step in steps) else ("update" if identity else "insert")
 		recipes.append(row)
 	return {"target": "recipes", "mapping": proposal.get("mapping") or {}, "recipes": recipes}
 
@@ -207,11 +230,17 @@ def _apply_recipes(proposal):
 					frappe.throw(_("Name the new item {0} before applying.").format(item_code))
 				frappe.get_doc({"doctype": "BulkBite Item", "item_code": item_code, "item_name": item_name, "item_type": item_type, "stock_uom": stock_uom, "track_stock": 1, "purchasable": int(item_type == "Ingredient"), "enabled": 1}).insert()
 				result["items_created"].append(item_code)
-		values = {"recipe_name": row["recipe_name"], "version": row["version"], "status": row["recipe_status"] if row["recipe_status"] in {"Draft", "Approved", "Retired"} else "Approved", "finished_item": row["finished_item"], "nominal_output_qty": row["nominal_output_qty"], "output_uom": "Kg", "notes": row.get("notes")}
 		doc = frappe.get_doc("BulkBite Recipe", row["record_name"]) if row.get("record_name") else frappe.new_doc("BulkBite Recipe")
+		values = {"recipe_name": row["recipe_name"], "version": row["version"], "status": row["recipe_status"] if row["recipe_status"] in {"Draft", "Approved", "Retired"} else "Approved", "finished_item": row["finished_item"], "nominal_output_qty": row["nominal_output_qty"], "output_uom": "Kg", "instruction_guidance": row.get("instruction_guidance"), "notes": row.get("notes")}
+		if row.get("record_name") and not row["instruction_steps"] and not row.get("instruction_guidance"):
+			values["instruction_guidance"] = doc.instruction_guidance
 		doc.update(values)
 		doc.set("ingredients", [])
 		for ingredient in row["ingredients"]: doc.append("ingredients", {"item_code": ingredient["item_code"], "qty": ingredient["qty"]})
+		if row["instruction_steps"] or not row.get("record_name"):
+			doc.set("instruction_steps", [])
+			for step in row["instruction_steps"]:
+				doc.append("instruction_steps", {field: step.get(field) for field in ("step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint")})
 		doc.save() if doc.name else doc.insert()
 		result["updated" if row.get("record_name") else "inserted"].append(doc.name)
 	return result
@@ -219,11 +248,71 @@ def _apply_recipes(proposal):
 
 def _recipe_export_rows():
 	rows = []
-	for recipe in frappe.get_all("BulkBite Recipe", fields=["name", "recipe_name", "version", "status", "finished_item", "nominal_output_qty", "notes"], order_by="recipe_name, version"):
+	for recipe in frappe.get_all("BulkBite Recipe", fields=["name", "recipe_name", "version", "status", "finished_item", "nominal_output_qty", "instruction_guidance", "notes"], order_by="recipe_name, version"):
 		finished_name = frappe.db.get_value("BulkBite Item", recipe.finished_item, "item_name")
 		for ingredient in frappe.get_all("BulkBite Recipe Ingredient", filters={"parent": recipe.name}, fields=["item_code", "qty"], order_by="idx"):
-			rows.append({"recipe_id": recipe.name, "recipe_name": recipe.recipe_name, "version": recipe.version, "status": recipe.status, "finished_item": recipe.finished_item, "finished_item_name": finished_name, "nominal_output_qty": recipe.nominal_output_qty, "ingredient_item": ingredient.item_code, "ingredient_item_name": frappe.db.get_value("BulkBite Item", ingredient.item_code, "item_name"), "ingredient_qty": ingredient.qty, "ingredient_uom": frappe.db.get_value("BulkBite Item", ingredient.item_code, "stock_uom"), "notes": recipe.notes})
+			rows.append({"recipe_id": recipe.name, "recipe_name": recipe.recipe_name, "version": recipe.version, "status": recipe.status, "finished_item": recipe.finished_item, "finished_item_name": finished_name, "nominal_output_qty": recipe.nominal_output_qty, "row_type": "Ingredient", "ingredient_item": ingredient.item_code, "ingredient_item_name": frappe.db.get_value("BulkBite Item", ingredient.item_code, "item_name"), "ingredient_qty": ingredient.qty, "ingredient_uom": frappe.db.get_value("BulkBite Item", ingredient.item_code, "stock_uom"), "instruction_guidance": recipe.instruction_guidance, "notes": recipe.notes})
+		for step in frappe.get_all("BulkBite Recipe Instruction Step", filters={"parent": recipe.name}, fields=["step_number", "step_name", "instruction", "ingredient_items", "equipment_type", "depends_on_steps", "can_run_concurrently", "duration_minutes", "duration_per_kg_minutes", "minimum_workers", "worker_role", "quality_checkpoint"], order_by="idx"):
+			rows.append({"recipe_id": recipe.name, "recipe_name": recipe.recipe_name, "version": recipe.version, "status": recipe.status, "finished_item": recipe.finished_item, "finished_item_name": finished_name, "nominal_output_qty": recipe.nominal_output_qty, "row_type": "Instruction", "instruction_step": step.step_number, "instruction_name": step.step_name, "instruction": step.instruction, "instruction_ingredient_items": step.ingredient_items, "instruction_equipment_type": step.equipment_type, "instruction_depends_on_steps": step.depends_on_steps, "instruction_can_run_concurrently": step.can_run_concurrently, "instruction_duration_minutes": step.duration_minutes, "instruction_duration_per_kg_minutes": step.duration_per_kg_minutes, "instruction_minimum_workers": step.minimum_workers, "instruction_worker_role": step.worker_role, "instruction_quality_checkpoint": step.quality_checkpoint, "instruction_guidance": recipe.instruction_guidance, "notes": recipe.notes})
 	return rows
+
+
+def _recipe_row_type(row):
+	requested = _text(row.get("row_type")).lower()
+	if requested == "instruction" or any(row.get(field) not in (None, "") for field in ("instruction_step", "instruction_name", "instruction")):
+		return "Instruction"
+	return "Ingredient"
+
+
+def _instruction_from_source(row, row_number):
+	return {
+		"row_number": row_number,
+		"step_number": cint(row.get("instruction_step")),
+		"step_name": _text(row.get("instruction_name")),
+		"instruction": _text(row.get("instruction")),
+		"ingredient_items": _text(row.get("instruction_ingredient_items")),
+		"equipment_type": _text(row.get("instruction_equipment_type")),
+		"depends_on_steps": _text(row.get("instruction_depends_on_steps")),
+		"can_run_concurrently": cint(row.get("instruction_can_run_concurrently")),
+		"duration_minutes": flt(row.get("instruction_duration_minutes")),
+		"duration_per_kg_minutes": flt(row.get("instruction_duration_per_kg_minutes")),
+		"minimum_workers": cint(row.get("instruction_minimum_workers") if row.get("instruction_minimum_workers") not in (None, "") else 1),
+		"worker_role": _text(row.get("instruction_worker_role")),
+		"quality_checkpoint": _text(row.get("instruction_quality_checkpoint")),
+		"errors": [],
+	}
+
+
+def _review_instruction_steps(raw_steps, recipe_items):
+	steps = []
+	step_numbers = {cint(step.get("step_number")) for step in raw_steps if cint(step.get("step_number")) > 0}
+	seen_steps = set()
+	for raw in raw_steps:
+		step = _instruction_from_source({
+			"instruction_step": raw.get("step_number"), "instruction_name": raw.get("step_name"), "instruction": raw.get("instruction"),
+			"instruction_ingredient_items": raw.get("ingredient_items"), "instruction_equipment_type": raw.get("equipment_type"),
+			"instruction_depends_on_steps": raw.get("depends_on_steps"), "instruction_can_run_concurrently": raw.get("can_run_concurrently"),
+			"instruction_duration_minutes": raw.get("duration_minutes"), "instruction_duration_per_kg_minutes": raw.get("duration_per_kg_minutes"),
+			"instruction_minimum_workers": raw.get("minimum_workers"), "instruction_worker_role": raw.get("worker_role"),
+			"instruction_quality_checkpoint": raw.get("quality_checkpoint"),
+		}, raw.get("row_number"))
+		if step["step_number"] <= 0: step["errors"].append("Instruction Step must be a positive number.")
+		if step["step_number"] in seen_steps: step["errors"].append("Instruction Step numbers must be unique.")
+		seen_steps.add(step["step_number"])
+		if not step["step_name"]: step["errors"].append("Instruction Name is required.")
+		if not step["instruction"]: step["errors"].append("Instruction text is required.")
+		if step["minimum_workers"] < 1: step["errors"].append("Instruction Minimum Workers must be at least one.")
+		if step["duration_minutes"] < 0 or step["duration_per_kg_minutes"] < 0: step["errors"].append("Instruction durations cannot be negative.")
+		if step["equipment_type"] and not frappe.db.exists("BulkBite Equipment Type", step["equipment_type"]): step["errors"].append("Instruction Equipment Type must match an existing equipment type.")
+		items = {_text(value) for value in step["ingredient_items"].split(",") if _text(value)}
+		unknown_items = sorted(items - recipe_items)
+		if unknown_items: step["errors"].append(f'Instruction ingredient items are not in this recipe: {", ".join(unknown_items)}.')
+		dependencies = {cint(value) for value in re.split(r"[,; ]+", step["depends_on_steps"]) if _text(value)}
+		if step["step_number"] in dependencies: step["errors"].append("An instruction cannot depend on itself.")
+		missing = sorted(dependencies - step_numbers)
+		if missing: step["errors"].append(f'Instruction dependencies do not exist: {", ".join(str(value) for value in missing)}.')
+		steps.append(step)
+	return sorted(steps, key=lambda step: (step["step_number"], step.get("row_number") or 0))
 
 
 # endregion RECIPE IMPORT STATION

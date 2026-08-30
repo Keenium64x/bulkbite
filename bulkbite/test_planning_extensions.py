@@ -12,9 +12,27 @@ from bulkbite.bulkbite.doctype.bulkbite_finished_food_allocation.bulkbite_finish
 from bulkbite.planning import _delivery_threshold_recommendation, _next_planned_production_date, _supplier_minimum_position, _supplier_order_deadline, build_plan_snapshot
 from bulkbite.stock_ledger import append_stock_event, get_stock_balance
 from bulkbite.workforce import calculate_capacity_forecast
+from bulkbite.workforce import _select_required_output_runs
 
 
 class TestFinishedFoodBuyingCoverage(TestCase):
+	def test_balanced_runs_share_remaining_output_after_pinned_run(self):
+		runs = [
+			{"run_number": 1, "output_mode": "Fixed", "planned_output_qty": 20, "scheduled_elapsed_hours": 4, "planned_people": 1},
+			{"run_number": 2, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 4, "planned_people": 10},
+			{"run_number": 3, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 8, "planned_people": 10},
+		]
+		selected = _select_required_output_runs(runs, 0, 80, 60)
+		self.assertEqual([row["planned_output_qty"] for row in selected], [20.0, 30.0, 30.0])
+
+	def test_balanced_runs_redistribute_output_when_one_run_hits_capacity(self):
+		runs = [
+			{"run_number": 1, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 2, "planned_people": 1},
+			{"run_number": 2, "output_mode": "Auto", "planned_output_qty": 0, "scheduled_elapsed_hours": 8, "planned_people": 1},
+		]
+		selected = _select_required_output_runs(runs, 0, 8, 60)
+		self.assertEqual([row["planned_output_qty"] for row in selected], [2.0, 6.0])
+
 	def test_partial_production_keeps_the_same_meal_and_returns_the_remaining_target(self):
 		rows = [{"name": "ROW-1", "week_number": 1, "planned_output_qty": 20}, {"name": "ROW-2", "week_number": 2, "planned_output_qty": 10}]
 		runs = [SimpleNamespace(name="RUN-1", docstatus=1, direction_action="Advance Direction", cycle_number=1, plan_week_number=1, production_plan_row="ROW-1", production_date=date(2026, 8, 29), creation="2026-08-29 10:00:00", actual_output_qty=7)]
