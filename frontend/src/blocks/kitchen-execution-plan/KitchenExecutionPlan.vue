@@ -1,14 +1,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue"
-import { GraphChart } from "echarts/charts"
-import { TooltipComponent } from "echarts/components"
-import { use } from "echarts/core"
-import { CanvasRenderer } from "echarts/renderers"
+import dagre from "@dagrejs/dagre"
+import { Handle, MarkerType, Position } from "@vue-flow/core"
 import {
+  SystemAccordion,
+  SystemAccordionContent,
+  SystemAccordionItem,
+  SystemAccordionTrigger,
   SystemBadge,
   SystemCard,
-  SystemChart,
-  SystemCheckboxShadcn,
+  SystemFlow,
   SystemFormControl,
   SystemOperationalButton,
   SystemSelect,
@@ -18,8 +19,6 @@ import {
   getProductionInstructions,
   saveProductionEmployees,
 } from "@/resources/api"
-
-use([CanvasRenderer, GraphChart, TooltipComponent])
 
 // =============================================================================
 // region KITCHEN PLAN STATION
@@ -36,7 +35,6 @@ const teamTemplate = ref("")
 const kitchenWindowHours = ref(0)
 const actualElapsedHours = ref(0)
 const employeeRows = reactive([])
-const graphTheme = reactive({ surface: "transparent", criticalSurface: "transparent", text: "currentColor", border: "currentColor", critical: "currentColor" })
 
 const run = computed(() => workspace.value?.run || null)
 const employeeOptions = computed(() => workspace.value?.employees || [])
@@ -74,15 +72,7 @@ const capacityShortfallHours = computed(() => Math.max(
 const actualPace = computed(() => outputQty.value && actualElapsedHours.value ? Number(actualElapsedHours.value) * 60 / outputQty.value : 0)
 const paceStatus = computed(() => !actualPace.value || !slowestAllowedPace.value ? "Not measured" : actualPace.value <= slowestAllowedPace.value ? "Within takt" : "Slower than takt")
 
-onMounted(() => {
-  const styles = window.getComputedStyle(document.documentElement)
-  graphTheme.surface = styles.getPropertyValue("--theme-surface-raised").trim() || "transparent"
-  graphTheme.criticalSurface = styles.getPropertyValue("--theme-secondary").trim() || graphTheme.surface
-  graphTheme.text = styles.getPropertyValue("--theme-text").trim() || "currentColor"
-  graphTheme.border = styles.getPropertyValue("--theme-border").trim() || "currentColor"
-  graphTheme.critical = styles.getPropertyValue("--theme-primary").trim() || graphTheme.border
-  loadWorkspace()
-})
+onMounted(loadWorkspace)
 
 async function loadWorkspace() {
   busy.value = true
@@ -102,7 +92,10 @@ function hydrateRun(value) {
   teamTemplate.value = value?.team_template || ""
   kitchenWindowHours.value = Number(value?.scheduled_elapsed_hours || 0)
   actualElapsedHours.value = Number(value?.actual_elapsed_hours || 0)
-  employeeRows.splice(0, employeeRows.length, ...(value?.employees || []).map((row) => ({ ...row })))
+  employeeRows.splice(0, employeeRows.length, ...(value?.employees || []).map((row) => ({
+    ...row,
+    custom_hours: false,
+  })))
   if (!employeeRows.length && teamTemplate.value) applyTeamTemplate()
 }
 
@@ -187,55 +180,104 @@ async function saveKitchenPlan() {
 // endregion KITCHEN PLAN STATION
 
 // =============================================================================
-// region CPM DIAGRAM ADAPTER
+// region CPM FLOW ADAPTER
 // =============================================================================
 
-const graphOption = computed(() => {
+const FLOW_NODE_WIDTH = 236
+const FLOW_NODE_HEIGHT = 132
+const FLOW_JUNCTION_SIZE = 24
+
+const flowElements = computed(() => {
   const steps = instructions.value?.steps || []
-  const finish = Math.max(Number(instructions.value?.estimated_elapsed_minutes || 0), 1)
-  const lanes = Math.max(Number(instructions.value?.worker_lanes?.length || 1), 1)
-  const nodes = steps.map((step, index) => {
-    const lane = Number(step.assigned_workers?.[0] || (index % lanes) + 1)
+  const dependencyGroups = buildDependencyGroups(steps)
+  const graph = new dagre.graphlib.Graph()
+    .setDefaultEdgeLabel(() => ({}))
+    .setGraph({ rankdir: "LR", ranker: "network-simplex", nodesep: 54, edgesep: 24, ranksep: 104, marginx: 28, marginy: 28 })
+
+  steps.forEach((step) => graph.setNode(step.task_id, { width: FLOW_NODE_WIDTH, height: FLOW_NODE_HEIGHT }))
+  dependencyGroups.junctions.forEach((junction) => graph.setNode(junction.id, { width: FLOW_JUNCTION_SIZE, height: FLOW_JUNCTION_SIZE }))
+  dependencyGroups.edges.forEach((edge) => graph.setEdge(edge.source, edge.target))
+  dagre.layout(graph)
+
+  const stepById = new Map(steps.map((step) => [step.task_id, step]))
+  const taskNodes = steps.map((step) => {
+    const position = graph.node(step.task_id)
     return {
       id: step.task_id,
-      name: step.step_name,
-      x: 90 + Number(step.scheduled_start || 0) / finish * 1000,
-      y: 70 + (lane - 1) * 150 + (index % 2) * 18,
-      symbol: "roundRect",
-      symbolSize: [190, 94],
-      itemStyle: {
-        color: step.is_critical ? graphTheme.criticalSurface : graphTheme.surface,
-        borderColor: step.is_critical ? graphTheme.critical : graphTheme.border,
-        borderWidth: step.is_critical ? 2.5 : 1.5,
+      type: "cpm-task",
+      position: {
+        x: Number(position?.x || 0) - FLOW_NODE_WIDTH / 2,
+        y: Number(position?.y || 0) - FLOW_NODE_HEIGHT / 2,
       },
-      label: { formatter: `${step.step_number}. ${truncate(step.step_name, 24)}\n${time(step.scheduled_start)} to ${time(step.scheduled_end)}\n${startWindow(step)}` },
-      step,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+      draggable: false,
+      selectable: true,
+      data: { step },
     }
   })
-  const edges = steps.flatMap((step) => (step.depends_on_task_ids || []).map((source) => ({ source, target: step.task_id, lineStyle: { width: step.is_critical ? 2.5 : 1.4, color: step.is_critical ? graphTheme.critical : graphTheme.border } })))
-  return {
-    animation: false,
-    tooltip: { trigger: "item", confine: true, formatter: graphTooltip },
-    series: [{
-      type: "graph",
-      layout: "none",
-      roam: true,
+  const junctionNodes = dependencyGroups.junctions.map((junction) => {
+    const position = graph.node(junction.id)
+    return {
+      id: junction.id,
+      type: "cpm-junction",
+      position: {
+        x: Number(position?.x || 0) - FLOW_JUNCTION_SIZE / 2,
+        y: Number(position?.y || 0) - FLOW_JUNCTION_SIZE / 2,
+      },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
       draggable: false,
-      data: nodes,
-      edges,
-      edgeSymbol: ["none", "arrow"],
-      edgeSymbolSize: [0, 10],
-      lineStyle: { opacity: 0.9, curveness: 0.06 },
-      label: { show: true, color: graphTheme.text, fontSize: 11, lineHeight: 17, align: "center", verticalAlign: "middle" },
-      emphasis: { focus: "adjacency", scale: 1.04 },
-    }],
-  }
+      selectable: false,
+      data: { critical: junction.critical },
+    }
+  })
+  const edges = dependencyGroups.edges.map((edge) => {
+    const sourceCritical = stepById.get(edge.source)?.is_critical ?? dependencyGroups.junctionById.get(edge.source)?.critical
+    const targetCritical = stepById.get(edge.target)?.is_critical ?? dependencyGroups.junctionById.get(edge.target)?.critical
+    const critical = Boolean(sourceCritical && targetCritical)
+    return {
+      id: `${edge.source}-${edge.target}`,
+      source: edge.source,
+      target: edge.target,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+      class: critical ? "cpm-edge cpm-edge--critical" : "cpm-edge",
+      style: { strokeWidth: critical ? 2.5 : 1.5 },
+    }
+  })
+  return { nodes: [...taskNodes, ...junctionNodes], edges, taskNodeCount: taskNodes.length }
 })
 
-function graphTooltip(params) {
-  const step = params?.data?.step
-  if (!step) return "Dependency"
-  return `<strong>${escapeHtml(step.step_name)}</strong><br>${time(step.scheduled_start)} to ${time(step.scheduled_end)}<br>${escapeHtml(startWindow(step))}<br>${escapeHtml(workerNames(step))}${step.equipment_name ? `<br>${escapeHtml(step.equipment_name)}` : ""}`
+function buildDependencyGroups(steps) {
+  const groups = new Map()
+  steps.forEach((step) => {
+    const sources = [...(step.depends_on_task_ids || [])].sort()
+    if (!sources.length) return
+    const key = sources.join("|")
+    if (!groups.has(key)) groups.set(key, { sources, targets: [] })
+    groups.get(key).targets.push(step.task_id)
+  })
+
+  const edges = []
+  const junctions = []
+  groups.forEach((group, key) => {
+    if (group.sources.length > 1 && group.targets.length > 1) {
+      const id = `junction-${junctions.length + 1}`
+      const connectedSteps = steps.filter((step) => group.sources.includes(step.task_id) || group.targets.includes(step.task_id))
+      const junction = { id, critical: connectedSteps.length > 0 && connectedSteps.every((step) => step.is_critical) }
+      junctions.push(junction)
+      group.sources.forEach((source) => edges.push({ source, target: id }))
+      group.targets.forEach((target) => edges.push({ source: id, target }))
+      return
+    }
+    group.targets.forEach((target) => group.sources.forEach((source) => edges.push({ source, target })))
+  })
+  return { edges, junctions, junctionById: new Map(junctions.map((junction) => [junction.id, junction])) }
+}
+
+function fitFlow(instance) {
+  window.requestAnimationFrame(() => instance.fitView({ padding: 0.12, minZoom: 0.35, maxZoom: 1 }))
 }
 
 function startWindow(step) {
@@ -269,16 +311,7 @@ function quantity(value) {
   return (Math.round(Number(value || 0) * 1000) / 1000).toLocaleString("en-ZA", { maximumFractionDigits: 3 })
 }
 
-function truncate(value, length) {
-  const text = String(value || "")
-  return text.length > length ? `${text.slice(0, length - 1)}…` : text
-}
-
-function escapeHtml(value) {
-  return String(value || "").replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character])
-}
-
-// endregion CPM DIAGRAM ADAPTER
+// endregion CPM FLOW ADAPTER
 </script>
 
 <template>
@@ -323,94 +356,812 @@ function escapeHtml(value) {
         </div>
       </SystemCard>
 
-      <section class="plan-section team-section">
-        <div class="section-heading">
-          <div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team, adjust each person’s availability, and set the total kitchen window.</p></div>
-          <div class="button-row"><SystemOperationalButton variant="ghost" @click="emit('open-employees')">Manage employees</SystemOperationalButton><SystemOperationalButton v-if="!run.docstatus" variant="outline" @click="addEmployee">Add employee</SystemOperationalButton></div>
-        </div>
-        <div class="team-controls">
-          <SystemSelect v-model="teamTemplate" label="Team template" :options="teamTemplateOptions" placeholder="Choose a saved team" :disabled="Boolean(run.docstatus)" />
-          <SystemOperationalButton variant="outline" :disabled="Boolean(run.docstatus) || !teamTemplate" @click="applyTeamTemplate">Apply template</SystemOperationalButton>
-          <SystemFormControl v-model="kitchenWindowHours" label="Kitchen time available (hours)" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
-        </div>
-        <div class="employee-list">
-          <article v-for="(row, index) in employeeRows" :key="`${index}-${row.employee}`">
-            <SystemSelect :model-value="row.employee" label="Employee" :options="employeeOptions" :disabled="Boolean(run.docstatus)" @update:model-value="changeEmployee(row, $event)" />
-            <SystemSelect v-model="row.completion_status" label="Work status" :options="attendanceOptions" :disabled="Boolean(run.docstatus)" />
-            <SystemFormControl v-model="row.available_hours" label="Hours available" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
-            <SystemCheckboxShadcn v-model="row.custom_hours" label="Custom actual hours" :disabled="Boolean(run.docstatus)" />
-            <SystemFormControl v-if="row.custom_hours" v-model="row.hours_worked" label="Hours worked" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
-            <SystemFormControl v-model="row.notes" label="Notes" :disabled="Boolean(run.docstatus)" />
-            <SystemOperationalButton v-if="!run.docstatus" variant="ghost" @click="removeEmployee(index)">Remove</SystemOperationalButton>
-          </article>
-        </div>
-      </section>
-
-      <section class="plan-section cpm-section">
-        <div class="section-heading">
-          <div><p class="eyebrow">Critical path</p><h2>Cooking dependency diagram</h2><p>Follow the arrows. Orange nodes have no safe delay. Drag or zoom the diagram to inspect a larger plan.</p></div>
-          <SystemBadge>{{ quantity(instructions.critical_path_minutes) }} min CPM path</SystemBadge>
-        </div>
-        <div class="cpm-canvas" role="img" :aria-label="`Cooking plan dependency graph with ${instructions.steps.length} tasks and ${instructions.critical_path_minutes} critical-path minutes`">
-          <SystemChart autoresize :option="graphOption" />
-        </div>
-        <div class="cpm-legend" aria-hidden="true"><span><i class="is-critical"></i>Critical, start on time</span><span><i></i>Buffered task</span><span>Scroll to zoom · drag to pan</span></div>
-        <ol class="accessible-task-list">
-          <li v-for="step in instructions.steps" :key="step.task_id">
-            <strong>{{ step.step_number }}. {{ step.step_name }}</strong>
-            <span>{{ startWindow(step) }}. Scheduled {{ time(step.scheduled_start) }} to {{ time(step.scheduled_end) }}. {{ workerNames(step) }}<template v-if="step.equipment_name"> using {{ step.equipment_name }}</template>.</span>
-          </li>
-        </ol>
-      </section>
-
-      <section class="plan-section">
-        <div class="section-heading"><div><p class="eyebrow">Ingredients</p><h2>Weigh before cooking</h2><p>These are raw recipe quantities. Equipment batching is calculated separately from configured capacity.</p></div><SystemBadge>{{ instructions.ingredients.length }} ITEMS</SystemBadge></div>
-        <div class="ingredient-list">
-          <article v-for="item in instructions.ingredients" :key="item.item_code"><div><strong>{{ item.item_name }}</strong><small>Weigh before cooking</small></div><span><b>{{ quantity(item.quantity) }} {{ item.uom }}</b><template v-if="item.piece_count_estimate"> · about {{ item.piece_count_estimate }} {{ item.piece_count_label }}</template></span></article>
-        </div>
-      </section>
-
-      <section class="plan-section">
-        <div class="section-heading"><div><p class="eyebrow">Worker lanes</p><h2>Who does what, and when</h2><p>Assist handoffs fill safe idle gaps without shortening the official task estimate.</p></div><SystemBadge>{{ instructions.worker_lanes.length }} LANES</SystemBadge></div>
-        <div class="worker-lanes">
-          <article v-for="lane in instructions.worker_lanes" :key="lane.lane">
-            <header><div><span>Worker {{ lane.lane }}</span><strong>{{ workerName(lane.lane) }}</strong><small>Scheduled until {{ time(lane.available_at) }} · available until {{ time(workerCapacity(lane.lane).availableMinutes) }}</small></div><SystemBadge v-if="workerCapacity(lane.lane).shortfallMinutes > 0" theme="red">{{ quantity(workerCapacity(lane.lane).shortfallMinutes) }} min late</SystemBadge></header>
-            <ol><li v-for="step in lane.steps" :key="`${lane.lane}-${step.kind || 'primary'}-${step.task_id}-${step.start_minute}`" :class="{ 'is-assist': step.kind === 'assist' }"><span>{{ time(step.start_minute) }} to {{ time(step.end_minute) }}</span><strong>{{ step.kind === "assist" ? assistInstruction(step) : `${step.step_number}. ${step.step_name}` }}</strong><small>{{ quantity(step.duration_minutes) }} min<template v-if="step.equipment_type"> · {{ step.equipment_type }}</template></small><SystemBadge v-if="step.kind === 'assist'" theme="green">Assist</SystemBadge><SystemBadge v-else-if="step.is_critical" theme="red">Critical</SystemBadge></li></ol>
-          </article>
-        </div>
-      </section>
-
-      <section class="plan-section method-section">
-        <div class="section-heading"><div><p class="eyebrow">Method</p><h2>Step-by-step cooking instructions</h2><p>Open a task for the detailed method, checks, equipment, batch load, and safe start window.</p></div><SystemBadge>{{ instructions.steps.length }} TASKS</SystemBadge></div>
-        <div class="method-list">
-          <details v-for="step in instructions.steps" :key="step.task_id">
-            <summary><span>{{ step.step_number }}</span><div><strong>{{ step.step_name }}</strong><small>{{ time(step.scheduled_start) }} to {{ time(step.scheduled_end) }} · {{ workerNames(step) }}<template v-if="step.equipment_name"> · {{ step.equipment_name }}</template></small></div><SystemBadge v-if="step.is_critical" theme="red">Critical</SystemBadge><b>Open method</b></summary>
-            <div class="method-body">
-              <p>{{ step.objective || step.instruction }}</p>
-              <ol><li v-for="substep in step.substeps" :key="substep.order"><span>{{ substep.order }}</span><div><p>{{ substep.instruction }}</p><small v-if="substep.check">Check: {{ substep.check }}</small></div></li></ol>
-              <div class="method-facts">
-                <span>{{ startWindow(step) }}</span><span>{{ quantity(step.estimated_minutes) }} min estimated</span><span v-if="step.equipment_name">{{ step.equipment_name }}</span><span v-if="step.batch_count > 1">Batch {{ step.batch_index }} of {{ step.batch_count }} · {{ quantity(step.batch_load_qty) }} {{ step.batch_capacity_uom }} load</span><span>{{ step.requires_active_worker === false ? "Equipment runs unattended" : `${step.minimum_workers} active ${step.minimum_workers === 1 ? "worker" : "workers"}` }}</span>
-              </div>
-              <p v-if="step.quality_checkpoint" class="quality-check"><strong>Check:</strong> {{ step.quality_checkpoint }}</p>
+      <SystemAccordion type="multiple" :default-value="['team', 'critical-path', 'ingredients', 'worker-lanes', 'method']" class="plan-sections">
+        <SystemAccordionItem value="team" class="plan-section team-section">
+          <SystemAccordionTrigger class="section-trigger">
+            <div class="section-heading"><div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team, adjust each person’s availability, and set the total kitchen window.</p></div><SystemBadge>{{ activeTeam.length }} PEOPLE</SystemBadge></div>
+          </SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content">
+            <div class="section-actions"><div class="button-row"><SystemOperationalButton variant="ghost" @click="emit('open-employees')">Manage employees</SystemOperationalButton><SystemOperationalButton v-if="!run.docstatus" variant="outline" @click="addEmployee">Add employee</SystemOperationalButton></div></div>
+            <div class="team-controls">
+              <SystemSelect v-model="teamTemplate" label="Team template" :options="teamTemplateOptions" placeholder="Choose a saved team" :disabled="Boolean(run.docstatus)" />
+              <SystemOperationalButton variant="outline" :disabled="Boolean(run.docstatus) || !teamTemplate" @click="applyTeamTemplate">Apply template</SystemOperationalButton>
+              <SystemFormControl v-model="kitchenWindowHours" label="Kitchen time available (hours)" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
             </div>
-          </details>
-        </div>
-      </section>
+            <div class="employee-list">
+              <article v-for="(row, index) in employeeRows" :key="`${index}-${row.employee}`">
+                <SystemSelect :model-value="row.employee" label="Employee" :options="employeeOptions" :disabled="Boolean(run.docstatus)" @update:model-value="changeEmployee(row, $event)" />
+                <SystemSelect v-model="row.completion_status" label="Work status" :options="attendanceOptions" :disabled="Boolean(run.docstatus)" />
+                <SystemFormControl v-model="row.available_hours" label="Hours available" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
+                <SystemFormControl v-model="row.notes" label="Notes" :disabled="Boolean(run.docstatus)" />
+                <SystemOperationalButton v-if="!run.docstatus" variant="ghost" @click="removeEmployee(index)">Remove</SystemOperationalButton>
+              </article>
+            </div>
+          </SystemAccordionContent>
+        </SystemAccordionItem>
 
-      <section class="plan-section equipment-section">
-        <div class="section-heading"><div><p class="eyebrow">Equipment</p><h2>Configured cooking capacity</h2><p>Batch nodes above use the capacity, quantity, and simultaneous-batch limit recorded for each equipment type.</p></div></div>
-        <div class="equipment-grid"><article v-for="item in instructions.equipment" :key="item.name"><strong>{{ item.equipment_type_name }}</strong><span>{{ quantity(item.capacity_qty) }} {{ item.capacity_uom }} per batch</span><small>{{ item.quantity_available }} available · {{ item.concurrent_batch_limit }} simultaneous {{ Number(item.concurrent_batch_limit) === 1 ? "batch" : "batches" }} each</small><b>{{ quantity(item.total_concurrent_capacity) }} {{ item.capacity_uom }} at once</b></article></div>
-      </section>
+        <SystemAccordionItem value="critical-path" class="plan-section cpm-section">
+          <SystemAccordionTrigger class="section-trigger">
+            <div class="section-heading"><div><p class="eyebrow">Critical path</p><h2>Cooking dependency diagram</h2><p>Tasks flow from left to right. Orange tasks have no safe delay.</p></div><SystemBadge>{{ quantity(instructions.critical_path_minutes) }} min CPM</SystemBadge></div>
+          </SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content">
+            <div class="cpm-canvas" :aria-label="`Cooking plan dependency graph with ${instructions.steps.length} tasks and ${instructions.critical_path_minutes} critical-path minutes`">
+              <SystemFlow
+                :nodes="flowElements.nodes"
+                :edges="flowElements.edges"
+                :nodes-draggable="false"
+                :nodes-connectable="false"
+                :edges-updatable="false"
+                :elements-selectable="true"
+                :fit-view-on-init="true"
+                :min-zoom="0.25"
+                :max-zoom="1.5"
+                :default-edge-options="{ type: 'smoothstep' }"
+                @init="fitFlow"
+              >
+                <template #node-cpm-task="{ data }">
+                  <article class="cpm-node" :class="{ 'is-critical': data.step.is_critical }">
+                    <Handle type="target" :position="Position.Left" :connectable="false" />
+                    <div class="cpm-node__top"><span>Step {{ data.step.step_number }}</span><SystemBadge v-if="data.step.is_critical" theme="red">Critical</SystemBadge></div>
+                    <strong>{{ data.step.step_name }}</strong>
+                    <small>{{ time(data.step.scheduled_start) }} to {{ time(data.step.scheduled_end) }}</small>
+                    <small>{{ workerNames(data.step) }}</small>
+                    <small v-if="data.step.equipment_name">{{ data.step.equipment_name }}</small>
+                    <b>{{ startWindow(data.step) }}</b>
+                    <Handle type="source" :position="Position.Right" :connectable="false" />
+                  </article>
+                </template>
+                <template #node-cpm-junction="{ data }">
+                  <span class="cpm-junction" :class="{ 'is-critical': data.critical }" aria-hidden="true">
+                    <Handle type="target" :position="Position.Left" :connectable="false" />
+                    <i></i>
+                    <Handle type="source" :position="Position.Right" :connectable="false" />
+                  </span>
+                </template>
+              </SystemFlow>
+            </div>
+            <div class="cpm-legend" aria-hidden="true"><span><i class="is-critical"></i>Critical, start on time</span><span><i></i>Buffered task</span><span>Scroll to zoom · drag the background to pan</span></div>
+            <ol class="accessible-task-list">
+              <li v-for="step in instructions.steps" :key="step.task_id"><strong>{{ step.step_number }}. {{ step.step_name }}</strong><span>{{ startWindow(step) }}. Scheduled {{ time(step.scheduled_start) }} to {{ time(step.scheduled_end) }}. {{ workerNames(step) }}<template v-if="step.equipment_name"> using {{ step.equipment_name }}</template>.</span></li>
+            </ol>
+          </SystemAccordionContent>
+        </SystemAccordionItem>
 
-      <section class="plan-section actual-time-section">
-        <div><p class="eyebrow">Actual timing</p><h2>How long did the complete cook take?</h2><p>This evidence is stored on the production run and may inform future AI duration proposals. It does not silently replace the approved method.</p></div>
-        <SystemFormControl v-model="actualElapsedHours" label="Actual elapsed time (hours)" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
-        <div class="actual-time-result" :class="paceStatus === 'Slower than takt' ? 'is-under' : 'is-ready'"><strong>{{ paceStatus }}</strong><span>{{ quantity(actualPace) }} min/kg actual · {{ quantity(slowestAllowedPace) }} min/kg slowest allowable</span></div>
-      </section>
+        <SystemAccordionItem value="ingredients" class="plan-section">
+          <SystemAccordionTrigger class="section-trigger"><div class="section-heading"><div><p class="eyebrow">Ingredients</p><h2>Weigh before cooking</h2><p>These are raw recipe quantities. Equipment batching uses configured capacity.</p></div><SystemBadge>{{ instructions.ingredients.length }} ITEMS</SystemBadge></div></SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content"><div class="ingredient-list"><article v-for="item in instructions.ingredients" :key="item.item_code"><div><strong>{{ item.item_name }}</strong><small>Weigh before cooking</small></div><span><b>{{ quantity(item.quantity) }} {{ item.uom }}</b><template v-if="item.piece_count_estimate"> · about {{ item.piece_count_estimate }} {{ item.piece_count_label }}</template></span></article></div></SystemAccordionContent>
+        </SystemAccordionItem>
+
+        <SystemAccordionItem value="worker-lanes" class="plan-section">
+          <SystemAccordionTrigger class="section-trigger"><div class="section-heading"><div><p class="eyebrow">Worker lanes</p><h2>Who does what, and when</h2><p>Assist handoffs fill safe idle gaps without shortening the official task estimate.</p></div><SystemBadge>{{ instructions.worker_lanes.length }} LANES</SystemBadge></div></SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content"><div class="worker-lanes"><article v-for="lane in instructions.worker_lanes" :key="lane.lane"><header><div><span>Worker {{ lane.lane }}</span><strong>{{ workerName(lane.lane) }}</strong><small>Scheduled until {{ time(lane.available_at) }} · available until {{ time(workerCapacity(lane.lane).availableMinutes) }}</small></div><SystemBadge v-if="workerCapacity(lane.lane).shortfallMinutes > 0" theme="red">{{ quantity(workerCapacity(lane.lane).shortfallMinutes) }} min late</SystemBadge></header><ol><li v-for="step in lane.steps" :key="`${lane.lane}-${step.kind || 'primary'}-${step.task_id}-${step.start_minute}`" :class="{ 'is-assist': step.kind === 'assist' }"><span>{{ time(step.start_minute) }} to {{ time(step.end_minute) }}</span><strong>{{ step.kind === "assist" ? assistInstruction(step) : `${step.step_number}. ${step.step_name}` }}</strong><small>{{ quantity(step.duration_minutes) }} min<template v-if="step.equipment_type"> · {{ step.equipment_type }}</template></small><SystemBadge v-if="step.kind === 'assist'" theme="green">Assist</SystemBadge><SystemBadge v-else-if="step.is_critical" theme="red">Critical</SystemBadge></li></ol></article></div></SystemAccordionContent>
+        </SystemAccordionItem>
+
+        <SystemAccordionItem value="method" class="plan-section method-section">
+          <SystemAccordionTrigger class="section-trigger"><div class="section-heading"><div><p class="eyebrow">Method</p><h2>Step-by-step cooking instructions</h2><p>Open this section, then open any task for its detailed method and checks.</p></div><SystemBadge>{{ instructions.steps.length }} TASKS</SystemBadge></div></SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content"><div class="method-list"><details v-for="step in instructions.steps" :key="step.task_id"><summary><span>{{ step.step_number }}</span><div><strong>{{ step.step_name }}</strong><small>{{ time(step.scheduled_start) }} to {{ time(step.scheduled_end) }} · {{ workerNames(step) }}<template v-if="step.equipment_name"> · {{ step.equipment_name }}</template></small></div><SystemBadge v-if="step.is_critical" theme="red">Critical</SystemBadge><b>Open method</b></summary><div class="method-body"><p>{{ step.objective || step.instruction }}</p><ol><li v-for="substep in step.substeps" :key="substep.order"><span>{{ substep.order }}</span><div><p>{{ substep.instruction }}</p><small v-if="substep.check">Check: {{ substep.check }}</small></div></li></ol><div class="method-facts"><span>{{ startWindow(step) }}</span><span>{{ quantity(step.estimated_minutes) }} min estimated</span><span v-if="step.equipment_name">{{ step.equipment_name }}</span><span v-if="step.batch_count > 1">Batch {{ step.batch_index }} of {{ step.batch_count }} · {{ quantity(step.batch_load_qty) }} {{ step.batch_capacity_uom }} load</span><span>{{ step.requires_active_worker === false ? "Equipment runs unattended" : `${step.minimum_workers} active ${step.minimum_workers === 1 ? "worker" : "workers"}` }}</span></div><p v-if="step.quality_checkpoint" class="quality-check"><strong>Check:</strong> {{ step.quality_checkpoint }}</p></div></details></div></SystemAccordionContent>
+        </SystemAccordionItem>
+
+        <SystemAccordionItem value="equipment" class="plan-section equipment-section">
+          <SystemAccordionTrigger class="section-trigger"><div class="section-heading"><div><p class="eyebrow">Equipment</p><h2>Configured cooking capacity</h2><p>Batch nodes use the recorded capacity, quantity, and simultaneous-batch limit.</p></div><SystemBadge>{{ instructions.equipment.length }} TYPES</SystemBadge></div></SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content"><div class="equipment-grid"><article v-for="item in instructions.equipment" :key="item.name"><strong>{{ item.equipment_type_name }}</strong><span>{{ quantity(item.capacity_qty) }} {{ item.capacity_uom }} per batch</span><small>{{ item.quantity_available }} available · {{ item.concurrent_batch_limit }} simultaneous {{ Number(item.concurrent_batch_limit) === 1 ? "batch" : "batches" }} each</small><b>{{ quantity(item.total_concurrent_capacity) }} {{ item.capacity_uom }} at once</b></article></div></SystemAccordionContent>
+        </SystemAccordionItem>
+
+        <SystemAccordionItem value="actual-timing" class="plan-section actual-time-section">
+          <SystemAccordionTrigger class="section-trigger"><div class="section-heading"><div><p class="eyebrow">Actual timing</p><h2>Record the completed cooking time</h2><p>Open this after the food has been made and record the elapsed time for the complete cook.</p></div><SystemBadge>{{ paceStatus }}</SystemBadge></div></SystemAccordionTrigger>
+          <SystemAccordionContent class="section-content">
+            <div class="actual-time-fields">
+              <div><p>This evidence is stored on the production run and may inform future duration proposals. It does not replace the approved method automatically.</p></div>
+              <SystemFormControl v-model="actualElapsedHours" label="Actual elapsed time (hours)" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
+              <div class="actual-time-result" :class="paceStatus === 'Slower than takt' ? 'is-under' : 'is-ready'"><strong>{{ paceStatus }}</strong><span>{{ quantity(actualPace) }} min/kg actual · {{ quantity(slowestAllowedPace) }} min/kg slowest allowable</span></div>
+            </div>
+          </SystemAccordionContent>
+        </SystemAccordionItem>
+      </SystemAccordion>
     </template>
   </section>
 </template>
 
 <style scoped>
-.kitchen-plan{display:grid;gap:var(--spacing-m);width:100%;min-width:0;padding:var(--spacing-l) 0}.kitchen-plan__header,.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-m)}.kitchen-plan__header h1,.section-heading h2,.capacity-card h2{margin:0;color:var(--theme-text)}.kitchen-plan__header p,.section-heading p,.capacity-card p{margin:var(--spacing-3xs) 0 0;color:var(--theme-text-muted)}.eyebrow{margin:0!important;color:var(--theme-primary)!important;font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.button-row{display:flex;flex-wrap:wrap;gap:var(--spacing-xs)}.state-message,.plan-section{padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.state-message--error{border-color:var(--theme-danger);color:var(--theme-danger)}.state-message--success{border-color:var(--theme-success);color:var(--theme-success)}.capacity-card{display:grid;grid-template-columns:minmax(16rem,.7fr) minmax(0,1.3fr);gap:var(--spacing-m);padding:var(--spacing-m);border:2px solid var(--theme-border);background:var(--theme-surface-raised)}.capacity-card.is-under{border-color:color-mix(in oklch,var(--theme-danger) 55%,var(--theme-border));background:color-mix(in oklch,var(--theme-danger) 7%,var(--theme-surface-raised))}.capacity-card.is-ready{border-color:color-mix(in oklch,var(--theme-success) 50%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 6%,var(--theme-surface-raised))}.capacity-card__decision{display:grid;align-content:start;gap:var(--spacing-xs)}.capacity-card__evidence{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--spacing-xs)}.capacity-card__evidence div{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-xs);border:var(--border-width-1) solid color-mix(in oklch,var(--theme-border) 75%,transparent);border-radius:var(--component-radius-control);background:color-mix(in oklch,var(--theme-surface-raised) 75%,transparent)}.capacity-card__evidence strong{font-size:1.15rem;font-variant-numeric:tabular-nums}.capacity-card__evidence span,.employee-list small,.worker-lanes small,.equipment-grid small{color:var(--theme-text-muted);font-size:.78rem}.plan-section{display:grid;gap:var(--spacing-s)}.team-controls{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(12rem,.5fr);align-items:end;gap:var(--spacing-xs)}.employee-list{display:grid;gap:var(--spacing-xs)}.employee-list article{display:grid;grid-template-columns:1.2fr .8fr .65fr .8fr .8fr 1fr auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-control);background:var(--theme-surface)}.cpm-canvas{width:100%;height:clamp(30rem,68vh,52rem);min-width:0;overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.cpm-canvas :deep(.system-chart){width:100%;height:100%;min-height:30rem}.cpm-legend{display:flex;flex-wrap:wrap;gap:var(--spacing-s);color:var(--theme-text-muted);font-size:.8rem}.cpm-legend span{display:inline-flex;align-items:center;gap:var(--spacing-3xs)}.cpm-legend i{width:1rem;height:1rem;border:1px solid var(--theme-border);border-radius:.3rem;background:var(--theme-surface-raised)}.cpm-legend i.is-critical{border:2px solid var(--theme-primary);background:color-mix(in oklch,var(--theme-primary) 10%,var(--theme-surface-raised))}.accessible-task-list{position:fixed!important;inset:0 auto auto 0!important;width:1px!important;height:1px!important;margin:0!important;padding:0!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important}.ingredient-list{display:grid}.ingredient-list article{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-xs) 0;border-bottom:var(--border-width-1) solid var(--theme-border)}.ingredient-list article:last-child{border-bottom:0}.ingredient-list article>div{display:grid;gap:var(--spacing-3xs)}.ingredient-list small,.ingredient-list article>span{color:var(--theme-text-muted)}.ingredient-list b{color:var(--theme-text);font-variant-numeric:tabular-nums}.worker-lanes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-xs)}.worker-lanes>article{overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface)}.worker-lanes header{display:flex;justify-content:space-between;gap:var(--spacing-xs);padding:var(--spacing-xs);border-bottom:var(--border-width-1) solid var(--theme-border);background:var(--theme-surface-raised)}.worker-lanes header div{display:grid;gap:var(--spacing-3xs)}.worker-lanes ol{display:grid;gap:var(--spacing-2xs);margin:0;padding:var(--spacing-xs);list-style:none}.worker-lanes li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--spacing-3xs) var(--spacing-xs);padding:var(--spacing-xs);border-left:3px solid var(--theme-border);border-radius:0 var(--component-radius-control) var(--component-radius-control) 0;background:var(--theme-surface-raised)}.worker-lanes li.is-assist{border-left-color:var(--theme-success);background:color-mix(in oklch,var(--theme-success) 6%,var(--theme-surface-raised))}.worker-lanes li>span,.worker-lanes li>small{grid-column:1/-1}.method-list{display:grid;gap:var(--spacing-xs)}.method-list details{overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-control);background:var(--theme-surface)}.method-list summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:var(--spacing-xs);padding:var(--spacing-xs);cursor:pointer;list-style:none}.method-list summary>span:first-child{display:grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:var(--theme-secondary);font-weight:800}.method-list summary div{display:grid;gap:var(--spacing-3xs)}.method-list summary small,.method-list summary>b{color:var(--theme-text-muted);font-size:.78rem}.method-body{display:grid;gap:var(--spacing-s);padding:var(--spacing-s);border-top:var(--border-width-1) solid var(--theme-border);background:var(--theme-surface-raised)}.method-body>ol{display:grid;gap:var(--spacing-xs);margin:0;padding:0;list-style:none}.method-body>ol>li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--spacing-xs)}.method-body>ol>li>span{display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:50%;background:var(--theme-secondary);font-weight:800}.method-body p{margin:0}.method-facts{display:flex;flex-wrap:wrap;gap:var(--spacing-2xs)}.method-facts span{padding:.35rem .55rem;border-radius:999px;background:var(--theme-secondary);color:var(--theme-text-muted);font-size:.78rem}.quality-check{padding:var(--spacing-xs);border-left:3px solid var(--theme-success);background:color-mix(in oklch,var(--theme-success) 6%,var(--theme-surface-raised))}.equipment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--spacing-xs)}.equipment-grid article{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-control);background:var(--theme-surface)}.actual-time-section{grid-template-columns:minmax(0,1fr) minmax(14rem,.45fr);align-items:end}.actual-time-result{grid-column:1/-1;display:flex;justify-content:space-between;gap:var(--spacing-xs);padding:var(--spacing-xs);border-left:3px solid var(--theme-success);background:color-mix(in oklch,var(--theme-success) 6%,var(--theme-surface-raised))}.actual-time-result.is-under{border-left-color:var(--theme-danger);background:color-mix(in oklch,var(--theme-danger) 7%,var(--theme-surface-raised))}@media(max-width:75rem){.capacity-card{grid-template-columns:1fr}.capacity-card__evidence{grid-template-columns:repeat(2,minmax(0,1fr))}.employee-list article{grid-template-columns:repeat(3,minmax(0,1fr))}.worker-lanes{grid-template-columns:1fr}}@media(max-width:48rem){.kitchen-plan{padding:var(--spacing-s) 0}.kitchen-plan__header,.section-heading{display:grid}.button-row{width:100%}.button-row :deep(button){flex:1 1 auto}.capacity-card__evidence{grid-template-columns:1fr 1fr}.team-controls,.employee-list article,.actual-time-section,.equipment-grid{grid-template-columns:1fr}.cpm-canvas{height:34rem}.method-list summary{grid-template-columns:auto minmax(0,1fr) auto}.method-list summary>b{grid-column:2/-1}.ingredient-list article{align-items:flex-start;flex-direction:column}.actual-time-result{display:grid}}
+.kitchen-plan {
+  display: grid;
+  gap: var(--spacing-m);
+  width: 100%;
+  min-width: 0;
+  padding: var(--spacing-l) 0;
+  color: var(--theme-text);
+}
+
+.kitchen-plan__header,
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-m);
+  min-width: 0;
+}
+
+.kitchen-plan__header h1,
+.section-heading h2,
+.capacity-card h2 {
+  margin: 0;
+  color: var(--theme-text);
+  font-family: inherit;
+}
+
+.kitchen-plan__header p,
+.section-heading p,
+.capacity-card p,
+.actual-time-fields p {
+  margin: var(--spacing-3xs) 0 0;
+  color: var(--theme-text-muted);
+}
+
+.eyebrow {
+  margin: 0 !important;
+  color: var(--theme-primary) !important;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.state-message {
+  padding: var(--spacing-m);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-card);
+  background: var(--theme-surface-raised);
+  box-shadow: var(--shadow-1);
+}
+
+.state-message--error {
+  border-color: color-mix(in oklch, var(--theme-error) 52%, var(--theme-border));
+  color: var(--theme-error);
+}
+
+.state-message--success {
+  border-color: color-mix(in oklch, var(--theme-success) 52%, var(--theme-border));
+  color: var(--theme-success);
+}
+
+.capacity-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--spacing-m);
+  overflow: hidden;
+  padding: var(--spacing-m);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-card);
+  background: var(--theme-surface-raised);
+  box-shadow: var(--shadow-1);
+}
+
+.capacity-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.3rem;
+  background: var(--theme-border);
+  content: "";
+}
+
+.capacity-card.is-under {
+  border-color: color-mix(in oklch, var(--theme-error) 38%, var(--theme-border));
+  background: color-mix(in oklch, var(--theme-error) 8%, var(--theme-surface-raised));
+}
+
+.capacity-card.is-under::before {
+  background: var(--theme-error);
+}
+
+.capacity-card.is-ready {
+  border-color: color-mix(in oklch, var(--theme-success) 38%, var(--theme-border));
+  background: color-mix(in oklch, var(--theme-success) 8%, var(--theme-surface-raised));
+}
+
+.capacity-card.is-ready::before {
+  background: var(--theme-success);
+}
+
+.capacity-card__decision {
+  display: grid;
+  align-content: start;
+  gap: var(--spacing-xs);
+  padding-left: var(--spacing-2xs);
+}
+
+.capacity-card__evidence {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-xs);
+}
+
+.capacity-card__evidence div {
+  display: grid;
+  align-content: start;
+  gap: var(--spacing-3xs);
+  min-width: 0;
+  padding: var(--spacing-xs);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-field);
+  background: var(--theme-surface);
+}
+
+.capacity-card__evidence strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.capacity-card__evidence span,
+.employee-list small,
+.worker-lanes small,
+.equipment-grid small {
+  color: var(--theme-text-muted);
+  font-size: 0.78rem;
+}
+
+.plan-sections {
+  display: grid;
+  gap: var(--spacing-s);
+  min-width: 0;
+}
+
+.plan-section {
+  min-width: 0;
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--theme-border) !important;
+  border-radius: var(--component-radius-card);
+  background: var(--theme-surface-raised);
+  box-shadow: var(--shadow-1);
+}
+
+.section-trigger {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--spacing-m) !important;
+  color: var(--theme-text);
+  text-align: left;
+  text-decoration: none !important;
+}
+
+.section-trigger:hover {
+  background: color-mix(in oklch, var(--theme-surface) 62%, var(--theme-surface-raised));
+  text-decoration: none !important;
+}
+
+.section-trigger:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: -3px;
+}
+
+.section-trigger .section-heading {
+  flex: 1 1 auto;
+  padding-right: var(--spacing-xs);
+}
+
+.section-content {
+  display: grid;
+  gap: var(--spacing-s);
+  padding: 0 var(--spacing-m) var(--spacing-m) !important;
+  border-top: var(--border-width-1) solid var(--theme-border);
+}
+
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--spacing-m);
+}
+
+.team-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(12rem, 0.5fr);
+  align-items: end;
+  gap: var(--spacing-xs);
+}
+
+.employee-list {
+  display: grid;
+  gap: var(--spacing-xs);
+}
+
+.employee-list article {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.8fr) minmax(8rem, 0.65fr) minmax(10rem, 1fr) auto;
+  align-items: end;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-field);
+  background: var(--theme-surface);
+}
+
+.cpm-canvas {
+  width: 100%;
+  height: clamp(30rem, 68vh, 52rem);
+  min-width: 0;
+  margin-top: var(--spacing-m);
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-card);
+  background: var(--theme-canvas);
+}
+
+.cpm-canvas :deep(.system-flow) {
+  width: 100%;
+  height: 100%;
+  min-height: 30rem;
+}
+
+.cpm-canvas :deep(.vue-flow__pane) {
+  cursor: grab;
+}
+
+.cpm-canvas :deep(.vue-flow__pane:active) {
+  cursor: grabbing;
+}
+
+.cpm-canvas :deep(.vue-flow__node) {
+  width: 236px;
+  min-width: 236px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cpm-canvas :deep(.vue-flow__node-cpm-junction) {
+  width: 24px;
+  min-width: 24px;
+}
+
+.cpm-node {
+  position: relative;
+  display: grid;
+  gap: 0.3rem;
+  width: 236px;
+  min-height: 132px;
+  padding: var(--spacing-xs);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-field);
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+  box-shadow: var(--shadow-1);
+}
+
+.cpm-node.is-critical {
+  border-color: var(--theme-primary);
+  background: color-mix(in oklch, var(--theme-primary) 8%, var(--theme-surface-raised));
+}
+
+.cpm-junction {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+.cpm-junction i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid var(--theme-surface-raised);
+  border-radius: 50%;
+  background: var(--theme-border);
+  box-shadow: 0 0 0 1px var(--theme-border);
+}
+
+.cpm-junction.is-critical i {
+  background: var(--theme-primary);
+  box-shadow: 0 0 0 1px var(--theme-primary);
+}
+
+.cpm-node__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2xs);
+  color: var(--theme-text-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.cpm-node > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cpm-node > small {
+  overflow: hidden;
+  color: var(--theme-text-muted);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cpm-node > b {
+  margin-top: auto;
+  color: var(--theme-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.cpm-canvas :deep(.vue-flow__handle) {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 2px solid var(--theme-surface-raised);
+  background: var(--theme-border);
+  pointer-events: none;
+}
+
+.cpm-canvas :deep(.cpm-edge path) {
+  stroke: var(--theme-border);
+}
+
+.cpm-canvas :deep(.cpm-edge--critical path) {
+  stroke: var(--theme-primary);
+}
+
+.cpm-canvas :deep(.vue-flow__arrowhead polyline) {
+  stroke: var(--theme-border);
+  fill: var(--theme-border);
+}
+
+.cpm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-s);
+  color: var(--theme-text-muted);
+  font-size: 0.8rem;
+}
+
+.cpm-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-3xs);
+}
+
+.cpm-legend i {
+  width: 1rem;
+  height: 1rem;
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: 0.3rem;
+  background: var(--theme-surface-raised);
+}
+
+.cpm-legend i.is-critical {
+  border: 2px solid var(--theme-primary);
+  background: color-mix(in oklch, var(--theme-primary) 10%, var(--theme-surface-raised));
+}
+
+.accessible-task-list {
+  position: fixed !important;
+  inset: 0 auto auto 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.ingredient-list {
+  display: grid;
+  padding-top: var(--spacing-m);
+}
+
+.ingredient-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-s);
+  padding: var(--spacing-xs) 0;
+  border-bottom: var(--border-width-1) solid var(--theme-border);
+}
+
+.ingredient-list article:last-child {
+  border-bottom: 0;
+}
+
+.ingredient-list article > div {
+  display: grid;
+  gap: var(--spacing-3xs);
+}
+
+.ingredient-list small,
+.ingredient-list article > span {
+  color: var(--theme-text-muted);
+}
+
+.ingredient-list b {
+  color: var(--theme-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.worker-lanes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-xs);
+  padding-top: var(--spacing-m);
+}
+
+.worker-lanes > article {
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-card);
+  background: var(--theme-surface);
+}
+
+.worker-lanes header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-bottom: var(--border-width-1) solid var(--theme-border);
+  background: var(--theme-surface-raised);
+}
+
+.worker-lanes header div {
+  display: grid;
+  gap: var(--spacing-3xs);
+}
+
+.worker-lanes ol {
+  display: grid;
+  gap: var(--spacing-2xs);
+  margin: 0;
+  padding: var(--spacing-xs);
+  list-style: none;
+}
+
+.worker-lanes li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--spacing-3xs) var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-left: 3px solid var(--theme-border);
+  border-radius: 0 var(--component-radius-field) var(--component-radius-field) 0;
+  background: var(--theme-surface-raised);
+}
+
+.worker-lanes li.is-assist {
+  border-left-color: var(--theme-success);
+  background: color-mix(in oklch, var(--theme-success) 6%, var(--theme-surface-raised));
+}
+
+.worker-lanes li > span,
+.worker-lanes li > small {
+  grid-column: 1 / -1;
+}
+
+.method-list {
+  display: grid;
+  gap: var(--spacing-xs);
+  padding-top: var(--spacing-m);
+}
+
+.method-list details {
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-field);
+  background: var(--theme-surface);
+}
+
+.method-list summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: 3.25rem;
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  list-style: none;
+}
+
+.method-list summary > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--theme-secondary);
+  font-weight: 800;
+}
+
+.method-list summary div {
+  display: grid;
+  gap: var(--spacing-3xs);
+}
+
+.method-list summary small,
+.method-list summary > b {
+  color: var(--theme-text-muted);
+  font-size: 0.78rem;
+}
+
+.method-body {
+  display: grid;
+  gap: var(--spacing-s);
+  padding: var(--spacing-s);
+  border-top: var(--border-width-1) solid var(--theme-border);
+  background: var(--theme-surface-raised);
+}
+
+.method-body > ol {
+  display: grid;
+  gap: var(--spacing-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.method-body > ol > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--spacing-xs);
+}
+
+.method-body > ol > li > span {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--theme-secondary);
+  font-weight: 800;
+}
+
+.method-body p {
+  margin: 0;
+}
+
+.method-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2xs);
+}
+
+.method-facts span {
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: var(--theme-secondary);
+  color: var(--theme-text-muted);
+  font-size: 0.78rem;
+}
+
+.quality-check {
+  padding: var(--spacing-xs);
+  border-left: 3px solid var(--theme-success);
+  background: color-mix(in oklch, var(--theme-success) 6%, var(--theme-surface-raised));
+}
+
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-xs);
+  padding-top: var(--spacing-m);
+}
+
+.equipment-grid article {
+  display: grid;
+  gap: var(--spacing-3xs);
+  padding: var(--spacing-xs);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-field);
+  background: var(--theme-surface);
+}
+
+.actual-time-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.45fr);
+  align-items: end;
+  gap: var(--spacing-s);
+  padding-top: var(--spacing-m);
+}
+
+.actual-time-result {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-left: 3px solid var(--theme-success);
+  border-radius: 0 var(--component-radius-field) var(--component-radius-field) 0;
+  background: color-mix(in oklch, var(--theme-success) 7%, var(--theme-surface));
+}
+
+.actual-time-result.is-under {
+  border-left-color: var(--theme-error);
+  background: color-mix(in oklch, var(--theme-error) 8%, var(--theme-surface));
+}
+
+@media (max-width: 75rem) {
+  .capacity-card {
+    grid-template-columns: 1fr;
+  }
+
+  .capacity-card__evidence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-list article {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .worker-lanes {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 48rem) {
+  .kitchen-plan {
+    padding: var(--spacing-s) 0;
+  }
+
+  .kitchen-plan__header,
+  .section-heading {
+    display: grid;
+  }
+
+  .button-row {
+    width: 100%;
+  }
+
+  .button-row :deep(button) {
+    flex: 1 1 auto;
+  }
+
+  .capacity-card__evidence {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .section-trigger {
+    padding: var(--spacing-s) !important;
+  }
+
+  .section-content {
+    padding: 0 var(--spacing-s) var(--spacing-s) !important;
+  }
+
+  .team-controls,
+  .employee-list article,
+  .actual-time-fields,
+  .equipment-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cpm-canvas {
+    height: 34rem;
+  }
+
+  .method-list summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .method-list summary > b {
+    grid-column: 2 / -1;
+  }
+
+  .ingredient-list article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .actual-time-result {
+    display: grid;
+  }
+}
+
+@media (max-width: 30rem) {
+  .capacity-card__evidence {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>

@@ -264,6 +264,7 @@ async function hydrateStation(value) {
 		await restoreLocalProductionDraft().catch(() => {});
 		await reconcileQueuedProduction().catch(() => {});
 	}
+	await hydrateContainerSuggestion();
 	await nextTick();
 	hydrating = false;
 }
@@ -707,6 +708,13 @@ async function loadContainerSuggestion() {
 	} catch {
 		containerSuggestion.value = null;
 	}
+}
+async function hydrateContainerSuggestion() {
+	if (Number(actualOutput.value) <= 0) {
+		containerSuggestion.value = null;
+		return;
+	}
+	if (!containerCountManuallySet.value) await loadContainerSuggestion();
 }
 function setFinishedContainerCount(value) {
 	containerCountManuallySet.value = true;
