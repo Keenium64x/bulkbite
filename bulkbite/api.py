@@ -527,12 +527,14 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 		if employee.status != "Active":
 			frappe.throw(_("{0} is not an active employee.").format(employee.full_name))
 		employee_type = frappe.get_doc("BulkBite Employee Type", employee.employee_type)
-		supplied_available_hours = planned_window_hours if planned_window_supplied else supplied.get("available_hours")
-		available_hours = flt(supplied_available_hours)
+		available_hours, custom_hours = _resolve_employee_availability(
+			supplied,
+			planned_window_hours,
+			planned_window_supplied,
+			flt(employee.available_hours_per_run) or flt(employee_type.expected_hours_per_run),
+		)
 		if available_hours < 0:
 			frappe.throw(_("Available hours for {0} cannot be negative.").format(employee.full_name))
-		if supplied_available_hours in (None, ""):
-			available_hours = flt(employee.available_hours_per_run) or flt(employee_type.expected_hours_per_run)
 		payment_basis = employee.payment_basis_override if employee.use_payment_override and employee.payment_basis_override else employee_type.payment_basis
 		payment_rate = employee.payment_rate_override if employee.use_payment_override else employee_type.payment_rate
 		existing_assignment = existing_by_employee.get(employee.name)
@@ -544,11 +546,9 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 		) or "Completed"
 		if actual_time_supplied and completion_status == "Assigned":
 			completion_status = "Completed"
-		custom_hours = bool(existing_assignment.custom_hours) if preserve_actual else bool(supplied.get("custom_hours")) if actual_time_supplied else False
 		hours_worked = (
 			flt(existing_assignment.hours_worked)
 			if preserve_actual
-			else flt(supplied.get("hours_worked")) if actual_time_supplied and custom_hours
 			else elapsed_hours if actual_time_supplied
 			else 0
 		)
@@ -570,6 +570,17 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 	run.set("employees", rows)
 	run.save()
 	return _serialize_run(run)
+
+
+def _resolve_employee_availability(supplied, planned_window_hours, planned_window_supplied, default_available_hours):
+	"""Return the planned hours and whether this employee overrides the shared kitchen window."""
+	custom_hours = _as_bool(supplied.get("custom_hours"))
+	if planned_window_supplied and not custom_hours:
+		return flt(planned_window_hours), False
+	supplied_hours = supplied.get("available_hours")
+	if supplied_hours in (None, ""):
+		return flt(default_available_hours), custom_hours
+	return flt(supplied_hours), custom_hours
 
 
 @frappe.whitelist(methods=["POST"])

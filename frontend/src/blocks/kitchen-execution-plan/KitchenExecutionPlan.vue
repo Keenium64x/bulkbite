@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import { Handle, MarkerType, Position } from "@vue-flow/core"
+import bulkbiteWordmark from "@/assets/bulkbite-logo-wordmark-dark.svg"
 import {
   SystemAccordion,
   SystemAccordionContent,
@@ -104,7 +105,8 @@ function hydrateRun(value) {
   kitchenWindowHours.value = Number(value?.scheduled_elapsed_hours || 0)
   employeeRows.splice(0, employeeRows.length, ...(value?.employees || []).map((row) => ({
     ...row,
-    available_hours: Number(value?.scheduled_elapsed_hours || 0),
+    available_hours: Number(row.custom_hours ? row.available_hours : value?.scheduled_elapsed_hours || 0),
+    custom_hours: Boolean(row.custom_hours),
   })))
   if (!employeeRows.length && teamTemplate.value) applyTeamTemplate()
 }
@@ -139,14 +141,25 @@ function changeEmployee(row, value) {
   row.employee_name = employee?.label || ""
   row.employee_type = employee?.employee_type || ""
   row.available_hours = Number(kitchenWindowHours.value || 0)
+  row.custom_hours = false
   rebuildPlan()
 }
 
 function syncEmployeeAvailability(value) {
   const sharedHours = Math.max(Number(value || 0), 0)
   employeeRows.forEach((row) => {
-    row.available_hours = sharedHours
+    if (!row.custom_hours) row.available_hours = sharedHours
   })
+}
+
+function updateEmployeeAvailability(row, value) {
+  row.available_hours = Math.max(Number(value || 0), 0)
+  row.custom_hours = true
+}
+
+function restoreAutomaticAvailability(row) {
+  row.custom_hours = false
+  row.available_hours = Math.max(Number(kitchenWindowHours.value || 0), 0)
 }
 
 function removeEmployee(index) {
@@ -443,11 +456,16 @@ function quantity(value) {
   return (Math.round(Number(value || 0) * 1000) / 1000).toLocaleString("en-ZA", { maximumFractionDigits: 3 })
 }
 
+function printKitchenPack() {
+  window.print()
+}
+
 // endregion CPM FLOW ADAPTER
 </script>
 
 <template>
   <section data-block="kitchen-execution-plan" class="kitchen-plan workflow-block">
+    <div class="kitchen-plan__screen">
     <header class="workflow-header">
       <div>
         <p class="eyebrow">Cooking plan</p>
@@ -458,6 +476,7 @@ function quantity(value) {
       <div class="button-row">
         <SystemOperationalButton variant="outline" @click="emit('close')">Back to production</SystemOperationalButton>
         <SystemOperationalButton variant="outline" :loading="busy" @click="rebuildPlan">Rebuild plan</SystemOperationalButton>
+        <SystemOperationalButton variant="outline" :disabled="!instructions || !activeTeam.length" @click="printKitchenPack">Print kitchen pack</SystemOperationalButton>
         <SystemOperationalButton v-if="!run?.docstatus" variant="solid" :loading="busy" @click="saveKitchenPlan">Save cooking plan</SystemOperationalButton>
       </div>
     </header>
@@ -493,7 +512,7 @@ function quantity(value) {
       <SystemAccordion type="multiple" :default-value="['team', 'critical-path', 'ingredients', 'worker-lanes', 'method']" class="plan-sections">
         <SystemAccordionItem value="team" class="plan-section team-section">
           <SystemAccordionTrigger class="section-trigger">
-            <div class="section-heading"><div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team and set one shared kitchen window. Every assigned person receives the same planned availability.</p></div><SystemBadge>{{ activeTeam.length }} PEOPLE</SystemBadge></div>
+            <div class="section-heading"><div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team and set the kitchen window. Employee availability follows it unless you enter a different value.</p></div><SystemBadge>{{ activeTeam.length }} PEOPLE</SystemBadge></div>
           </SystemAccordionTrigger>
           <SystemAccordionContent class="section-content">
             <div class="section-actions"><div class="button-row"><SystemOperationalButton variant="ghost" @click="emit('open-employees')">Manage employees</SystemOperationalButton><SystemOperationalButton v-if="!run.docstatus" variant="outline" @click="addEmployee">Add employee</SystemOperationalButton></div></div>
@@ -506,7 +525,10 @@ function quantity(value) {
               <article v-for="(row, index) in employeeRows" :key="`${index}-${row.employee}`">
                 <div class="employee-list__fields">
                   <SystemSelect :model-value="row.employee" label="Employee" :options="employeeOptions" :disabled="Boolean(run.docstatus)" @update:model-value="changeEmployee(row, $event)" />
-                  <div class="calculated-availability"><span>Hours available</span><strong>{{ quantity(row.available_hours) }} h</strong><small>Matches the kitchen window</small></div>
+                  <div class="employee-availability">
+                    <SystemFormControl :model-value="row.available_hours" label="Hours available" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" @update:model-value="updateEmployeeAvailability(row, $event)" />
+                    <SystemOperationalButton v-if="row.custom_hours && !run.docstatus" variant="ghost" @click="restoreAutomaticAvailability(row)">Use kitchen time</SystemOperationalButton>
+                  </div>
                   <SystemFormControl v-model="row.notes" label="Notes" :disabled="Boolean(run.docstatus)" />
                   <SystemOperationalButton v-if="!run.docstatus" variant="ghost" @click="removeEmployee(index)">Remove</SystemOperationalButton>
                 </div>
@@ -606,6 +628,45 @@ function quantity(value) {
 
       </SystemAccordion>
     </template>
+    </div>
+
+    <div v-if="workspace && instructions" class="print-kitchen-pack">
+      <section v-for="lane in instructions.worker_lanes" :key="`print-worker-${lane.lane}`" class="print-page print-worker-page">
+        <header class="print-page__header"><img :src="bulkbiteWordmark" alt="BulkBite" /><span>Kitchen worker sheet</span></header>
+        <div class="print-page__title"><p>Worker {{ lane.lane }}</p><h1>{{ workerName(lane.lane) }}</h1><span>{{ instructions.recipe_name }} · Run {{ run.name }} · {{ quantity(run.planned_output_qty) }} kg · {{ run.production_date }}</span></div>
+        <div class="print-summary"><div><strong>{{ time(lane.available_at) }}</strong><span>lane finish</span></div><div><strong>{{ quantity(activeTeam[lane.lane - 1]?.available_hours) }} h</strong><span>available</span></div><div><strong>{{ lane.steps.length }}</strong><span>actions</span></div></div>
+        <ol class="print-task-list">
+          <li v-for="step in lane.steps" :key="`print-${lane.lane}-${step.kind || 'primary'}-${step.task_id}-${step.start_minute}`" :class="{ 'is-assist': step.kind === 'assist' }">
+            <div class="print-task-list__time">{{ time(step.start_minute) }}<span>to {{ time(step.end_minute) }}</span></div>
+            <div><strong>{{ step.kind === "assist" ? assistInstruction(step) : `${step.step_number}. ${step.step_name}` }}</strong><p>{{ quantity(step.duration_minutes) }} min<template v-if="step.equipment_type"> · {{ step.equipment_type }}</template></p></div>
+            <b>{{ step.kind === "assist" ? "Assist" : step.is_critical ? "Critical" : "Task" }}</b>
+          </li>
+        </ol>
+      </section>
+
+      <section class="print-page print-shared-page print-method-page">
+        <header class="print-page__header"><img :src="bulkbiteWordmark" alt="BulkBite" /><span>Complete cooking method</span></header>
+        <div class="print-page__title"><p>Shared method</p><h1>{{ instructions.recipe_name }}</h1><span>Run {{ run.name }} · {{ quantity(run.planned_output_qty) }} kg · expected {{ time(instructions.estimated_elapsed_minutes) }}</span></div>
+        <ol class="print-method-list">
+          <li v-for="step in instructions.steps" :key="`print-method-${step.task_id}`">
+            <span>{{ step.step_number }}</span>
+            <div><h2>{{ step.step_name }}</h2><p>{{ time(step.scheduled_start) }} to {{ time(step.scheduled_end) }} · {{ workerNames(step) }}<template v-if="step.equipment_name"> · {{ step.equipment_name }}</template></p><p>{{ step.objective || step.instruction }}</p><ol><li v-for="substep in step.substeps" :key="`print-substep-${step.task_id}-${substep.order}`"><strong>{{ substep.order }}.</strong> {{ substep.instruction }}<small v-if="substep.check">Check: {{ substep.check }}</small></li></ol><p v-if="step.quality_checkpoint"><strong>Final check:</strong> {{ step.quality_checkpoint }}</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="print-page print-shared-page">
+        <header class="print-page__header"><img :src="bulkbiteWordmark" alt="BulkBite" /><span>Ingredients</span></header>
+        <div class="print-page__title"><p>Weigh before cooking</p><h1>{{ instructions.recipe_name }}</h1><span>{{ instructions.ingredients.length }} ingredients · {{ quantity(run.planned_output_qty) }} kg target</span></div>
+        <table><thead><tr><th>Ingredient</th><th>Quantity to weigh</th><th>Practical estimate</th></tr></thead><tbody><tr v-for="item in instructions.ingredients" :key="`print-ingredient-${item.item_code}`"><td>{{ item.item_name }}</td><td>{{ quantity(item.quantity) }} {{ item.uom }}</td><td>{{ item.piece_count_estimate ? `About ${item.piece_count_estimate} ${item.piece_count_label}` : "Weigh on scale" }}</td></tr></tbody></table>
+      </section>
+
+      <section class="print-page print-shared-page print-equipment-page">
+        <header class="print-page__header"><img :src="bulkbiteWordmark" alt="BulkBite" /><span>Equipment</span></header>
+        <div class="print-page__title"><p>Kitchen setup</p><h1>Equipment required</h1><span>{{ instructions.equipment.length }} configured equipment types</span></div>
+        <table><thead><tr><th>Equipment</th><th>Available</th><th>Capacity</th><th>Can run together</th></tr></thead><tbody><tr v-for="item in instructions.equipment" :key="`print-equipment-${item.name}`"><td>{{ item.equipment_type_name }}</td><td>{{ item.quantity_available }}</td><td>{{ quantity(item.capacity_qty) }} {{ item.capacity_uom }} per batch</td><td>{{ item.concurrent_batch_limit }} per item · {{ quantity(item.total_concurrent_capacity) }} {{ item.capacity_uom }} total</td></tr></tbody></table>
+      </section>
+    </div>
   </section>
 </template>
 
@@ -615,6 +676,14 @@ function quantity(value) {
   gap: var(--spacing-m);
   min-width: 0;
   color: var(--theme-text);
+}
+
+.kitchen-plan__screen {
+  display: contents;
+}
+
+.print-kitchen-pack {
+  display: none;
 }
 
 .section-heading {
@@ -1256,21 +1325,257 @@ function quantity(value) {
   background: var(--theme-surface);
 }
 
-.calculated-availability {
+.employee-availability {
   display: grid;
-  align-content: center;
   gap: var(--spacing-3xs);
-  min-height: 2.75rem;
-  padding: var(--spacing-xs);
-  border: var(--border-width-1) solid var(--theme-border);
-  border-radius: var(--component-radius-field);
-  background: var(--theme-field);
 }
 
-.calculated-availability span,
-.calculated-availability small {
-  color: var(--theme-text-muted);
+.employee-availability :deep(button) {
+  justify-self: start;
+  padding-inline: var(--spacing-2xs);
   font-size: var(--font-size--2);
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  :global(body) {
+    background: var(--theme-surface-raised) !important;
+  }
+
+  :global(.app-shell__sidebar),
+  :global(.app-shell__top-area),
+  :global(.app-shell__mobile-nav) {
+    display: none !important;
+  }
+
+  :global(.app-shell),
+  :global(.app-shell__main),
+  :global(.app-shell__work),
+  :global(.app-workspace) {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: var(--theme-surface-raised) !important;
+  }
+
+  .kitchen-plan {
+    display: block;
+    color: var(--theme-text);
+  }
+
+  .kitchen-plan__screen {
+    display: none !important;
+  }
+
+  .print-kitchen-pack {
+    display: block;
+  }
+
+  .print-page {
+    box-sizing: border-box;
+    min-height: 265mm;
+    break-after: page;
+    page-break-after: always;
+    color: var(--theme-text);
+  }
+
+  .print-page:last-child {
+    min-height: auto;
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-page__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8mm;
+    padding-bottom: 5mm;
+    border-bottom: 1px solid var(--theme-border);
+    color: var(--theme-text-muted);
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .print-page__header img {
+    display: block;
+    width: 36mm;
+    height: auto;
+  }
+
+  .print-page__title {
+    padding: 8mm 0 6mm;
+  }
+
+  .print-page__title p,
+  .print-page__title h1,
+  .print-page__title span {
+    margin: 0;
+  }
+
+  .print-page__title p {
+    color: var(--theme-primary);
+    font-size: 9pt;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .print-page__title h1 {
+    margin: 1.5mm 0;
+    font-size: 24pt;
+    line-height: 1.1;
+  }
+
+  .print-page__title span {
+    color: var(--theme-text-muted);
+    font-size: 10pt;
+  }
+
+  .print-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin-bottom: 7mm;
+    border: 1px solid var(--theme-border);
+    border-radius: 3mm;
+  }
+
+  .print-summary > div {
+    display: grid;
+    gap: 1mm;
+    padding: 4mm;
+    border-right: 1px solid var(--theme-border);
+  }
+
+  .print-summary > div:last-child {
+    border-right: 0;
+  }
+
+  .print-summary strong {
+    font-size: 15pt;
+  }
+
+  .print-summary span,
+  .print-task-list p,
+  .print-method-list p {
+    margin: 0;
+    color: var(--theme-text-muted);
+    font-size: 9pt;
+  }
+
+  .print-task-list,
+  .print-method-list {
+    display: grid;
+    gap: 3mm;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .print-task-list > li {
+    display: grid;
+    grid-template-columns: 25mm minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4mm;
+    padding: 4mm;
+    border: 1px solid var(--theme-border);
+    border-left: 3px solid var(--theme-text-muted);
+    border-radius: 2mm;
+    break-inside: avoid;
+  }
+
+  .print-task-list > li.is-assist {
+    border-left-color: var(--theme-success);
+    background: color-mix(in oklch, var(--theme-success) 7%, var(--theme-surface-raised));
+  }
+
+  .print-task-list__time {
+    display: grid;
+    font-size: 11pt;
+    font-weight: 800;
+  }
+
+  .print-task-list__time span {
+    color: var(--theme-text-muted);
+    font-size: 8pt;
+    font-weight: 500;
+  }
+
+  .print-task-list > li > b {
+    padding: 1.5mm 2.5mm;
+    border: 1px solid var(--theme-border);
+    border-radius: 99mm;
+    font-size: 8pt;
+  }
+
+  .print-method-list > li {
+    display: grid;
+    grid-template-columns: 10mm minmax(0, 1fr);
+    gap: 4mm;
+    padding-bottom: 5mm;
+    border-bottom: 1px solid var(--theme-border);
+    break-inside: avoid;
+  }
+
+  .print-method-list > li > span {
+    display: grid;
+    place-items: center;
+    width: 9mm;
+    height: 9mm;
+    border-radius: 50%;
+    background: var(--theme-secondary);
+    font-weight: 800;
+  }
+
+  .print-method-list h2 {
+    margin: 0 0 1mm;
+    font-size: 13pt;
+  }
+
+  .print-method-list ol {
+    display: grid;
+    gap: 1.5mm;
+    margin: 3mm 0;
+    padding-left: 5mm;
+  }
+
+  .print-method-list ol li {
+    font-size: 9pt;
+  }
+
+  .print-method-list ol small {
+    display: block;
+    color: var(--theme-text-muted);
+  }
+
+  .print-page table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+
+  .print-page th,
+  .print-page td {
+    padding: 3.5mm;
+    border-bottom: 1px solid var(--theme-border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .print-page th {
+    background: var(--theme-secondary);
+    font-size: 8pt;
+    text-transform: uppercase;
+  }
 }
 
 @media (max-width: 75rem) {

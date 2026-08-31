@@ -328,7 +328,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "kitchen-execution-plan",
     "name": "Kitchen Execution Plan",
-    "job": "Create a standalone run-addressable Kitchen Plan block with planned team assignment, one shared kitchen window, practical capacity, equipment-aware batches, CPM graph, worker lanes, and cooking instructions. Production retains actual elapsed time, attendance, measured output, ingredients, containers, allocations, draft, and posting.",
+    "job": "Create a standalone run-addressable Kitchen Plan block with planned team assignment, a shared kitchen window with per-employee availability overrides, practical capacity, equipment-aware batches, CPM graph, worker lanes, cooking instructions, and a printable worker pack. Production retains actual elapsed time, attendance, measured output, ingredients, containers, allocations, draft, and posting.",
     "category": "Project",
     "source": "@/blocks/kitchen-execution-plan/KitchenExecutionPlan.vue",
     "public": "SystemKitchenExecutionPlan",
@@ -346,7 +346,7 @@ export const installedBlocks = Object.freeze([
     "primitives": [],
     "incomingHandoff": "Production has saved a measurable draft run with one recipe, output target, date, and stock theory. The cook opens this run-addressable page to build the executable kitchen plan.",
     "outgoingHandoff": "The cook returns to Production with the saved planned team, shared kitchen window, and deterministic equipment-aware method. Production then records actual attendance, elapsed time, measured usage, output, and posting.",
-    "responsiveBehaviour": "Keep the capacity decision first. Present each planning section as a collapsible Desyium card. At intermediate and mobile widths stack team controls, allow the Vue Flow CPM canvas to pan and zoom inside its own boundary, preserve a structured task-list alternative, and prevent the page or mobile shell from overflowing.",
+    "responsiveBehaviour": "Keep the capacity decision first. Present each planning section as a collapsible Desyium card. At intermediate and mobile widths stack team controls, allow the Vue Flow CPM canvas to pan and zoom inside its own boundary, preserve a structured task-list alternative, and prevent the page or mobile shell from overflowing. When printed, replace the application shell and manager controls with one page per worker followed by shared method, ingredient, and equipment pages.",
     "layoutContract": {
       "strategy": "grid",
       "pageAlignment": "grid",
