@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import { Handle, MarkerType, Position } from "@vue-flow/core"
 import {
   SystemAccordion,
@@ -7,7 +7,6 @@ import {
   SystemAccordionItem,
   SystemAccordionTrigger,
   SystemBadge,
-  SystemCard,
   SystemFlow,
   SystemFormControl,
   SystemOperationalButton,
@@ -16,7 +15,7 @@ import {
 import {
   getKitchenPlanSnapshot,
   getProductionInstructions,
-  saveProductionEmployees,
+  saveKitchenPlanTeam,
 } from "@/resources/api"
 
 // =============================================================================
@@ -32,7 +31,6 @@ const error = ref("")
 const saved = ref(false)
 const teamTemplate = ref("")
 const kitchenWindowHours = ref(0)
-const actualElapsedHours = ref(0)
 const employeeRows = reactive([])
 
 const run = computed(() => workspace.value?.run || null)
@@ -40,8 +38,7 @@ const employeeOptions = computed(() => workspace.value?.employees || [])
 const employeeByName = computed(() => new Map(employeeOptions.value.map((row) => [row.value, row])))
 const teamTemplates = computed(() => workspace.value?.team_templates || [])
 const teamTemplateOptions = computed(() => teamTemplates.value.map((row) => ({ label: row.template_name, value: row.name })))
-const attendanceOptions = ["Assigned", "Completed", "Absent", "Cancelled"].map((value) => ({ label: value, value }))
-const activeTeam = computed(() => employeeRows.filter((row) => row.employee && !["Absent", "Cancelled"].includes(row.completion_status)))
+const activeTeam = computed(() => employeeRows.filter((row) => row.employee))
 const teamSize = computed(() => Math.max(activeTeam.value.length, 1))
 const availableTeamHours = computed(() => activeTeam.value.reduce((sum, row) => sum + Number(row.available_hours || 0), 0))
 const kitchenWindowMinutes = computed(() => Number(kitchenWindowHours.value || 0) * 60)
@@ -50,8 +47,11 @@ const requiredTeamHours = computed(() => (instructions.value?.steps || []).reduc
 const methodMinutes = computed(() => Number(instructions.value?.estimated_elapsed_minutes || 0))
 const slowestAllowedPace = computed(() => outputQty.value && kitchenWindowMinutes.value ? kitchenWindowMinutes.value / outputQty.value : 0)
 const expectedMethodPace = computed(() => outputQty.value ? methodMinutes.value / outputQty.value : 0)
-const requiredPeople = computed(() => kitchenWindowHours.value ? Math.max(Math.ceil(requiredTeamHours.value / Number(kitchenWindowHours.value)), 1) : 0)
+const minimumTaskCrew = computed(() => Math.max(...(instructions.value?.steps || []).filter((step) => step.requires_active_worker !== false).map((step) => Number(step.minimum_workers || 1)), 0))
+const requiredPeople = computed(() => kitchenWindowHours.value ? Math.max(Math.ceil(requiredTeamHours.value / Number(kitchenWindowHours.value)), minimumTaskCrew.value, 1) : 0)
 const peopleGap = computed(() => Math.max(requiredPeople.value - activeTeam.value.length, 0))
+const teamHourBalance = computed(() => availableTeamHours.value - requiredTeamHours.value)
+const kitchenTimeBalanceHours = computed(() => Number(kitchenWindowHours.value || 0) - methodMinutes.value / 60)
 const workerCapacityRows = computed(() => (instructions.value?.worker_lanes || []).map((lane) => {
   const employee = activeTeam.value[lane.lane - 1]
   const availableMinutes = Number(employee?.available_hours || 0) * 60
@@ -59,17 +59,10 @@ const workerCapacityRows = computed(() => (instructions.value?.worker_lanes || [
 }))
 const capacityStatus = computed(() => {
   if (!instructions.value || !activeTeam.value.length || !kitchenWindowMinutes.value) return "Capacity not ready"
-  const short = methodMinutes.value > kitchenWindowMinutes.value + 0.1 || requiredTeamHours.value > availableTeamHours.value + 0.001 || workerCapacityRows.value.some((row) => row.shortfallMinutes > 0.1)
+  const short = peopleGap.value > 0 || methodMinutes.value > kitchenWindowMinutes.value + 0.1 || requiredTeamHours.value > availableTeamHours.value + 0.001 || workerCapacityRows.value.some((row) => row.shortfallMinutes > 0.1)
   return short ? "Under capacity" : "Ready to cook"
 })
-const capacityShortfallHours = computed(() => Math.max(
-  methodMinutes.value - kitchenWindowMinutes.value,
-  (requiredTeamHours.value - availableTeamHours.value) * 60,
-  ...workerCapacityRows.value.map((row) => row.shortfallMinutes),
-  0,
-) / 60)
-const actualPace = computed(() => outputQty.value && actualElapsedHours.value ? Number(actualElapsedHours.value) * 60 / outputQty.value : 0)
-const paceStatus = computed(() => !actualPace.value || !slowestAllowedPace.value ? "Not measured" : actualPace.value <= slowestAllowedPace.value ? "Within takt" : "Slower than takt")
+watch(kitchenWindowHours, syncEmployeeAvailability)
 
 onMounted(loadWorkspace)
 
@@ -90,10 +83,9 @@ async function loadWorkspace() {
 function hydrateRun(value) {
   teamTemplate.value = value?.team_template || ""
   kitchenWindowHours.value = Number(value?.scheduled_elapsed_hours || 0)
-  actualElapsedHours.value = Number(value?.actual_elapsed_hours || 0)
   employeeRows.splice(0, employeeRows.length, ...(value?.employees || []).map((row) => ({
     ...row,
-    custom_hours: false,
+    available_hours: Number(value?.scheduled_elapsed_hours || 0),
   })))
   if (!employeeRows.length && teamTemplate.value) applyTeamTemplate()
 }
@@ -108,7 +100,7 @@ function applyTeamTemplate() {
       employee: member.employee,
       employee_name: member.employee_name || employee?.label,
       employee_type: member.employee_type || employee?.employee_type,
-      available_hours: Number(member.default_hours_override || employee?.available_hours_per_run || template.default_elapsed_hours || 0),
+      available_hours: Number(kitchenWindowHours.value || 0),
       custom_hours: false,
       hours_worked: 0,
       completion_status: "Assigned",
@@ -127,11 +119,20 @@ function changeEmployee(row, value) {
   const employee = employeeByName.value.get(value)
   row.employee_name = employee?.label || ""
   row.employee_type = employee?.employee_type || ""
-  if (!Number(row.available_hours)) row.available_hours = Number(employee?.available_hours_per_run || kitchenWindowHours.value || 0)
+  row.available_hours = Number(kitchenWindowHours.value || 0)
+  rebuildPlan()
+}
+
+function syncEmployeeAvailability(value) {
+  const sharedHours = Math.max(Number(value || 0), 0)
+  employeeRows.forEach((row) => {
+    row.available_hours = sharedHours
+  })
 }
 
 function removeEmployee(index) {
   employeeRows.splice(index, 1)
+  rebuildPlan()
 }
 
 async function rebuildPlan() {
@@ -157,11 +158,10 @@ async function saveKitchenPlan() {
   error.value = ""
   saved.value = false
   try {
-    const updated = await saveProductionEmployees(
+    const updated = await saveKitchenPlanTeam(
       run.value.name,
       employeeRows,
       teamTemplate.value,
-      actualElapsedHours.value,
       kitchenWindowHours.value,
     )
     workspace.value = { ...workspace.value, run: updated }
@@ -390,16 +390,16 @@ function quantity(value) {
     </header>
 
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <div v-if="saved" class="state-message state-message--success" role="status">The team, kitchen window, and actual elapsed time are saved on this production run.</div>
+    <div v-if="saved" class="state-message state-message--success" role="status">The planned team and kitchen window are saved on this production run.</div>
     <div v-if="busy && !workspace" class="state-message" role="status">Building the equipment-aware cooking plan.</div>
 
     <template v-if="workspace && instructions">
-      <SystemCard class="capacity-card" :class="capacityStatus === 'Under capacity' ? 'is-under' : capacityStatus === 'Ready to cook' ? 'is-ready' : 'is-neutral'">
+      <section class="data-section capacity-card" :class="capacityStatus === 'Under capacity' ? 'is-under' : capacityStatus === 'Ready to cook' ? 'is-ready' : 'is-neutral'">
         <div class="capacity-card__decision">
           <p class="eyebrow">Practical capacity</p>
           <h2>{{ capacityStatus }}</h2>
           <p v-if="capacityStatus === 'Capacity not ready'">Assign the team and enter the kitchen window before starting.</p>
-          <p v-else-if="capacityStatus === 'Under capacity'">This method exceeds the present team, individual availability, or kitchen window by about {{ quantity(capacityShortfallHours) }} hours. Change the setup and rebuild the plan before cooking.</p>
+          <p v-else-if="capacityStatus === 'Under capacity'">The method needs {{ requiredPeople }} people, {{ quantity(requiredTeamHours) }} team-hours, and {{ quantity(methodMinutes / 60) }} kitchen hours. The current setup provides {{ activeTeam.length }} people, {{ quantity(availableTeamHours) }} team-hours, and {{ quantity(kitchenWindowHours) }} kitchen hours.</p>
           <p v-else>The selected team, equipment, and kitchen window can complete this cooking plan.</p>
           <SystemBadge v-if="capacityStatus === 'Under capacity' && peopleGap" theme="red">Add at least {{ peopleGap }} {{ peopleGap === 1 ? "person" : "people" }} by team-hours</SystemBadge>
         </div>
@@ -408,17 +408,19 @@ function quantity(value) {
           <div><strong>{{ time(kitchenWindowMinutes) }}</strong><span>time available</span></div>
           <div><strong>{{ quantity(requiredTeamHours) }} h</strong><span>team-hours needed</span></div>
           <div><strong>{{ quantity(availableTeamHours) }} h</strong><span>team-hours available</span></div>
+          <div><strong>{{ quantity(Math.abs(teamHourBalance)) }} h</strong><span>{{ teamHourBalance < 0 ? "team-hours missing" : "team-hours spare" }}</span></div>
+          <div><strong>{{ quantity(Math.abs(kitchenTimeBalanceHours)) }} h</strong><span>{{ kitchenTimeBalanceHours < 0 ? "kitchen time missing" : "kitchen time spare" }}</span></div>
           <div><strong>{{ quantity(expectedMethodPace) }} min/kg</strong><span>expected method pace</span></div>
           <div><strong>{{ quantity(slowestAllowedPace) }} min/kg</strong><span>slowest allowable pace</span></div>
-          <div><strong>{{ requiredPeople }}</strong><span>people required by team-hours</span></div>
+          <div><strong>{{ requiredPeople }}</strong><span>minimum people required</span></div>
           <div><strong>{{ activeTeam.length }}</strong><span>people assigned</span></div>
         </div>
-      </SystemCard>
+      </section>
 
       <SystemAccordion type="multiple" :default-value="['team', 'critical-path', 'ingredients', 'worker-lanes', 'method']" class="plan-sections">
         <SystemAccordionItem value="team" class="plan-section team-section">
           <SystemAccordionTrigger class="section-trigger">
-            <div class="section-heading"><div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team, adjust each person’s availability, and set the total kitchen window.</p></div><SystemBadge>{{ activeTeam.length }} PEOPLE</SystemBadge></div>
+            <div class="section-heading"><div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team and set one shared kitchen window. Every assigned person receives the same planned availability.</p></div><SystemBadge>{{ activeTeam.length }} PEOPLE</SystemBadge></div>
           </SystemAccordionTrigger>
           <SystemAccordionContent class="section-content">
             <div class="section-actions"><div class="button-row"><SystemOperationalButton variant="ghost" @click="emit('open-employees')">Manage employees</SystemOperationalButton><SystemOperationalButton v-if="!run.docstatus" variant="outline" @click="addEmployee">Add employee</SystemOperationalButton></div></div>
@@ -430,8 +432,7 @@ function quantity(value) {
             <div class="employee-list">
               <article v-for="(row, index) in employeeRows" :key="`${index}-${row.employee}`">
                 <SystemSelect :model-value="row.employee" label="Employee" :options="employeeOptions" :disabled="Boolean(run.docstatus)" @update:model-value="changeEmployee(row, $event)" />
-                <SystemSelect v-model="row.completion_status" label="Work status" :options="attendanceOptions" :disabled="Boolean(run.docstatus)" />
-                <SystemFormControl v-model="row.available_hours" label="Hours available" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
+                <div class="calculated-availability"><span>Hours available</span><strong>{{ quantity(row.available_hours) }} h</strong><small>Matches the kitchen window</small></div>
                 <SystemFormControl v-model="row.notes" label="Notes" :disabled="Boolean(run.docstatus)" />
                 <SystemOperationalButton v-if="!run.docstatus" variant="ghost" @click="removeEmployee(index)">Remove</SystemOperationalButton>
               </article>
@@ -512,16 +513,6 @@ function quantity(value) {
           <SystemAccordionContent class="section-content"><div class="equipment-grid"><article v-for="item in instructions.equipment" :key="item.name"><strong>{{ item.equipment_type_name }}</strong><span>{{ quantity(item.capacity_qty) }} {{ item.capacity_uom }} per batch</span><small>{{ item.quantity_available }} available · {{ item.concurrent_batch_limit }} simultaneous {{ Number(item.concurrent_batch_limit) === 1 ? "batch" : "batches" }} each</small><b>{{ quantity(item.total_concurrent_capacity) }} {{ item.capacity_uom }} at once</b></article></div></SystemAccordionContent>
         </SystemAccordionItem>
 
-        <SystemAccordionItem value="actual-timing" class="plan-section actual-time-section">
-          <SystemAccordionTrigger class="section-trigger"><div class="section-heading"><div><p class="eyebrow">Actual timing</p><h2>Record the completed cooking time</h2><p>Open this after the food has been made and record the elapsed time for the complete cook.</p></div><SystemBadge>{{ paceStatus }}</SystemBadge></div></SystemAccordionTrigger>
-          <SystemAccordionContent class="section-content">
-            <div class="actual-time-fields">
-              <div><p>This evidence is stored on the production run and may inform future duration proposals. It does not replace the approved method automatically.</p></div>
-              <SystemFormControl v-model="actualElapsedHours" label="Actual elapsed time (hours)" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
-              <div class="actual-time-result" :class="paceStatus === 'Slower than takt' ? 'is-under' : 'is-ready'"><strong>{{ paceStatus }}</strong><span>{{ quantity(actualPace) }} min/kg actual · {{ quantity(slowestAllowedPace) }} min/kg slowest allowable</span></div>
-            </div>
-          </SystemAccordionContent>
-        </SystemAccordionItem>
       </SystemAccordion>
     </template>
   </section>
@@ -547,12 +538,10 @@ function quantity(value) {
 .capacity-card h2 {
   margin: 0;
   color: var(--theme-text);
-  font-family: inherit;
 }
 
 .section-heading p,
-.capacity-card p,
-.actual-time-fields p {
+.capacity-card p {
   margin: var(--spacing-3xs) 0 0;
   color: var(--theme-text-muted);
 }
@@ -736,7 +725,7 @@ function quantity(value) {
 
 .employee-list article {
   display: grid;
-  grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.8fr) minmax(8rem, 0.65fr) minmax(10rem, 1fr) auto;
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.8fr) minmax(10rem, 1fr) auto;
   align-items: end;
   gap: var(--spacing-xs);
   padding: var(--spacing-xs);
@@ -1148,27 +1137,21 @@ function quantity(value) {
   background: var(--theme-surface);
 }
 
-.actual-time-fields {
+.calculated-availability {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.45fr);
-  align-items: end;
-  gap: var(--spacing-s);
-}
-
-.actual-time-result {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-xs);
+  align-content: center;
+  gap: var(--spacing-3xs);
+  min-height: 2.75rem;
   padding: var(--spacing-xs);
-  border-left: 3px solid var(--theme-success);
-  border-radius: 0 var(--component-radius-field) var(--component-radius-field) 0;
-  background: color-mix(in oklch, var(--theme-success) 7%, var(--theme-surface));
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-field);
+  background: var(--theme-field);
 }
 
-.actual-time-result.is-under {
-  border-left-color: var(--theme-error);
-  background: color-mix(in oklch, var(--theme-error) 8%, var(--theme-surface));
+.calculated-availability span,
+.calculated-availability small {
+  color: var(--theme-text-muted);
+  font-size: var(--font-size--2);
 }
 
 @media (max-width: 75rem) {
@@ -1216,7 +1199,6 @@ function quantity(value) {
 
   .team-controls,
   .employee-list article,
-  .actual-time-fields,
   .equipment-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1238,9 +1220,6 @@ function quantity(value) {
     flex-direction: column;
   }
 
-  .actual-time-result {
-    display: grid;
-  }
 }
 
 @media (max-width: 30rem) {

@@ -19,7 +19,7 @@ import {
 	getContainerSuggestion,
 	getProductionHistorySnapshot,
 	getRecipeExpectation,
-	saveProductionEmployees,
+	saveProductionActualTeam,
 	submitProductionRun,
 	updateProductionActuals,
 } from "@/resources/api";
@@ -97,6 +97,21 @@ const selectedCapacityWindow = computed(
 		props.plan?.capacity_plan?.windows?.find(
 			(row) => Number(row.week_number) === Number(selectedRow.value?.week_number),
 		) || null,
+);
+const attendanceOptions = ["Completed", "Absent", "Cancelled"].map((value) => ({
+	label: value,
+	value,
+}));
+const completedTeam = computed(() =>
+	employeeRows.filter((row) => row.employee && row.completion_status === "Completed"),
+);
+const actualTeamHours = computed(
+	() => completedTeam.value.length * Number(actualElapsedHours.value || 0),
+);
+const actualLabourPace = computed(() =>
+	Number(actualOutput.value || 0)
+		? (actualTeamHours.value * 60) / Number(actualOutput.value)
+		: 0,
 );
 const allocationTypeOptions = [
 	"Current Customers",
@@ -247,7 +262,11 @@ async function hydrateStation(value) {
 	employeeRows.splice(
 		0,
 		employeeRows.length,
-		...(run.value?.employees || []).map((row) => ({ ...row })),
+		...(run.value?.employees || []).map((row) => ({
+			...row,
+			completion_status:
+				row.completion_status === "Assigned" ? "Completed" : row.completion_status,
+		})),
 	);
 	teamTemplate.value =
 		run.value?.team_template || props.plan?.capacity_plan?.default_team_template || "";
@@ -304,7 +323,15 @@ async function restoreLocalProductionDraft() {
 	containerCountManuallySet.value = Boolean(draft.finished_container_count);
 	notes.value = draft.notes || "";
 	measurements.splice(0, measurements.length, ...(draft.ingredients || []));
-	employeeRows.splice(0, employeeRows.length, ...(draft.employees || []));
+	employeeRows.splice(
+		0,
+		employeeRows.length,
+		...(draft.employees || []).map((row) => ({
+			...row,
+			completion_status:
+				row.completion_status === "Assigned" ? "Completed" : row.completion_status,
+		})),
+	);
 	teamTemplate.value = draft.team_template || "";
 	scheduledElapsedHours.value = Number(draft.scheduled_elapsed_hours || 0);
 	actualElapsedHours.value = draft.actual_elapsed_hours || 0;
@@ -391,7 +418,7 @@ function productionDraftPayload() {
 		employees: employeeRows.map((row) => ({ ...row })),
 		team_template: teamTemplate.value,
 		actual_elapsed_hours: Number(actualElapsedHours.value || 0),
-		scheduled_elapsed_hours: Number(scheduledElapsedHours.value || 0),
+		scheduled_elapsed_hours: undefined,
 	};
 }
 
@@ -454,12 +481,11 @@ async function saveRun() {
 				notes.value,
 				Number(finishedContainerCount.value || 0),
 			);
-			run.value = await saveProductionEmployees(
+			run.value = await saveProductionActualTeam(
 				run.value.name,
 				employeeRows,
 				teamTemplate.value,
 				actualElapsedHours.value,
-				null,
 			);
 		} else {
 			if (!run.value)
@@ -485,12 +511,11 @@ async function saveRun() {
 				notes.value,
 				Number(finishedContainerCount.value || 0),
 			);
-			run.value = await saveProductionEmployees(
+			run.value = await saveProductionActualTeam(
 				run.value.name,
 				employeeRows,
 				teamTemplate.value,
 				actualElapsedHours.value,
-				scheduledElapsedHours.value,
 			);
 		}
 		if (!queuedMutationId.value) {
@@ -1020,6 +1045,36 @@ function openRecipeRecords(create = false) {
 						:disabled="draftLocked"
 					/>
 				</section>
+				<section class="data-section actual-timing-section">
+					<div class="section-heading">
+						<div>
+							<p class="eyebrow">Actual timing</p>
+							<h2>Record how long the cook actually took</h2>
+							<p>This is production evidence. Each completed team member receives the same elapsed time, while absent or cancelled people contribute no labour hours.</p>
+						</div>
+						<SystemBadge>{{ completedTeam.length }} COMPLETED</SystemBadge>
+					</div>
+					<div class="actual-timing-grid">
+						<SystemFormControl
+							v-model="actualElapsedHours"
+							type="number"
+							label="Actual elapsed time (hours)"
+							min="0"
+							step="0.1"
+							:disabled="draftLocked"
+						/>
+						<div class="calculated-hours"><span>Actual team-hours</span><strong>{{ quantity(actualTeamHours) }} h</strong></div>
+						<div class="calculated-hours"><span>Actual labour rate</span><strong>{{ quantity(actualLabourPace) }} min/kg</strong></div>
+					</div>
+					<div v-if="employeeRows.length" class="actual-team-list">
+						<article v-for="row in employeeRows" :key="row.employee">
+							<div><strong>{{ row.employee_name || row.employee }}</strong><small>{{ row.employee_type || "Production team" }}</small></div>
+							<SystemSelect v-model="row.completion_status" label="Actual attendance" :options="attendanceOptions" :disabled="draftLocked" />
+							<div class="calculated-hours"><span>Hours worked</span><strong>{{ row.completion_status === "Completed" ? quantity(actualElapsedHours) : "0" }} h</strong></div>
+						</article>
+					</div>
+					<div v-else class="direction-note">Build and save the cooking plan first so the planned team is available for actual attendance and labour evidence.</div>
+				</section>
 				<footer class="posting-bar">
 					<div>
 						<SystemBadge>{{
@@ -1283,6 +1338,35 @@ function openRecipeRecords(create = false) {
 .production-topline > .button-row {
 	justify-content: flex-end;
 }
+.actual-timing-grid {
+	display: grid;
+	grid-template-columns: minmax(14rem, 1fr) repeat(2, minmax(10rem, 0.65fr));
+	align-items: end;
+	gap: var(--spacing-s);
+	margin-top: var(--spacing-s);
+}
+.actual-team-list {
+	display: grid;
+	gap: var(--spacing-xs);
+	margin-top: var(--spacing-s);
+}
+.actual-team-list article {
+	display: grid;
+	grid-template-columns: minmax(14rem, 1fr) minmax(12rem, 0.8fr) minmax(8rem, 0.5fr);
+	align-items: end;
+	gap: var(--spacing-xs);
+	padding: var(--spacing-xs);
+	border: var(--border-width-1) solid var(--theme-border);
+	border-radius: var(--component-radius-field);
+	background: var(--theme-surface-raised);
+}
+.actual-team-list article > div:first-child {
+	display: grid;
+	gap: var(--spacing-3xs);
+}
+.actual-team-list small {
+	color: var(--theme-text-muted);
+}
 @media (max-width: 70rem) {
 	.production-direction-grid {
 		grid-template-columns: 1fr 1fr;
@@ -1293,11 +1377,20 @@ function openRecipeRecords(create = false) {
 	.allocation-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
+	.actual-timing-grid,
+	.actual-team-list article {
+		grid-template-columns: 1fr 1fr;
+	}
+	.actual-team-list article > div:first-child {
+		grid-column: 1 / -1;
+	}
 }
 @media (max-width: 44rem) {
 	.production-direction-grid,
 	.allocation-grid,
-	.container-suggestion {
+	.container-suggestion,
+	.actual-timing-grid,
+	.actual-team-list article {
 		grid-template-columns: 1fr;
 	}
 	.production-direction-grid > *:last-child {
@@ -1306,6 +1399,9 @@ function openRecipeRecords(create = false) {
 	.allocation-history article {
 		align-items: flex-start;
 		flex-direction: column;
+	}
+	.actual-team-list article > div:first-child {
+		grid-column: auto;
 	}
 }
 </style>

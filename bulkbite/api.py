@@ -510,9 +510,15 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 	run = frappe.get_doc("BulkBite Production Run", name)
 	if run.docstatus != 0:
 		frappe.throw(_("Employees can only be changed on a draft production run."))
-	elapsed_hours = flt(actual_elapsed_hours)
-	if elapsed_hours < 0:
+	actual_time_supplied = actual_elapsed_hours is not None
+	elapsed_hours = flt(actual_elapsed_hours) if actual_time_supplied else flt(run.actual_elapsed_hours)
+	if actual_time_supplied and elapsed_hours < 0:
 		frappe.throw(_("Actual elapsed time cannot be negative."))
+	planned_window_supplied = scheduled_elapsed_hours is not None
+	planned_window_hours = flt(scheduled_elapsed_hours) if planned_window_supplied else flt(run.scheduled_elapsed_hours)
+	if planned_window_hours < 0:
+		frappe.throw(_("Kitchen time available cannot be negative."))
+	existing_by_employee = {row.employee: row for row in run.employees or [] if row.employee}
 	rows = []
 	for supplied in _as_list(employees):
 		if not supplied.get("employee"):
@@ -521,7 +527,7 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 		if employee.status != "Active":
 			frappe.throw(_("{0} is not an active employee.").format(employee.full_name))
 		employee_type = frappe.get_doc("BulkBite Employee Type", employee.employee_type)
-		supplied_available_hours = supplied.get("available_hours")
+		supplied_available_hours = planned_window_hours if planned_window_supplied else supplied.get("available_hours")
 		available_hours = flt(supplied_available_hours)
 		if available_hours < 0:
 			frappe.throw(_("Available hours for {0} cannot be negative.").format(employee.full_name))
@@ -529,9 +535,23 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 			available_hours = flt(employee.available_hours_per_run) or flt(employee_type.expected_hours_per_run)
 		payment_basis = employee.payment_basis_override if employee.use_payment_override and employee.payment_basis_override else employee_type.payment_basis
 		payment_rate = employee.payment_rate_override if employee.use_payment_override else employee_type.payment_rate
-		completion_status = supplied.get("completion_status") or "Completed"
-		custom_hours = bool(supplied.get("custom_hours"))
-		hours_worked = flt(supplied.get("hours_worked")) if custom_hours else elapsed_hours
+		existing_assignment = existing_by_employee.get(employee.name)
+		preserve_actual = not actual_time_supplied and flt(run.actual_elapsed_hours) > 0 and existing_assignment
+		completion_status = (
+			existing_assignment.completion_status
+			if preserve_actual
+			else supplied.get("completion_status") if actual_time_supplied else "Assigned"
+		) or "Completed"
+		if actual_time_supplied and completion_status == "Assigned":
+			completion_status = "Completed"
+		custom_hours = bool(existing_assignment.custom_hours) if preserve_actual else bool(supplied.get("custom_hours")) if actual_time_supplied else False
+		hours_worked = (
+			flt(existing_assignment.hours_worked)
+			if preserve_actual
+			else flt(supplied.get("hours_worked")) if actual_time_supplied and custom_hours
+			else elapsed_hours if actual_time_supplied
+			else 0
+		)
 		if completion_status in {"Absent", "Cancelled"}:
 			hours_worked = 0
 		pay = calculate_assignment_pay(frappe._dict({"payment_basis": payment_basis, "payment_rate": payment_rate}), hours_worked, completion_status)
@@ -540,13 +560,13 @@ def save_production_employees(name, employees=None, team_template=None, actual_e
 			"available_hours": available_hours, "custom_hours": custom_hours, "hours_worked": hours_worked, "completion_status": completion_status,
 			**pay, "notes": supplied.get("notes"),
 		})
-	performance = calculate_run_performance(run.actual_output_qty, elapsed_hours, rows, run.planned_takt_minutes_per_kg)
 	run.team_template = team_template
-	run.actual_elapsed_hours = elapsed_hours
-	if scheduled_elapsed_hours is not None:
-		run.scheduled_elapsed_hours = flt(scheduled_elapsed_hours)
-	for fieldname, value in performance.items():
-		run.set(fieldname, value)
+	if planned_window_supplied:
+		run.scheduled_elapsed_hours = planned_window_hours
+	if actual_time_supplied:
+		performance = calculate_run_performance(run.actual_output_qty, elapsed_hours, rows, run.planned_takt_minutes_per_kg)
+		for fieldname, value in performance.items():
+			run.set(fieldname, value)
 	run.set("employees", rows)
 	run.save()
 	return _serialize_run(run)

@@ -138,6 +138,10 @@ export const saveProductionEmployees = (name, employees, teamTemplate, actualEla
   actual_elapsed_hours: actualElapsedHours,
   scheduled_elapsed_hours: scheduledElapsedHours,
 })
+export const saveKitchenPlanTeam = (name, employees, teamTemplate, scheduledElapsedHours) =>
+  saveProductionEmployees(name, employees, teamTemplate, null, scheduledElapsedHours)
+export const saveProductionActualTeam = (name, employees, teamTemplate, actualElapsedHours) =>
+  saveProductionEmployees(name, employees, teamTemplate, actualElapsedHours, undefined)
 
 export function priceWorkbookUrl(fields) {
   return resolveRequestUrl(`/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`)

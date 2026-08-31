@@ -11097,31 +11097,31 @@ export const systemCatalogue = Object.freeze({
     {
       "id": "kitchen-execution-plan",
       "name": "Kitchen Execution Plan",
-      "job": "Create a standalone run-addressable Kitchen Plan block with team assignment, practical capacity, equipment-aware batches, CPM graph, worker lanes, instructions, and actual timing. Production retains measured output, ingredients, containers, allocations, draft and posting.",
+      "job": "Create a standalone run-addressable Kitchen Plan block with planned team assignment, one shared kitchen window, practical capacity, equipment-aware batches, CPM graph, worker lanes, and cooking instructions. Production retains actual elapsed time, attendance, measured output, ingredients, containers, allocations, draft, and posting.",
       "category": "Project",
       "source": "@/blocks/kitchen-execution-plan/KitchenExecutionPlan.vue",
       "public": "SystemKitchenExecutionPlan",
       "registrySource": "sources/blocks/kitchen-execution-plan",
       "projectSource": "src/blocks/kitchen-execution-plan",
       "components": [
+        "accordion",
         "badge",
         "card",
-        "chart",
-        "checkbox-shadcn",
+        "flow",
         "form-control",
         "operational-button",
         "select"
       ],
       "primitives": [],
       "incomingHandoff": "Production has saved a measurable draft run with one recipe, output target, date, and stock theory. The cook opens this run-addressable page to build the executable kitchen plan.",
-      "outgoingHandoff": "The cook returns to Production with the saved team, kitchen window, actual elapsed time, and a deterministic equipment-aware method ready for measured usage and posting.",
-      "responsiveBehaviour": "Keep the capacity decision first. At intermediate and mobile widths stack team controls, allow the CPM canvas to pan and zoom inside its own boundary, preserve a structured task-list alternative, and prevent the page or mobile shell from overflowing.",
+      "outgoingHandoff": "The cook returns to Production with the saved planned team, shared kitchen window, and deterministic equipment-aware method. Production then records actual attendance, elapsed time, measured usage, output, and posting.",
+      "responsiveBehaviour": "Keep the capacity decision first. Present each planning section as a collapsible Desyium card. At intermediate and mobile widths stack team controls, allow the Vue Flow CPM canvas to pan and zoom inside its own boundary, preserve a structured task-list alternative, and prevent the page or mobile shell from overflowing.",
       "layoutContract": {
         "strategy": "grid",
         "pageAlignment": "grid",
         "padding": "var(--spacing-xl-2xl) 0",
         "gap": "var(--spacing-m)",
-        "containment": "A compact run header and practical capacity decision precede team assignment, the bounded CPM canvas, raw weigh list, worker lanes, method details, equipment batches, and actual timing."
+        "containment": "The shared workflow header and practical capacity work card precede collapsible team assignment, the bounded Vue Flow CPM canvas, raw weigh list, worker lanes, method details, and equipment batches."
       },
       "surfaceContract": {
         "placement": "none",
