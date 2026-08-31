@@ -185,9 +185,10 @@ async function saveKitchenPlan() {
 const FLOW_NODE_WIDTH = 236
 const FLOW_NODE_HEIGHT = 132
 const FLOW_JUNCTION_SIZE = 24
-const FLOW_COLUMN_GAP = 112
-const FLOW_ROW_GAP = 54
+const FLOW_COLUMN_GAP = 54
+const FLOW_ROW_GAP = 112
 const FLOW_TIME_LABEL_WIDTH = 148
+const FLOW_TIME_GUTTER = 52
 
 const flowElements = computed(() => {
   const steps = instructions.value?.steps || []
@@ -199,8 +200,8 @@ const flowElements = computed(() => {
       id: step.task_id,
       type: "cpm-task",
       position: layout.taskPositions.get(step.task_id),
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
       draggable: false,
       selectable: true,
       data: { step },
@@ -211,8 +212,8 @@ const flowElements = computed(() => {
       id: junction.id,
       type: "cpm-junction",
       position: layout.junctionPositions.get(junction.id),
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
       draggable: false,
       selectable: false,
       data: { critical: junction.critical },
@@ -221,7 +222,7 @@ const flowElements = computed(() => {
   const timeNodes = layout.columns.map((column) => ({
     id: `time-${column.startMinute}`,
     type: "cpm-time",
-    position: { x: column.x + (FLOW_NODE_WIDTH - FLOW_TIME_LABEL_WIDTH) / 2, y: 0 },
+    position: { x: 0, y: column.y + (FLOW_NODE_HEIGHT - 48) / 2 },
     draggable: false,
     selectable: false,
     data: {
@@ -249,16 +250,17 @@ const flowElements = computed(() => {
 function buildConcurrentFlowLayout(steps, junctions) {
   const columns = buildTimeColumns(steps)
   const maximumConcurrentTasks = Math.max(...columns.map((column) => column.steps.length), 1)
-  const rowHeight = FLOW_NODE_HEIGHT + FLOW_ROW_GAP
+  const maximumRowWidth = maximumConcurrentTasks * FLOW_NODE_WIDTH + (maximumConcurrentTasks - 1) * FLOW_COLUMN_GAP
   const taskPositions = new Map()
 
-  columns.forEach((column, columnIndex) => {
-    column.x = columnIndex * (FLOW_NODE_WIDTH + FLOW_COLUMN_GAP)
-    const columnOffset = (maximumConcurrentTasks - column.steps.length) * rowHeight / 2
-    column.steps.forEach((step, rowIndex) => {
+  columns.forEach((column, rowIndex) => {
+    column.y = rowIndex * (FLOW_NODE_HEIGHT + FLOW_ROW_GAP)
+    const rowWidth = column.steps.length * FLOW_NODE_WIDTH + (column.steps.length - 1) * FLOW_COLUMN_GAP
+    const rowOffset = (maximumRowWidth - rowWidth) / 2
+    column.steps.forEach((step, columnIndex) => {
       taskPositions.set(step.task_id, {
-        x: column.x,
-        y: 72 + columnOffset + rowIndex * rowHeight,
+        x: FLOW_TIME_LABEL_WIDTH + FLOW_TIME_GUTTER + rowOffset + columnIndex * (FLOW_NODE_WIDTH + FLOW_COLUMN_GAP),
+        y: column.y,
       })
     })
   })
@@ -267,12 +269,12 @@ function buildConcurrentFlowLayout(steps, junctions) {
   junctions.forEach((junction) => {
     const sourcePositions = junction.sources.map((id) => taskPositions.get(id)).filter(Boolean)
     const targetPositions = junction.targets.map((id) => taskPositions.get(id)).filter(Boolean)
-    const sourceRight = Math.max(...sourcePositions.map((position) => position.x + FLOW_NODE_WIDTH))
-    const targetLeft = Math.min(...targetPositions.map((position) => position.x))
-    const connectedCenters = [...sourcePositions, ...targetPositions].map((position) => position.y + FLOW_NODE_HEIGHT / 2)
+    const sourceBottom = Math.max(...sourcePositions.map((position) => position.y + FLOW_NODE_HEIGHT))
+    const targetTop = Math.min(...targetPositions.map((position) => position.y))
+    const connectedCenters = [...sourcePositions, ...targetPositions].map((position) => position.x + FLOW_NODE_WIDTH / 2)
     junctionPositions.set(junction.id, {
-      x: sourceRight + (targetLeft - sourceRight - FLOW_JUNCTION_SIZE) / 2,
-      y: connectedCenters.reduce((sum, value) => sum + value, 0) / connectedCenters.length - FLOW_JUNCTION_SIZE / 2,
+      x: connectedCenters.reduce((sum, value) => sum + value, 0) / connectedCenters.length - FLOW_JUNCTION_SIZE / 2,
+      y: sourceBottom + (targetTop - sourceBottom - FLOW_JUNCTION_SIZE) / 2,
     })
   })
 
@@ -439,7 +441,7 @@ function quantity(value) {
 
         <SystemAccordionItem value="critical-path" class="plan-section cpm-section">
           <SystemAccordionTrigger class="section-trigger">
-            <div class="section-heading"><div><p class="eyebrow">Critical path</p><h2>Cooking dependency diagram</h2><p>Tasks starting together share one time column. Arrows show what must finish before the next action can begin.</p></div><SystemBadge>{{ quantity(instructions.critical_path_minutes) }} min CPM</SystemBadge></div>
+            <div class="section-heading"><div><p class="eyebrow">Critical path</p><h2>Cooking dependency diagram</h2><p>Time moves down the plan. Actions on the same row happen concurrently, and arrows show what must finish before the next row can begin.</p></div><SystemBadge>{{ quantity(instructions.critical_path_minutes) }} min CPM</SystemBadge></div>
           </SystemAccordionTrigger>
           <SystemAccordionContent class="section-content">
             <div class="cpm-canvas" :aria-label="`Cooking plan dependency graph with ${instructions.steps.length} tasks and ${instructions.critical_path_minutes} critical-path minutes`">
@@ -458,27 +460,27 @@ function quantity(value) {
               >
                 <template #node-cpm-task="{ data }">
                   <article class="cpm-node" :class="{ 'is-critical': data.step.is_critical }">
-                    <Handle type="target" :position="Position.Left" :connectable="false" />
+                    <Handle type="target" :position="Position.Top" :connectable="false" />
                     <div class="cpm-node__top"><span>Step {{ data.step.step_number }}</span><SystemBadge v-if="data.step.is_critical" theme="red">Critical</SystemBadge></div>
                     <strong>{{ data.step.step_name }}</strong>
                     <small>{{ time(data.step.scheduled_start) }} to {{ time(data.step.scheduled_end) }}</small>
                     <small>{{ workerNames(data.step) }}</small>
                     <small v-if="data.step.equipment_name">{{ data.step.equipment_name }}</small>
                     <b>{{ startWindow(data.step) }}</b>
-                    <Handle type="source" :position="Position.Right" :connectable="false" />
+                    <Handle type="source" :position="Position.Bottom" :connectable="false" />
                   </article>
                 </template>
                 <template #node-cpm-junction="{ data }">
                   <span class="cpm-junction" :class="{ 'is-critical': data.critical }" aria-hidden="true">
-                    <Handle type="target" :position="Position.Left" :connectable="false" />
+                    <Handle type="target" :position="Position.Top" :connectable="false" />
                     <i></i>
-                    <Handle type="source" :position="Position.Right" :connectable="false" />
+                    <Handle type="source" :position="Position.Bottom" :connectable="false" />
                   </span>
                 </template>
                 <template #node-cpm-time="{ data }">
                   <div class="cpm-time" aria-hidden="true">
                     <strong>{{ time(data.startMinute) }}</strong>
-                    <span>{{ data.concurrentCount > 1 ? `${data.concurrentCount} concurrent actions` : "1 action" }}</span>
+                    <span>{{ data.concurrentCount > 1 ? `${data.concurrentCount} actions together` : "1 action" }}</span>
                   </div>
                 </template>
               </SystemFlow>
