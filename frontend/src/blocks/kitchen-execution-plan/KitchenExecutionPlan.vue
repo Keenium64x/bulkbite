@@ -425,6 +425,10 @@ function fitFlow(instance) {
   window.requestAnimationFrame(() => instance.fitView({ padding: 0.12, minZoom: 0.35, maxZoom: 1 }))
 }
 
+function fitPrintFlow(instance) {
+  window.requestAnimationFrame(() => instance.fitView({ padding: 0.06, minZoom: 0.1, maxZoom: 0.8 }))
+}
+
 function startWindow(step) {
   if (Number(step.slack_minutes || 0) <= 0.01) return `Start at ${time(step.early_start)}, no buffer`
   return `Start ${time(step.early_start)} to ${time(step.late_start)}, ${quantity(step.slack_minutes)} min buffer`
@@ -631,6 +635,53 @@ function printKitchenPack() {
     </div>
 
     <div v-if="workspace && instructions" class="print-kitchen-pack">
+      <section class="print-page print-cpm-page">
+        <header class="print-page__header"><img :src="bulkbiteWordmark" alt="BulkBite" /><span>Critical path diagram</span></header>
+        <div class="print-page__title"><p>Cooking dependencies</p><h1>{{ instructions.recipe_name }}</h1><span>Run {{ run.name }} · {{ quantity(run.planned_output_qty) }} kg · {{ quantity(instructions.critical_path_minutes) }} min critical path</span></div>
+        <div class="cpm-canvas print-cpm-canvas" :aria-label="`Printed cooking dependency graph with ${instructions.steps.length} tasks and ${instructions.critical_path_minutes} critical-path minutes`">
+          <SystemFlow
+            :nodes="flowElements.nodes"
+            :edges="flowElements.edges"
+            :nodes-draggable="false"
+            :nodes-connectable="false"
+            :edges-updatable="false"
+            :elements-selectable="false"
+            :fit-view-on-init="true"
+            :min-zoom="0.1"
+            :max-zoom="1"
+            :default-edge-options="{ type: 'smoothstep' }"
+            @init="fitPrintFlow"
+          >
+            <template #node-cpm-task="{ data }">
+              <article class="cpm-node" :class="{ 'is-critical': data.step.is_critical }">
+                <Handle type="target" :position="Position.Top" :connectable="false" />
+                <div class="cpm-node__top"><span>Step {{ data.step.step_number }}</span><SystemBadge v-if="data.step.is_critical" theme="red">Critical</SystemBadge></div>
+                <strong>{{ data.step.step_name }}</strong>
+                <small>{{ time(data.step.scheduled_start) }} to {{ time(data.step.scheduled_end) }}</small>
+                <small>{{ workerNames(data.step) }}</small>
+                <small v-if="data.step.equipment_name">{{ data.step.equipment_name }}</small>
+                <b>{{ startWindow(data.step) }}</b>
+                <Handle type="source" :position="Position.Bottom" :connectable="false" />
+              </article>
+            </template>
+            <template #node-cpm-junction="{ data }">
+              <span class="cpm-junction" :class="{ 'is-critical': data.critical }" aria-hidden="true">
+                <Handle type="target" :position="Position.Top" :connectable="false" />
+                <i></i>
+                <Handle type="source" :position="Position.Bottom" :connectable="false" />
+              </span>
+            </template>
+            <template #node-cpm-time="{ data }">
+              <div class="cpm-time" aria-hidden="true">
+                <strong>{{ time(data.startMinute) }}</strong>
+                <span>{{ data.concurrentCount > 1 ? `${data.concurrentCount} actions together` : "1 action" }}</span>
+              </div>
+            </template>
+          </SystemFlow>
+        </div>
+        <div class="print-cpm-legend"><span><i class="is-critical"></i>Critical, start on time</span><span><i></i>Buffered task</span><span>Actions on one row happen concurrently</span></div>
+      </section>
+
       <section v-for="lane in instructions.worker_lanes" :key="`print-worker-${lane.lane}`" class="print-page print-worker-page">
         <header class="print-page__header"><img :src="bulkbiteWordmark" alt="BulkBite" /><span>Kitchen worker sheet</span></header>
         <div class="print-page__title"><p>Worker {{ lane.lane }}</p><h1>{{ workerName(lane.lane) }}</h1><span>{{ instructions.recipe_name }} · Run {{ run.name }} · {{ quantity(run.planned_output_qty) }} kg · {{ run.production_date }}</span></div>
@@ -683,7 +734,18 @@ function printKitchenPack() {
 }
 
 .print-kitchen-pack {
-  display: none;
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 186mm;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.print-cpm-canvas {
+  width: 186mm;
+  height: 205mm;
+  min-height: 205mm;
 }
 
 .section-heading {
@@ -1377,6 +1439,12 @@ function printKitchenPack() {
 
   .print-kitchen-pack {
     display: block;
+    position: static;
+    width: 186mm;
+    max-width: 100%;
+    margin-inline: auto;
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .print-page {
@@ -1439,6 +1507,60 @@ function printKitchenPack() {
   .print-page__title span {
     color: var(--theme-text-muted);
     font-size: 10pt;
+  }
+
+  .print-cpm-canvas {
+    width: 100%;
+    height: 205mm;
+    min-height: 205mm;
+    overflow: hidden;
+    border-color: var(--theme-border);
+    background: var(--theme-canvas);
+    print-color-adjust: exact;
+  }
+
+  .print-cpm-canvas :deep(.system-flow) {
+    width: 100%;
+    height: 100%;
+    min-height: 205mm;
+  }
+
+  .print-cpm-canvas :deep(.vue-flow__pane) {
+    cursor: default;
+  }
+
+  .print-cpm-canvas :deep(.vue-flow__node),
+  .print-cpm-canvas :deep(.vue-flow__edge),
+  .print-cpm-canvas :deep(.vue-flow__arrowhead) {
+    print-color-adjust: exact;
+  }
+
+  .print-cpm-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5mm;
+    margin-top: 4mm;
+    color: var(--theme-text-muted);
+    font-size: 8pt;
+  }
+
+  .print-cpm-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5mm;
+  }
+
+  .print-cpm-legend i {
+    width: 4mm;
+    height: 4mm;
+    border: 1px solid var(--theme-border);
+    border-radius: 1mm;
+    background: var(--theme-surface-raised);
+  }
+
+  .print-cpm-legend i.is-critical {
+    border: 2px solid var(--theme-primary);
+    background: color-mix(in oklch, var(--theme-primary) 10%, var(--theme-surface-raised));
   }
 
   .print-summary {
