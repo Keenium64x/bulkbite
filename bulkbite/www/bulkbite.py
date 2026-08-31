@@ -13,11 +13,12 @@ no_cache = 1
 
 
 def get_context(context):
-	if frappe.session.user == "Guest":
+	is_worker_assignment = frappe.local.request.path.rstrip("/") == "/bulkbite/kitchen-assignment"
+	if frappe.session.user == "Guest" and not is_worker_assignment:
 		frappe.local.flags.redirect_location = "/login?redirect-to=/bulkbite"
 		raise frappe.Redirect
 	context.boot = {
-		"csrf_token": frappe.sessions.get_csrf_token(),
+		"csrf_token": frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else None,
 		"user": frappe.session.user,
 		"site_name": frappe.local.site,
 	}

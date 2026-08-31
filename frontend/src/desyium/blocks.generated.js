@@ -6,13 +6,14 @@ import Block3 from "../blocks/buying-plan/BuyingPlan.vue"
 import Block4 from "../blocks/document-review/DocumentReview.vue"
 import Block5 from "../blocks/employee-management/EmployeeManagement.vue"
 import Block6 from "../blocks/kitchen-execution-plan/KitchenExecutionPlan.vue"
-import Block7 from "../blocks/monthly-planning/MonthlyPlanning.vue"
-import Block8 from "../blocks/native-availability-state/NativeAvailabilityState.vue"
-import Block9 from "../blocks/price-history/PriceHistory.vue"
-import Block10 from "../blocks/production-measurement/ProductionMeasurement.vue"
-import Block11 from "../blocks/receipt-intake/ReceiptIntake.vue"
-import Block12 from "../blocks/stock-overview/StockOverview.vue"
-import Block13 from "../blocks/stock-reconciliation/StockReconciliation.vue"
+import Block7 from "../blocks/kitchen-worker-assignment/KitchenWorkerAssignment.vue"
+import Block8 from "../blocks/monthly-planning/MonthlyPlanning.vue"
+import Block9 from "../blocks/native-availability-state/NativeAvailabilityState.vue"
+import Block10 from "../blocks/price-history/PriceHistory.vue"
+import Block11 from "../blocks/production-measurement/ProductionMeasurement.vue"
+import Block12 from "../blocks/receipt-intake/ReceiptIntake.vue"
+import Block13 from "../blocks/stock-overview/StockOverview.vue"
+import Block14 from "../blocks/stock-reconciliation/StockReconciliation.vue"
 
 export const SystemAccountantExport = Block0
 export const SystemAuxiliaryRecords = Block1
@@ -21,13 +22,14 @@ export const SystemBuyingPlan = Block3
 export const SystemDocumentReview = Block4
 export const SystemEmployeeManagement = Block5
 export const SystemKitchenExecutionPlan = Block6
-export const SystemMonthlyPlanning = Block7
-export const SystemNativeAvailabilityState = Block8
-export const SystemPriceHistory = Block9
-export const SystemProductionMeasurement = Block10
-export const SystemReceiptIntake = Block11
-export const SystemStockOverview = Block12
-export const SystemStockReconciliation = Block13
+export const SystemKitchenWorkerAssignment = Block7
+export const SystemMonthlyPlanning = Block8
+export const SystemNativeAvailabilityState = Block9
+export const SystemPriceHistory = Block10
+export const SystemProductionMeasurement = Block11
+export const SystemReceiptIntake = Block12
+export const SystemStockOverview = Block13
+export const SystemStockReconciliation = Block14
 
 export const installedBlocks = Object.freeze([
   {
@@ -368,6 +370,50 @@ export const installedBlocks = Object.freeze([
     "motionContract": {
       "mode": "still",
       "justification": "The CPM graph supports direct pan and zoom only. Capacity state, dependency meaning, and task order do not depend on animation."
+    },
+    "scope": "project"
+  },
+  {
+    "id": "kitchen-worker-assignment",
+    "name": "Kitchen Worker Assignment",
+    "job": "Create a restricted per-employee kitchen assignment link and standalone shell-free worker page showing only that employee lane plus the complete shared cooking instructions",
+    "category": "Project",
+    "source": "@/blocks/kitchen-worker-assignment/KitchenWorkerAssignment.vue",
+    "public": "SystemKitchenWorkerAssignment",
+    "registrySource": "sources/blocks/kitchen-worker-assignment",
+    "projectSource": "src/blocks/kitchen-worker-assignment",
+    "components": [
+      "accordion",
+      "badge",
+      "logo"
+    ],
+    "primitives": [],
+    "incomingHandoff": "A manager shares one revocable employee-specific kitchen link after saving the production team. The employee opens it without entering the management application.",
+    "outgoingHandoff": "The employee follows only their ordered lane and assist handoffs while retaining read-only access to the complete shared method, ingredient weights, and equipment guidance.",
+    "responsiveBehaviour": "Use a shell-free single reading column on mobile, keep the employee lane first, stack all facts and controls before they overflow, and preserve at least 44 px interactive targets. Desktop remains a centred operational reading surface rather than rebuilding the management shell.",
+    "layoutContract": {
+      "strategy": "flow",
+      "pageAlignment": "grid",
+      "padding": "var(--spacing-xl-2xl)",
+      "gap": "var(--spacing-m)",
+      "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+    },
+    "surfaceContract": {
+      "placement": "none",
+      "semanticOwner": "[data-block='kitchen-worker-assignment']",
+      "scope": "none",
+      "edgeTreatment": "none",
+      "boundaryReason": null,
+      "contentSeparation": "Content padding does not define primitive bounds.",
+      "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+    },
+    "actionContract": {
+      "primaryPreset": "operational-action",
+      "secondaryPreset": "quiet-action"
+    },
+    "motionContract": {
+      "mode": "still",
+      "justification": "The worker route is a read-only operational instruction view. Provider-native accordion feedback is sufficient and all meaning remains visible without animation."
     },
     "scope": "project"
   },

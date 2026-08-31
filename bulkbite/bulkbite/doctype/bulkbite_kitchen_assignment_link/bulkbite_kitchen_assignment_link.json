@@ -1,0 +1,36 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-31 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "production_run", "employee", "employee_name", "token_hash", "expires_at", "last_accessed_at", "revoked_at"
+ ],
+ "fields": [
+  {"fieldname":"production_run","fieldtype":"Link","in_list_view":1,"label":"Production Run","options":"BulkBite Production Run","read_only":1,"reqd":1},
+  {"fieldname":"employee","fieldtype":"Link","in_list_view":1,"label":"Employee","options":"BulkBite Employee","read_only":1,"reqd":1},
+  {"fieldname":"employee_name","fieldtype":"Data","in_list_view":1,"label":"Employee Name","read_only":1},
+  {"fieldname":"token_hash","fieldtype":"Data","label":"Token Hash","read_only":1,"reqd":1,"unique":1},
+  {"fieldname":"expires_at","fieldtype":"Datetime","in_list_view":1,"label":"Expires At","read_only":1,"reqd":1},
+  {"fieldname":"last_accessed_at","fieldtype":"Datetime","label":"Last Accessed At","read_only":1},
+  {"fieldname":"revoked_at","fieldtype":"Datetime","label":"Revoked At","read_only":1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Kitchen Assignment Link",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {"role":"System Manager","read":1,"delete":1,"export":1,"report":1,"share":1},
+  {"role":"BulkBite Manager","read":1,"report":1}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -13,8 +13,11 @@ import {
   SystemSelect,
 } from "@/desyium"
 import {
+  generateKitchenAssignmentLink,
+  getKitchenAssignmentLinks,
   getKitchenPlanSnapshot,
   getProductionInstructions,
+  revokeKitchenAssignmentLink,
   saveKitchenPlanTeam,
 } from "@/resources/api"
 
@@ -32,6 +35,10 @@ const saved = ref(false)
 const teamTemplate = ref("")
 const kitchenWindowHours = ref(0)
 const employeeRows = reactive([])
+const assignmentLinks = ref({ can_manage: false, links: [] })
+const generatedLinks = reactive({})
+const linkBusyEmployee = ref("")
+const copiedEmployee = ref("")
 
 const run = computed(() => workspace.value?.run || null)
 const employeeOptions = computed(() => workspace.value?.employees || [])
@@ -39,6 +46,8 @@ const employeeByName = computed(() => new Map(employeeOptions.value.map((row) =>
 const teamTemplates = computed(() => workspace.value?.team_templates || [])
 const teamTemplateOptions = computed(() => teamTemplates.value.map((row) => ({ label: row.template_name, value: row.name })))
 const activeTeam = computed(() => employeeRows.filter((row) => row.employee))
+const savedEmployeeIds = computed(() => new Set((run.value?.employees || []).map((row) => row.employee).filter(Boolean)))
+const assignmentLinkByEmployee = computed(() => new Map((assignmentLinks.value.links || []).map((row) => [row.employee, row])))
 const teamSize = computed(() => Math.max(activeTeam.value.length, 1))
 const availableTeamHours = computed(() => activeTeam.value.reduce((sum, row) => sum + Number(row.available_hours || 0), 0))
 const kitchenWindowMinutes = computed(() => Number(kitchenWindowHours.value || 0) * 60)
@@ -73,10 +82,20 @@ async function loadWorkspace() {
     workspace.value = await getKitchenPlanSnapshot(props.runName)
     instructions.value = workspace.value.instructions
     hydrateRun(workspace.value.run)
+    await loadAssignmentLinks()
   } catch (exception) {
     error.value = exception.message
   } finally {
     busy.value = false
+  }
+}
+
+async function loadAssignmentLinks() {
+  try {
+    assignmentLinks.value = await getKitchenAssignmentLinks(props.runName)
+  } catch (exception) {
+    assignmentLinks.value = { can_manage: false, links: [] }
+    if (!error.value) error.value = exception.message
   }
 }
 
@@ -167,6 +186,7 @@ async function saveKitchenPlan() {
     workspace.value = { ...workspace.value, run: updated }
     hydrateRun(updated)
     await rebuildPlan()
+    await loadAssignmentLinks()
     saved.value = true
     emit("changed")
   } catch (exception) {
@@ -174,6 +194,59 @@ async function saveKitchenPlan() {
   } finally {
     busy.value = false
   }
+}
+
+async function generateEmployeeLink(employee) {
+  if (!employee || linkBusyEmployee.value) return
+  linkBusyEmployee.value = employee
+  error.value = ""
+  copiedEmployee.value = ""
+  try {
+    const result = await generateKitchenAssignmentLink(run.value.name, employee)
+    generatedLinks[employee] = new URL(result.path, window.location.origin).href
+    await loadAssignmentLinks()
+  } catch (exception) {
+    error.value = exception.message
+  } finally {
+    linkBusyEmployee.value = ""
+  }
+}
+
+async function copyEmployeeLink(employee) {
+  const url = generatedLinks[employee]
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    copiedEmployee.value = employee
+  } catch {
+    copiedEmployee.value = ""
+  }
+}
+
+async function revokeEmployeeLink(employee) {
+  if (!employee || linkBusyEmployee.value) return
+  linkBusyEmployee.value = employee
+  error.value = ""
+  try {
+    await revokeKitchenAssignmentLink(run.value.name, employee)
+    delete generatedLinks[employee]
+    copiedEmployee.value = ""
+    await loadAssignmentLinks()
+  } catch (exception) {
+    error.value = exception.message
+  } finally {
+    linkBusyEmployee.value = ""
+  }
+}
+
+function assignmentLink(employee) {
+  return assignmentLinkByEmployee.value.get(employee) || null
+}
+
+function linkStatusTheme(status) {
+  if (status === "Active") return "green"
+  if (status === "Revoked") return "red"
+  return "gray"
 }
 
 // endregion KITCHEN PLAN STATION
@@ -431,10 +504,28 @@ function quantity(value) {
             </div>
             <div class="employee-list">
               <article v-for="(row, index) in employeeRows" :key="`${index}-${row.employee}`">
-                <SystemSelect :model-value="row.employee" label="Employee" :options="employeeOptions" :disabled="Boolean(run.docstatus)" @update:model-value="changeEmployee(row, $event)" />
-                <div class="calculated-availability"><span>Hours available</span><strong>{{ quantity(row.available_hours) }} h</strong><small>Matches the kitchen window</small></div>
-                <SystemFormControl v-model="row.notes" label="Notes" :disabled="Boolean(run.docstatus)" />
-                <SystemOperationalButton v-if="!run.docstatus" variant="ghost" @click="removeEmployee(index)">Remove</SystemOperationalButton>
+                <div class="employee-list__fields">
+                  <SystemSelect :model-value="row.employee" label="Employee" :options="employeeOptions" :disabled="Boolean(run.docstatus)" @update:model-value="changeEmployee(row, $event)" />
+                  <div class="calculated-availability"><span>Hours available</span><strong>{{ quantity(row.available_hours) }} h</strong><small>Matches the kitchen window</small></div>
+                  <SystemFormControl v-model="row.notes" label="Notes" :disabled="Boolean(run.docstatus)" />
+                  <SystemOperationalButton v-if="!run.docstatus" variant="ghost" @click="removeEmployee(index)">Remove</SystemOperationalButton>
+                </div>
+                <div v-if="assignmentLinks.can_manage && row.employee" class="assignment-link">
+                  <div>
+                    <span>Employee cooking link</span>
+                    <small v-if="!savedEmployeeIds.has(row.employee)">Save the cooking plan before generating this link.</small>
+                    <small v-else-if="generatedLinks[row.employee]">Anyone holding this link can read the assignment. Copy it now and share it only with this employee.</small>
+                    <small v-else-if="assignmentLink(row.employee)?.status === 'Active'">An active link exists. Regenerate it if you need a new copy.</small>
+                    <small v-else>Generate a private link that opens only this employee's work and the complete method.</small>
+                  </div>
+                  <SystemBadge v-if="assignmentLink(row.employee)" :theme="linkStatusTheme(assignmentLink(row.employee).status)">{{ assignmentLink(row.employee).status }}</SystemBadge>
+                  <SystemFormControl v-if="generatedLinks[row.employee]" :model-value="generatedLinks[row.employee]" label="Private link" readonly :aria-label="`Private cooking link for ${row.employee_name}`" />
+                  <div class="button-row">
+                    <SystemOperationalButton variant="outline" :loading="linkBusyEmployee === row.employee" :disabled="!savedEmployeeIds.has(row.employee) || Boolean(linkBusyEmployee)" @click="generateEmployeeLink(row.employee)">{{ assignmentLink(row.employee)?.status === 'Active' ? 'Regenerate link' : 'Generate link' }}</SystemOperationalButton>
+                    <SystemOperationalButton v-if="generatedLinks[row.employee]" variant="ghost" @click="copyEmployeeLink(row.employee)">{{ copiedEmployee === row.employee ? "Copied" : "Copy link" }}</SystemOperationalButton>
+                    <SystemOperationalButton v-if="assignmentLink(row.employee)?.status === 'Active'" variant="ghost" :disabled="Boolean(linkBusyEmployee)" @click="revokeEmployeeLink(row.employee)">Revoke</SystemOperationalButton>
+                  </div>
+                </div>
               </article>
             </div>
           </SystemAccordionContent>
@@ -725,13 +816,41 @@ function quantity(value) {
 
 .employee-list article {
   display: grid;
-  grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.8fr) minmax(10rem, 1fr) auto;
-  align-items: end;
   gap: var(--spacing-xs);
   padding: var(--spacing-xs);
   border: var(--border-width-1) solid var(--theme-border);
   border-radius: var(--component-radius-field);
   background: var(--theme-surface);
+}
+
+.employee-list__fields {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.8fr) minmax(10rem, 1fr) auto;
+  align-items: end;
+  gap: var(--spacing-xs);
+}
+
+.assignment-link {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1fr) auto minmax(14rem, 1.25fr) auto;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 0;
+  padding-top: var(--spacing-xs);
+  border-top: var(--border-width-1) solid var(--theme-border);
+}
+
+.assignment-link > div:first-child {
+  display: grid;
+  gap: var(--spacing-3xs);
+}
+
+.assignment-link span {
+  font-weight: var(--font-weight-700);
+}
+
+.assignment-link small {
+  color: var(--theme-text-muted);
 }
 
 .cpm-canvas {
@@ -1163,7 +1282,8 @@ function quantity(value) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .employee-list article {
+  .employee-list__fields,
+  .assignment-link {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1198,7 +1318,8 @@ function quantity(value) {
   }
 
   .team-controls,
-  .employee-list article,
+  .employee-list__fields,
+  .assignment-link,
   .equipment-grid {
     grid-template-columns: minmax(0, 1fr);
   }

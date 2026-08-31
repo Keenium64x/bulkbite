@@ -3,6 +3,7 @@ import { createRouter, createWebHashHistory, createWebHistory, RouterView } from
 import { Button } from "frappe-ui"
 import App from "./App.vue"
 import PriceHistoryPage from "./pages/PriceHistoryPage.vue"
+import { SystemKitchenWorkerAssignment } from "@/desyium"
 import "@/styles/desyium/index.css"
 import "@/styles/app.css"
 import { runtimeConfig, requireNativeConfiguration } from "@/config/runtime"
@@ -11,6 +12,7 @@ import { initialiseNativeLifecycle } from "@/native/lifecycle"
 const router = createRouter({
   history: runtimeConfig.isNative ? createWebHashHistory() : createWebHistory(),
   routes: [
+    { path: "/bulkbite/kitchen-assignment", name: "BulkBiteKitchenAssignment", component: SystemKitchenWorkerAssignment, props: () => ({ token: window.location.hash.slice(1) }) },
     { path: "/bulkbite/prices", name: "BulkBitePriceHistory", component: PriceHistoryPage },
     { path: "/bulkbite/production/:runName/kitchen-plan", name: "BulkBiteKitchenPlan", component: App, meta: { kitchenPlan: true } },
     { path: "/bulkbite/setup", name: "BulkBiteSetup", component: App, meta: { auxiliaryCatalogue: true } },
