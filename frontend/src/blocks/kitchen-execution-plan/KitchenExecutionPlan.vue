@@ -548,6 +548,14 @@ function quantity(value) {
   min-width: 0;
 }
 
+.kitchen-plan__header {
+  padding: var(--spacing-m);
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-card);
+  background: var(--theme-surface-raised);
+  box-shadow: var(--shadow-1);
+}
+
 .kitchen-plan__header h1,
 .section-heading h2,
 .capacity-card h2 {
@@ -694,9 +702,11 @@ function quantity(value) {
   width: 100%;
   min-height: 4.5rem;
   padding: var(--spacing-m) !important;
+  border: 0 !important;
   color: var(--theme-text);
   text-align: left;
   text-decoration: none !important;
+  text-decoration-line: none !important;
 }
 
 :deep(.section-trigger:hover) {
@@ -727,7 +737,7 @@ function quantity(value) {
   gap: var(--spacing-s);
   min-width: 0;
   padding: var(--spacing-m) !important;
-  border-top: var(--border-width-1) solid var(--theme-border);
+  border: 0 !important;
   background: var(--theme-surface);
 }
 
@@ -1206,6 +1216,10 @@ function quantity(value) {
 @media (max-width: 48rem) {
   .kitchen-plan {
     padding: var(--spacing-m) var(--spacing-s) var(--spacing-xl);
+  }
+
+  .kitchen-plan__header {
+    padding: var(--spacing-s);
   }
 
   .kitchen-plan__header,
