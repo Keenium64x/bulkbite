@@ -374,7 +374,7 @@ function quantity(value) {
 </script>
 
 <template>
-  <section data-block="kitchen-execution-plan" class="kitchen-plan">
+  <section data-block="kitchen-execution-plan" class="kitchen-plan workflow-block">
     <header class="kitchen-plan__header">
       <div>
         <p class="eyebrow">Cooking plan</p>
@@ -531,9 +531,11 @@ function quantity(value) {
 .kitchen-plan {
   display: grid;
   gap: var(--spacing-m);
-  width: 100%;
+  width: min(100%, 90rem);
   min-width: 0;
-  padding: var(--spacing-l) 0;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: var(--spacing-l) var(--spacing-m) var(--spacing-xl-2xl);
   color: var(--theme-text);
 }
 
@@ -677,7 +679,9 @@ function quantity(value) {
   min-width: 0;
 }
 
-.plan-section {
+:deep(.plan-section) {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   border: var(--border-width-1) solid var(--theme-border) !important;
@@ -686,7 +690,7 @@ function quantity(value) {
   box-shadow: var(--shadow-1);
 }
 
-.section-trigger {
+:deep(.section-trigger) {
   width: 100%;
   min-height: 4.5rem;
   padding: var(--spacing-m) !important;
@@ -695,19 +699,27 @@ function quantity(value) {
   text-decoration: none !important;
 }
 
-.section-trigger:hover {
+:deep(.section-trigger:hover) {
   background: color-mix(in oklch, var(--theme-surface) 62%, var(--theme-surface-raised));
   text-decoration: none !important;
+  text-decoration-line: none !important;
 }
 
-.section-trigger:focus-visible {
+:deep(.section-trigger:hover *) {
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+}
+
+:deep(.section-trigger:focus-visible) {
   outline: 2px solid var(--theme-primary);
   outline-offset: -3px;
 }
 
 .section-trigger .section-heading {
   flex: 1 1 auto;
-  padding-right: var(--spacing-xs);
+  margin: 0;
+  padding: 0 var(--spacing-xs) 0 0;
+  border: 0;
 }
 
 :deep(.section-content) {
@@ -1193,7 +1205,7 @@ function quantity(value) {
 
 @media (max-width: 48rem) {
   .kitchen-plan {
-    padding: var(--spacing-s) 0;
+    padding: var(--spacing-m) var(--spacing-s) var(--spacing-xl);
   }
 
   .kitchen-plan__header,
@@ -1213,7 +1225,7 @@ function quantity(value) {
     grid-template-columns: 1fr 1fr;
   }
 
-  .section-trigger {
+  :deep(.section-trigger) {
     padding: var(--spacing-s) !important;
   }
 
