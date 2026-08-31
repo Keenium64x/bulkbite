@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue"
-import dagre from "@dagrejs/dagre"
 import { Handle, MarkerType, Position } from "@vue-flow/core"
 import {
   SystemAccordion,
@@ -186,29 +185,20 @@ async function saveKitchenPlan() {
 const FLOW_NODE_WIDTH = 236
 const FLOW_NODE_HEIGHT = 132
 const FLOW_JUNCTION_SIZE = 24
+const FLOW_COLUMN_GAP = 112
+const FLOW_ROW_GAP = 54
+const FLOW_TIME_LABEL_WIDTH = 148
 
 const flowElements = computed(() => {
   const steps = instructions.value?.steps || []
   const dependencyGroups = buildDependencyGroups(steps)
-  const graph = new dagre.graphlib.Graph()
-    .setDefaultEdgeLabel(() => ({}))
-    .setGraph({ rankdir: "LR", ranker: "network-simplex", nodesep: 54, edgesep: 24, ranksep: 104, marginx: 28, marginy: 28 })
-
-  steps.forEach((step) => graph.setNode(step.task_id, { width: FLOW_NODE_WIDTH, height: FLOW_NODE_HEIGHT }))
-  dependencyGroups.junctions.forEach((junction) => graph.setNode(junction.id, { width: FLOW_JUNCTION_SIZE, height: FLOW_JUNCTION_SIZE }))
-  dependencyGroups.edges.forEach((edge) => graph.setEdge(edge.source, edge.target))
-  dagre.layout(graph)
-
+  const layout = buildConcurrentFlowLayout(steps, dependencyGroups.junctions)
   const stepById = new Map(steps.map((step) => [step.task_id, step]))
   const taskNodes = steps.map((step) => {
-    const position = graph.node(step.task_id)
     return {
       id: step.task_id,
       type: "cpm-task",
-      position: {
-        x: Number(position?.x || 0) - FLOW_NODE_WIDTH / 2,
-        y: Number(position?.y || 0) - FLOW_NODE_HEIGHT / 2,
-      },
+      position: layout.taskPositions.get(step.task_id),
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       draggable: false,
@@ -217,14 +207,10 @@ const flowElements = computed(() => {
     }
   })
   const junctionNodes = dependencyGroups.junctions.map((junction) => {
-    const position = graph.node(junction.id)
     return {
       id: junction.id,
       type: "cpm-junction",
-      position: {
-        x: Number(position?.x || 0) - FLOW_JUNCTION_SIZE / 2,
-        y: Number(position?.y || 0) - FLOW_JUNCTION_SIZE / 2,
-      },
+      position: layout.junctionPositions.get(junction.id),
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       draggable: false,
@@ -232,6 +218,17 @@ const flowElements = computed(() => {
       data: { critical: junction.critical },
     }
   })
+  const timeNodes = layout.columns.map((column) => ({
+    id: `time-${column.startMinute}`,
+    type: "cpm-time",
+    position: { x: column.x + (FLOW_NODE_WIDTH - FLOW_TIME_LABEL_WIDTH) / 2, y: 0 },
+    draggable: false,
+    selectable: false,
+    data: {
+      startMinute: column.startMinute,
+      concurrentCount: column.steps.length,
+    },
+  }))
   const edges = dependencyGroups.edges.map((edge) => {
     const sourceCritical = stepById.get(edge.source)?.is_critical ?? dependencyGroups.junctionById.get(edge.source)?.critical
     const targetCritical = stepById.get(edge.target)?.is_critical ?? dependencyGroups.junctionById.get(edge.target)?.critical
@@ -246,8 +243,63 @@ const flowElements = computed(() => {
       style: { strokeWidth: critical ? 2.5 : 1.5 },
     }
   })
-  return { nodes: [...taskNodes, ...junctionNodes], edges, taskNodeCount: taskNodes.length }
+  return { nodes: [...timeNodes, ...taskNodes, ...junctionNodes], edges, taskNodeCount: taskNodes.length }
 })
+
+function buildConcurrentFlowLayout(steps, junctions) {
+  const columns = buildTimeColumns(steps)
+  const maximumConcurrentTasks = Math.max(...columns.map((column) => column.steps.length), 1)
+  const rowHeight = FLOW_NODE_HEIGHT + FLOW_ROW_GAP
+  const taskPositions = new Map()
+
+  columns.forEach((column, columnIndex) => {
+    column.x = columnIndex * (FLOW_NODE_WIDTH + FLOW_COLUMN_GAP)
+    const columnOffset = (maximumConcurrentTasks - column.steps.length) * rowHeight / 2
+    column.steps.forEach((step, rowIndex) => {
+      taskPositions.set(step.task_id, {
+        x: column.x,
+        y: 72 + columnOffset + rowIndex * rowHeight,
+      })
+    })
+  })
+
+  const junctionPositions = new Map()
+  junctions.forEach((junction) => {
+    const sourcePositions = junction.sources.map((id) => taskPositions.get(id)).filter(Boolean)
+    const targetPositions = junction.targets.map((id) => taskPositions.get(id)).filter(Boolean)
+    const sourceRight = Math.max(...sourcePositions.map((position) => position.x + FLOW_NODE_WIDTH))
+    const targetLeft = Math.min(...targetPositions.map((position) => position.x))
+    const connectedCenters = [...sourcePositions, ...targetPositions].map((position) => position.y + FLOW_NODE_HEIGHT / 2)
+    junctionPositions.set(junction.id, {
+      x: sourceRight + (targetLeft - sourceRight - FLOW_JUNCTION_SIZE) / 2,
+      y: connectedCenters.reduce((sum, value) => sum + value, 0) / connectedCenters.length - FLOW_JUNCTION_SIZE / 2,
+    })
+  })
+
+  return { columns, taskPositions, junctionPositions }
+}
+
+function buildTimeColumns(steps) {
+  const columnsByStart = new Map()
+  steps.forEach((step) => {
+    const startMinute = Math.round(Number(step.scheduled_start || 0))
+    if (!columnsByStart.has(startMinute)) columnsByStart.set(startMinute, [])
+    columnsByStart.get(startMinute).push(step)
+  })
+  return [...columnsByStart.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([startMinute, columnSteps]) => ({
+      startMinute,
+      steps: columnSteps.sort(compareConcurrentTasks),
+      x: 0,
+    }))
+}
+
+function compareConcurrentTasks(left, right) {
+  const leftWorker = Number(left.assigned_workers?.[0] || Number.MAX_SAFE_INTEGER)
+  const rightWorker = Number(right.assigned_workers?.[0] || Number.MAX_SAFE_INTEGER)
+  return leftWorker - rightWorker || Number(left.step_number || 0) - Number(right.step_number || 0)
+}
 
 function buildDependencyGroups(steps) {
   const groups = new Map()
@@ -265,7 +317,12 @@ function buildDependencyGroups(steps) {
     if (group.sources.length > 1 && group.targets.length > 1) {
       const id = `junction-${junctions.length + 1}`
       const connectedSteps = steps.filter((step) => group.sources.includes(step.task_id) || group.targets.includes(step.task_id))
-      const junction = { id, critical: connectedSteps.length > 0 && connectedSteps.every((step) => step.is_critical) }
+      const junction = {
+        id,
+        sources: group.sources,
+        targets: group.targets,
+        critical: connectedSteps.length > 0 && connectedSteps.every((step) => step.is_critical),
+      }
       junctions.push(junction)
       group.sources.forEach((source) => edges.push({ source, target: id }))
       group.targets.forEach((target) => edges.push({ source: id, target }))
@@ -382,7 +439,7 @@ function quantity(value) {
 
         <SystemAccordionItem value="critical-path" class="plan-section cpm-section">
           <SystemAccordionTrigger class="section-trigger">
-            <div class="section-heading"><div><p class="eyebrow">Critical path</p><h2>Cooking dependency diagram</h2><p>Tasks flow from left to right. Orange tasks have no safe delay.</p></div><SystemBadge>{{ quantity(instructions.critical_path_minutes) }} min CPM</SystemBadge></div>
+            <div class="section-heading"><div><p class="eyebrow">Critical path</p><h2>Cooking dependency diagram</h2><p>Tasks starting together share one time column. Arrows show what must finish before the next action can begin.</p></div><SystemBadge>{{ quantity(instructions.critical_path_minutes) }} min CPM</SystemBadge></div>
           </SystemAccordionTrigger>
           <SystemAccordionContent class="section-content">
             <div class="cpm-canvas" :aria-label="`Cooking plan dependency graph with ${instructions.steps.length} tasks and ${instructions.critical_path_minutes} critical-path minutes`">
@@ -417,6 +474,12 @@ function quantity(value) {
                     <i></i>
                     <Handle type="source" :position="Position.Right" :connectable="false" />
                   </span>
+                </template>
+                <template #node-cpm-time="{ data }">
+                  <div class="cpm-time" aria-hidden="true">
+                    <strong>{{ time(data.startMinute) }}</strong>
+                    <span>{{ data.concurrentCount > 1 ? `${data.concurrentCount} concurrent actions` : "1 action" }}</span>
+                  </div>
                 </template>
               </SystemFlow>
             </div>
@@ -645,17 +708,18 @@ function quantity(value) {
   padding-right: var(--spacing-xs);
 }
 
-.section-content {
+:deep(.section-content) {
   display: grid;
   gap: var(--spacing-s);
-  padding: 0 var(--spacing-m) var(--spacing-m) !important;
+  min-width: 0;
+  padding: var(--spacing-m) !important;
   border-top: var(--border-width-1) solid var(--theme-border);
+  background: var(--theme-surface);
 }
 
 .section-actions {
   display: flex;
   justify-content: flex-end;
-  padding-top: var(--spacing-m);
 }
 
 .team-controls {
@@ -685,7 +749,6 @@ function quantity(value) {
   width: 100%;
   height: clamp(30rem, 68vh, 52rem);
   min-width: 0;
-  margin-top: var(--spacing-m);
   overflow: hidden;
   border: var(--border-width-1) solid var(--theme-border);
   border-radius: var(--component-radius-card);
@@ -717,6 +780,13 @@ function quantity(value) {
 .cpm-canvas :deep(.vue-flow__node-cpm-junction) {
   width: 24px;
   min-width: 24px;
+}
+
+.cpm-canvas :deep(.vue-flow__node-cpm-time) {
+  z-index: 0 !important;
+  width: 148px;
+  min-width: 148px;
+  pointer-events: none;
 }
 
 .cpm-node {
@@ -758,6 +828,30 @@ function quantity(value) {
 .cpm-junction.is-critical i {
   background: var(--theme-primary);
   box-shadow: 0 0 0 1px var(--theme-primary);
+}
+
+.cpm-time {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  width: 148px;
+  padding: 0.35rem 0.55rem;
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: 999px;
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+  box-shadow: var(--shadow-1);
+  text-align: center;
+}
+
+.cpm-time strong {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpm-time span {
+  color: var(--theme-text-muted);
+  font-size: 0.68rem;
 }
 
 .cpm-node__top {
@@ -854,7 +948,6 @@ function quantity(value) {
 
 .ingredient-list {
   display: grid;
-  padding-top: var(--spacing-m);
 }
 
 .ingredient-list article {
@@ -889,7 +982,6 @@ function quantity(value) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-xs);
-  padding-top: var(--spacing-m);
 }
 
 .worker-lanes > article {
@@ -944,7 +1036,6 @@ function quantity(value) {
 .method-list {
   display: grid;
   gap: var(--spacing-xs);
-  padding-top: var(--spacing-m);
 }
 
 .method-list details {
@@ -1046,7 +1137,6 @@ function quantity(value) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-xs);
-  padding-top: var(--spacing-m);
 }
 
 .equipment-grid article {
@@ -1063,7 +1153,6 @@ function quantity(value) {
   grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.45fr);
   align-items: end;
   gap: var(--spacing-s);
-  padding-top: var(--spacing-m);
 }
 
 .actual-time-result {
@@ -1126,8 +1215,8 @@ function quantity(value) {
     padding: var(--spacing-s) !important;
   }
 
-  .section-content {
-    padding: 0 var(--spacing-s) var(--spacing-s) !important;
+  :deep(.section-content) {
+    padding: var(--spacing-s) !important;
   }
 
   .team-controls,
