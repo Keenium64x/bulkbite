@@ -375,7 +375,7 @@ function quantity(value) {
 
 <template>
   <section data-block="kitchen-execution-plan" class="kitchen-plan workflow-block">
-    <header class="kitchen-plan__header">
+    <header class="workflow-header">
       <div>
         <p class="eyebrow">Cooking plan</p>
         <h1>{{ instructions?.recipe_name || run?.recipe || "Kitchen plan" }}</h1>
@@ -531,15 +531,10 @@ function quantity(value) {
 .kitchen-plan {
   display: grid;
   gap: var(--spacing-m);
-  width: min(100%, 90rem);
   min-width: 0;
-  max-width: 100%;
-  margin-inline: auto;
-  padding: var(--spacing-l) var(--spacing-m) var(--spacing-xl-2xl);
   color: var(--theme-text);
 }
 
-.kitchen-plan__header,
 .section-heading {
   display: flex;
   align-items: flex-start;
@@ -548,15 +543,6 @@ function quantity(value) {
   min-width: 0;
 }
 
-.kitchen-plan__header {
-  padding: var(--spacing-m);
-  border: var(--border-width-1) solid var(--theme-border);
-  border-radius: var(--component-radius-card);
-  background: var(--theme-surface-raised);
-  box-shadow: var(--shadow-1);
-}
-
-.kitchen-plan__header h1,
 .section-heading h2,
 .capacity-card h2 {
   margin: 0;
@@ -564,21 +550,11 @@ function quantity(value) {
   font-family: inherit;
 }
 
-.kitchen-plan__header p,
 .section-heading p,
 .capacity-card p,
 .actual-time-fields p {
   margin: var(--spacing-3xs) 0 0;
   color: var(--theme-text-muted);
-}
-
-.eyebrow {
-  margin: 0 !important;
-  color: var(--theme-primary) !important;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .button-row {
@@ -1214,15 +1190,6 @@ function quantity(value) {
 }
 
 @media (max-width: 48rem) {
-  .kitchen-plan {
-    padding: var(--spacing-m) var(--spacing-s) var(--spacing-xl);
-  }
-
-  .kitchen-plan__header {
-    padding: var(--spacing-s);
-  }
-
-  .kitchen-plan__header,
   .section-heading {
     display: grid;
   }
