@@ -28,5 +28,10 @@ class ProductionBaselineProof(unittest.TestCase):
 				self.assertNotIn(step[0], dependencies)
 			self.assertTrue(any(step[5] for step in steps), recipe_name)
 
+	def test_litre_ingredients_do_not_enter_kg_equipment_batch_loads(self):
+		for recipe_name, steps in RECIPE_STEPS.items():
+			for step in steps:
+				self.assertNotIn("BB-ING-SUNFLOWER-OIL", step[3], f"{recipe_name}: {step[1]}")
+
 
 # endregion PRODUCTION BASELINE PROOF
