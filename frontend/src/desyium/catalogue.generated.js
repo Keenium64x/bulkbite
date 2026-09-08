@@ -10294,6 +10294,452 @@ export const systemCatalogue = Object.freeze({
         "intensity": "focal",
         "boundaryBias": "explicit"
       }
+    },
+    {
+      "id": "review-today",
+      "category": "Operations",
+      "job": "See current bulkbite operations state.",
+      "whenToUse": "Use when the user needs to see current bulkbite operations state.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "User enters BulkBite Operations.",
+      "outgoingState": "Finish the active workflow with minimal input.",
+      "contentContract": [
+        "control: Primary filter",
+        "output: Key metrics",
+        "output: Next required action"
+      ],
+      "primaryAction": "Primary filter",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ],
+      "scope": "project",
+      "connectionProfile": {
+        "blockId": "review-today",
+        "descriptionTrace": {
+          "job": "See current bulkbite operations state.",
+          "incomingState": "User enters BulkBite Operations.",
+          "outgoingState": "Finish the active workflow with minimal input.",
+          "primitiveRoles": [
+            "structure"
+          ]
+        },
+        "entry": {
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: User enters BulkBite Operations.",
+          "acceptsFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
+          ]
+        },
+        "exit": {
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input.",
+          "preferredFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
+      }
+    },
+    {
+      "id": "complete-workflow",
+      "category": "Operations",
+      "job": "Finish the active workflow with minimal input.",
+      "whenToUse": "Use when the user needs to finish the active workflow with minimal input.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "See current bulkbite operations state.",
+      "outgoingState": "Resolve blocked or unusual records.",
+      "contentContract": [
+        "control: Required fields",
+        "control: Submit action",
+        "output: Result state",
+        "output: Validation feedback"
+      ],
+      "primaryAction": "Required fields",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ],
+      "scope": "project",
+      "connectionProfile": {
+        "blockId": "complete-workflow",
+        "descriptionTrace": {
+          "job": "Finish the active workflow with minimal input.",
+          "incomingState": "See current bulkbite operations state.",
+          "outgoingState": "Resolve blocked or unusual records.",
+          "primitiveRoles": [
+            "structure"
+          ]
+        },
+        "entry": {
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: See current bulkbite operations state.",
+          "acceptsFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
+          ]
+        },
+        "exit": {
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records.",
+          "preferredFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
+      }
+    },
+    {
+      "id": "manage-exceptions",
+      "category": "Operations",
+      "job": "Resolve blocked or unusual records.",
+      "whenToUse": "Use when the user needs to resolve blocked or unusual records.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Finish the active workflow with minimal input.",
+      "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "contentContract": [
+        "control: Decision action",
+        "control: Note",
+        "output: Exception list",
+        "output: Audit trail"
+      ],
+      "primaryAction": "Decision action",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ],
+      "scope": "project",
+      "connectionProfile": {
+        "blockId": "manage-exceptions",
+        "descriptionTrace": {
+          "job": "Resolve blocked or unusual records.",
+          "incomingState": "Finish the active workflow with minimal input.",
+          "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+          "primitiveRoles": [
+            "structure"
+          ]
+        },
+        "entry": {
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input.",
+          "acceptsFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
+          ]
+        },
+        "exit": {
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+          "preferredFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
+      }
+    },
+    {
+      "id": "maintain-system",
+      "category": "Operations",
+      "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "whenToUse": "Use when the user needs to access complete backend maintenance screens without cluttering normal workflows.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Resolve blocked or unusual records.",
+      "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "contentContract": [
+        "control: DocType selector",
+        "output: All forms access",
+        "output: Permission state"
+      ],
+      "primaryAction": "DocType selector",
+      "secondaryAction": "Return to normal workflow",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ],
+      "scope": "project",
+      "connectionProfile": {
+        "blockId": "maintain-system",
+        "descriptionTrace": {
+          "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+          "incomingState": "Resolve blocked or unusual records.",
+          "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "primitiveRoles": [
+            "structure"
+          ]
+        },
+        "entry": {
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Resolve blocked or unusual records.",
+          "acceptsFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
+          ]
+        },
+        "exit": {
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "preferredFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
+      }
+    },
+    {
+      "id": "ai-upload-review",
+      "category": "Operations",
+      "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "whenToUse": "Use when the user needs to expose a lean upload and review workflow while ai remains proposal-only and backend submission stays deterministic.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "contentContract": [
+        "control: File",
+        "control: Extraction schema",
+        "control: Review fields",
+        "control: Approve or reject",
+        "output: Upload status",
+        "output: Extracted proposal",
+        "output: Confidence notes",
+        "output: Validation errors",
+        "output: Submitted record"
+      ],
+      "primaryAction": "File",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ],
+      "scope": "project",
+      "connectionProfile": {
+        "blockId": "ai-upload-review",
+        "descriptionTrace": {
+          "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+          "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+          "primitiveRoles": [
+            "structure"
+          ]
+        },
+        "entry": {
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+          "acceptsFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
+          ]
+        },
+        "exit": {
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+          "preferredFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
+      }
+    },
+    {
+      "id": "structured-importer",
+      "category": "Operations",
+      "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "whenToUse": "Use when the user needs to expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
+      "contentContract": [
+        "control: Template",
+        "control: File",
+        "control: Validate",
+        "control: Commit approved rows",
+        "output: Header status",
+        "output: Import preview",
+        "output: Error rows",
+        "output: Created count",
+        "output: Skipped count"
+      ],
+      "primaryAction": "Template",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ],
+      "scope": "project",
+      "connectionProfile": {
+        "blockId": "structured-importer",
+        "descriptionTrace": {
+          "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+          "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
+          "primitiveRoles": [
+            "structure"
+          ]
+        },
+        "entry": {
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "acceptsFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
+          ]
+        },
+        "exit": {
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Workflow reaches a complete state or hidden maintenance handoff.",
+          "preferredFields": [
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
+          ],
+          "sourcePreference": "none"
+        },
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
+      }
     }
   ],
   "blockImplementations": [
@@ -10847,6 +11293,46 @@ export const systemCatalogue = Object.freeze({
       "scope": "project"
     },
     {
+      "id": "ai-upload-review",
+      "name": "Ai Upload Review",
+      "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "category": "Project",
+      "source": "@/blocks/ai-upload-review/AiUploadReview.vue",
+      "public": "SystemAiUploadReview",
+      "registrySource": "sources/blocks/ai-upload-review",
+      "projectSource": "src/blocks/ai-upload-review",
+      "components": [],
+      "primitives": [],
+      "incomingHandoff": "TODO: define the audience state entering this block.",
+      "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+      "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='ai-upload-review']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": null,
+        "secondaryPreset": null
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
+      },
+      "scope": "project"
+    },
+    {
       "id": "auxiliary-records",
       "name": "Auxiliary Records",
       "job": "Create a reusable BulkBite auxiliary records block for a permission-aware record catalogue, manage list, create, and edit flows.",
@@ -10990,6 +11476,46 @@ export const systemCatalogue = Object.freeze({
       "actionContract": {
         "primaryPreset": "primary-action",
         "secondaryPreset": "secondary-action"
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
+      },
+      "scope": "project"
+    },
+    {
+      "id": "complete-workflow",
+      "name": "Complete Workflow",
+      "job": "Finish the active workflow with minimal input.",
+      "category": "Project",
+      "source": "@/blocks/complete-workflow/CompleteWorkflow.vue",
+      "public": "SystemCompleteWorkflow",
+      "registrySource": "sources/blocks/complete-workflow",
+      "projectSource": "src/blocks/complete-workflow",
+      "components": [],
+      "primitives": [],
+      "incomingHandoff": "TODO: define the audience state entering this block.",
+      "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+      "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='complete-workflow']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": null,
+        "secondaryPreset": null
       },
       "motionContract": {
         "mode": "still",
@@ -11183,6 +11709,86 @@ export const systemCatalogue = Object.freeze({
       "motionContract": {
         "mode": "still",
         "justification": "The worker route is a read-only operational instruction view. Provider-native accordion feedback is sufficient and all meaning remains visible without animation."
+      },
+      "scope": "project"
+    },
+    {
+      "id": "maintain-system",
+      "name": "Maintain System",
+      "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "category": "Project",
+      "source": "@/blocks/maintain-system/MaintainSystem.vue",
+      "public": "SystemMaintainSystem",
+      "registrySource": "sources/blocks/maintain-system",
+      "projectSource": "src/blocks/maintain-system",
+      "components": [],
+      "primitives": [],
+      "incomingHandoff": "TODO: define the audience state entering this block.",
+      "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+      "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='maintain-system']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": null,
+        "secondaryPreset": null
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
+      },
+      "scope": "project"
+    },
+    {
+      "id": "manage-exceptions",
+      "name": "Manage Exceptions",
+      "job": "Resolve blocked or unusual records.",
+      "category": "Project",
+      "source": "@/blocks/manage-exceptions/ManageExceptions.vue",
+      "public": "SystemManageExceptions",
+      "registrySource": "sources/blocks/manage-exceptions",
+      "projectSource": "src/blocks/manage-exceptions",
+      "components": [],
+      "primitives": [],
+      "incomingHandoff": "TODO: define the audience state entering this block.",
+      "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+      "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='manage-exceptions']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": null,
+        "secondaryPreset": null
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
       },
       "scope": "project"
     },
@@ -11425,6 +12031,46 @@ export const systemCatalogue = Object.freeze({
       "scope": "project"
     },
     {
+      "id": "review-today",
+      "name": "Review Today",
+      "job": "See current bulkbite operations state.",
+      "category": "Project",
+      "source": "@/blocks/review-today/ReviewToday.vue",
+      "public": "SystemReviewToday",
+      "registrySource": "sources/blocks/review-today",
+      "projectSource": "src/blocks/review-today",
+      "components": [],
+      "primitives": [],
+      "incomingHandoff": "TODO: define the audience state entering this block.",
+      "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+      "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='review-today']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": null,
+        "secondaryPreset": null
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
+      },
+      "scope": "project"
+    },
+    {
       "id": "stock-overview",
       "name": "Stock Overview",
       "job": "Render a visual operating dashboard with qualified four-week gross profit, revenue, food cost, margin, current production status, and direct workflow actions in dashboard mode, or full balances, demand, scanning, and stock evidence in stock mode.",
@@ -11515,6 +12161,46 @@ export const systemCatalogue = Object.freeze({
       "motionContract": {
         "mode": "still",
         "justification": "Differences and approval state remain static and reviewable."
+      },
+      "scope": "project"
+    },
+    {
+      "id": "structured-importer",
+      "name": "Structured Importer",
+      "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "category": "Project",
+      "source": "@/blocks/structured-importer/StructuredImporter.vue",
+      "public": "SystemStructuredImporter",
+      "registrySource": "sources/blocks/structured-importer",
+      "projectSource": "src/blocks/structured-importer",
+      "components": [],
+      "primitives": [],
+      "incomingHandoff": "TODO: define the audience state entering this block.",
+      "outgoingHandoff": "TODO: define the action or understanding passed to the next block.",
+      "responsiveBehaviour": "Recompose content hierarchy for intermediate and mobile layouts.",
+      "layoutContract": {
+        "strategy": "flow",
+        "pageAlignment": "grid",
+        "padding": "var(--spacing-xl-2xl) 0",
+        "gap": "var(--spacing-m)",
+        "containment": "Content remains in normal flow with explicit internal padding and no overlap."
+      },
+      "surfaceContract": {
+        "placement": "none",
+        "semanticOwner": "[data-block='structured-importer']",
+        "scope": "none",
+        "edgeTreatment": "none",
+        "boundaryReason": null,
+        "contentSeparation": "Content padding does not define primitive bounds.",
+        "rule": "No primitive surface is mounted until its semantic owner and edge behavior are chosen."
+      },
+      "actionContract": {
+        "primaryPreset": null,
+        "secondaryPreset": null
+      },
+      "motionContract": {
+        "mode": "still",
+        "justification": "Choose and document a semantic experience before adding movement."
       },
       "scope": "project"
     }
@@ -13410,6 +14096,23 @@ export const systemCatalogue = Object.freeze({
         "Do not hide posting, reconciliation, or review state behind menus.",
         "Do not use accounting dimensions in worker entry workflows."
       ],
+      "lifecycle": {
+        "origin": "project",
+        "promotion": "Keep this theme project-owned until another operations app proves that its BulkBite-specific navigation and workflow treatment transfers without losing brand meaning.",
+        "demotion": "Move the theme back to candidate if its approved BulkBite composition, responsive behavior, or fresh-consumer proof no longer passes."
+      },
+      "lifecycleProof": {
+        "references": [
+          ".desyium/brief.json",
+          ".desyium/moodboard.json",
+          ".desyium/brand.json",
+          "frontend/src/blocks/bulkbite-app-shell/BulkbiteAppShell.vue"
+        ],
+        "brandMeaning": "The charcoal navigation, muted orange workflow header, neutral work surfaces, and restrained motion preserve BulkBite's practical kitchen-operations identity.",
+        "crossProjectUse": "Project-owned by design. Reusable System component behavior is shared through Dysium, while BulkBite-specific brand treatment stays local until a second operations project proves transferability.",
+        "responsive": "The accepted desktop shell and mobile operator shell use the same semantic tokens, preserve labeled controls, and keep 44 pixel interaction targets without replacing the workflow owners.",
+        "freshConsumer": "The BulkBite Vue application consumes the approved theme through generated Dysium tokens and public System exports, with project audit and production builds as the executable consumer proof."
+      },
       "scope": "project"
     }
   ],
@@ -13419,7 +14122,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Entrance hierarchy reveal",
       "status": "ready",
       "engine": "gsap",
-      "category": "entrance",
+      "category": "block",
       "semanticJob": "Reveal a block in reading order while preserving immediate access to its content.",
       "when": [
         "A new narrative block enters",
@@ -13470,7 +14173,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Horizontal testimonial/card story",
       "status": "ready",
       "engine": "gsap",
-      "category": "scroll-story",
+      "category": "scroll",
       "semanticJob": "Turn a sequence of comparable evidence cards into a deliberate chapter without losing mobile readability.",
       "when": [
         "Three or more testimonials or cases form a sequence",
@@ -13524,7 +14227,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Pinned chapter story",
       "status": "ready",
       "engine": "gsap",
-      "category": "scroll-story",
+      "category": "multi-block",
       "semanticJob": "Keep a stable visual or proposition while successive steps change the audience state.",
       "when": [
         "A process or mechanism has ordered chapters",
@@ -13578,8 +14281,35 @@ export const systemCatalogue = Object.freeze({
       "status": "ready",
       "engine": "three",
       "orchestrator": "gsap",
-      "category": "spatial-signature",
+      "category": "spatial",
       "semanticJob": "Give a hero one meaningful spatial signature whose form expresses the brand or product mechanism.",
+      "selectionExamples": {
+        "pages": [
+          "brand homepage",
+          "product story",
+          "immersive case study"
+        ],
+        "blocks": [
+          "hero",
+          "product-story",
+          "immersive-case-study"
+        ]
+      },
+      "spatialContract": {
+        "rendererOwner": "Three.js owns scene, camera, renderer, GPU resources, RAF loop, and context lifecycle.",
+        "orchestratorOwner": "GSAP may choreograph scene values but cannot own renderer allocation or disposal.",
+        "fallbackRequired": true,
+        "webglUnavailable": "Render the semantic hero and CSS primitive field without creating the renderer.",
+        "reducedMotion": "Skip WebGL initialization and keep the semantic fallback visible.",
+        "validationProof": [
+          "webgl unavailable",
+          "semantic fallback",
+          "reduced motion",
+          "resize framing",
+          "context loss",
+          "resource disposal"
+        ]
+      },
       "when": [
         "The brand concept has a spatial metaphor",
         "A signature hero justifies GPU and implementation cost"
@@ -13621,10 +14351,12 @@ export const systemCatalogue = Object.freeze({
       "fallback": "Visible semantic hero content and optional CSS primitive field.",
       "proof": [
         "WebGL unavailable",
+        "semantic fallback",
         "reduced motion",
         "visibility pause",
-        "resize",
+        "resize framing",
         "context loss",
+        "resource disposal",
         "route teardown"
       ]
     },
@@ -13633,7 +14365,7 @@ export const systemCatalogue = Object.freeze({
       "name": "FLIP layout transition",
       "status": "ready",
       "engine": "gsap",
-      "category": "state-transition",
+      "category": "block",
       "semanticJob": "Preserve object continuity across filtering, expansion, or reordering.",
       "blockTypes": [
         "gallery",
@@ -13674,7 +14406,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Kinetic headline",
       "status": "ready",
       "engine": "gsap",
-      "category": "typography",
+      "category": "element",
       "semanticJob": "Use restrained word or line choreography to sharpen a hero proposition.",
       "blockTypes": [
         "hero",
@@ -13714,7 +14446,7 @@ export const systemCatalogue = Object.freeze({
       "name": "SVG draw and motion path",
       "status": "ready",
       "engine": "gsap",
-      "category": "diagram",
+      "category": "advanced",
       "semanticJob": "Explain flow, sequence, or connection with an authored vector path.",
       "blockTypes": [
         "mechanism",
@@ -13758,7 +14490,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Pointer parallax field",
       "status": "ready",
       "engine": "gsap",
-      "category": "ambient-response",
+      "category": "hover",
       "semanticJob": "Add subtle local depth to a signature surface without hijacking navigation.",
       "blockTypes": [
         "hero",
@@ -13798,7 +14530,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Morphing state diagram",
       "status": "ready",
       "engine": "gsap",
-      "category": "diagram",
+      "category": "advanced",
       "semanticJob": "Move one labeled SVG subject between compatible authored states without hiding the static comparison.",
       "dependencies": [
         "gsap"
@@ -13830,7 +14562,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Material response cards",
       "status": "ready",
       "engine": "gsap",
-      "category": "component-effect",
+      "category": "hover",
       "semanticJob": "Give a bounded card set a subtle brand-material response while preserving card behavior.",
       "dependencies": [
         "gsap"
@@ -13860,7 +14592,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Cursor lens inspector",
       "status": "ready",
       "engine": "gsap",
-      "category": "inspection",
+      "category": "advanced",
       "semanticJob": "Move a bounded visual lens while keeping every essential detail available outside hover.",
       "dependencies": [
         "gsap"
@@ -13891,7 +14623,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Before and after inspector",
       "status": "ready",
       "engine": "gsap",
-      "category": "comparison",
+      "category": "advanced",
       "semanticJob": "Expose two aligned states through one native accessible range control.",
       "dependencies": [
         "gsap"
@@ -13920,7 +14652,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Text scramble system",
       "status": "ready",
       "engine": "gsap",
-      "category": "typography",
+      "category": "element",
       "semanticJob": "Briefly decode nonessential brand language while keeping the final accessible name stable.",
       "dependencies": [
         "gsap"
@@ -13948,7 +14680,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Continuous marquee field",
       "status": "ready",
       "engine": "gsap",
-      "category": "typography",
+      "category": "element",
       "semanticJob": "Move a duplicated nonessential context strip while its semantic source remains available once.",
       "dependencies": [
         "gsap"
@@ -13976,7 +14708,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Magnetic action cluster",
       "status": "ready",
       "engine": "gsap",
-      "category": "component-effect",
+      "category": "hover",
       "semanticJob": "Give at most three primary actions a small bounded attraction response without changing focus or hit geometry.",
       "dependencies": [
         "gsap"
@@ -14006,7 +14738,7 @@ export const systemCatalogue = Object.freeze({
       "name": "Bounded anime.js SVG effect",
       "status": "candidate",
       "engine": "anime",
-      "category": "optional-adapter",
+      "category": "advanced",
       "semanticJob": "Provide a small isolated SVG effect in a project that already owns anime.js.",
       "blockTypes": [
         "icon-story",

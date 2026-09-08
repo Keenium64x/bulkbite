@@ -195,5 +195,22 @@ export const activeTheme = Object.freeze({
     "Do not hide posting, reconciliation, or review state behind menus.",
     "Do not use accounting dimensions in worker entry workflows."
   ],
+  "lifecycle": {
+    "origin": "project",
+    "promotion": "Keep this theme project-owned until another operations app proves that its BulkBite-specific navigation and workflow treatment transfers without losing brand meaning.",
+    "demotion": "Move the theme back to candidate if its approved BulkBite composition, responsive behavior, or fresh-consumer proof no longer passes."
+  },
+  "lifecycleProof": {
+    "references": [
+      ".desyium/brief.json",
+      ".desyium/moodboard.json",
+      ".desyium/brand.json",
+      "frontend/src/blocks/bulkbite-app-shell/BulkbiteAppShell.vue"
+    ],
+    "brandMeaning": "The charcoal navigation, muted orange workflow header, neutral work surfaces, and restrained motion preserve BulkBite's practical kitchen-operations identity.",
+    "crossProjectUse": "Project-owned by design. Reusable System component behavior is shared through Dysium, while BulkBite-specific brand treatment stays local until a second operations project proves transferability.",
+    "responsive": "The accepted desktop shell and mobile operator shell use the same semantic tokens, preserve labeled controls, and keep 44 pixel interaction targets without replacing the workflow owners.",
+    "freshConsumer": "The BulkBite Vue application consumes the approved theme through generated Dysium tokens and public System exports, with project audit and production builds as the executable consumer proof."
+  },
   "scope": "project"
 })

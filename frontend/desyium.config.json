@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@keenium86x/desyium/schema/desyium.schema.json",
   "schemaVersion": 1,
-  "systemVersion": "0.3.1",
+  "systemVersion": "0.4.1",
   "framework": "vue",
   "packageManager": "npm",
   "aliases": {
