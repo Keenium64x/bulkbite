@@ -4,6 +4,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from bulkbite.api import (
+	_capacity_run_for_meal,
 	_next_production_station,
 	_production_calendar_slot,
 	_skipped_production_weeks,
@@ -57,6 +58,16 @@ def draft_run(cycle_number, meal_number):
 
 
 class ProductionCalendarProof(TestCase):
+	def test_saved_weekly_session_is_selected_for_the_planned_meal(self):
+		capacity_plan = {
+			"runs": [
+				{"week_number": 1, "scheduled_elapsed_hours": 4, "planned_people": 2},
+				{"week_number": 3, "scheduled_elapsed_hours": 8, "planned_people": 5},
+			]
+		}
+
+		self.assertEqual(_capacity_run_for_meal(capacity_plan, 3)["planned_people"], 5)
+
 	def test_calendar_slot_uses_upcoming_week_and_repeats_four_meals(self):
 		slot = _production_calendar_slot(plan_rows(), date(2026, 8, 1), date(2026, 9, 8))
 

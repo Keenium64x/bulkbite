@@ -2161,6 +2161,7 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 			frappe.throw(_("This planned week has already been posted as production run {0}.").format(run.name))
 		return _serialize_run(run)
 	capacity_plan = get_production_plan_snapshot(plan.name, source_location).get("capacity_plan") or {}
+	capacity_run = _capacity_run_for_meal(capacity_plan, plan_row.week_number)
 	capacity_window = next((row for row in capacity_plan.get("windows") or [] if int(row.get("week_number") or 0) == int(plan_row.week_number or 0)), {})
 	workforce = get_employee_capacity_snapshot(calculate_customer_demand(plan.customer_mix))
 	return create_production_run(
@@ -2175,13 +2176,24 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 			"recipe": recipe,
 			"planned_output_qty": planned_output_qty,
 			"actual_output_qty": planned_output_qty,
-			"team_template": capacity_window.get("team_template") or plan.default_team_template,
-			"scheduled_elapsed_hours": capacity_window.get("scheduled_elapsed_hours"),
+			"team_template": capacity_run.get("team_template") or capacity_window.get("team_template") or plan.default_team_template,
+			"scheduled_elapsed_hours": capacity_run.get("scheduled_elapsed_hours") or capacity_window.get("scheduled_elapsed_hours") or 8,
 			"planned_takt_minutes_per_kg": workforce.get("planning_labour_minutes_per_kg"),
 			"source_location": source_location,
 			"target_location": target_location,
 			"notes": _("Created from production plan {0}, meal {1}. Direction action: {2}.").format(plan.name, plan_row.week_number, direction_action),
 		}
+	)
+
+
+def _capacity_run_for_meal(capacity_plan, meal_number):
+	"""Return the first saved cooking session for one meal in the repeating direction."""
+	return next(
+		(
+			row for row in (capacity_plan or {}).get("runs") or []
+			if int(row.get("week_number") or 0) == int(meal_number or 0)
+		),
+		{},
 	)
 
 
