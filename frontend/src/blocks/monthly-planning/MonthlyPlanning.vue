@@ -2,7 +2,12 @@
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
+	SystemAccordion,
+	SystemAccordionContent,
+	SystemAccordionItem,
+	SystemAccordionTrigger,
 	SystemBadge,
+	SystemCheckboxShadcn,
 	SystemFormControl,
 	SystemLinkedRecordField,
 	SystemOperationalButton,
@@ -53,6 +58,7 @@ const form = reactive({
 	capacity_windows: [],
 	capacity_runs: [],
 	forecast_customer_mix: [],
+	extra_output_enabled: false,
 });
 const scenarioForecast = ref([]);
 let scenarioTimer;
@@ -120,6 +126,62 @@ const weeklyKg = computed(() =>
 		),
 	),
 );
+const upcomingWeekNumber = computed(() =>
+	Number(props.plan?.next_production?.row?.cycle_week || props.plan?.next_production?.row?.week_number || 1),
+);
+const upcomingPlanRow = computed(() =>
+	form.plan_rows.find((row) => Number(row.week_number) === upcomingWeekNumber.value) || form.plan_rows[0] || null,
+);
+const upcomingRuns = computed(() =>
+	form.capacity_runs.filter((row) => Number(row.week_number) === upcomingWeekNumber.value),
+);
+const demonstratedMinutesPerKg = computed(() =>
+	Number(props.plan?.workforce?.actual?.labour_minutes_per_kg || 0),
+);
+const planningMinutesPerKg = computed(() =>
+	demonstratedMinutesPerKg.value || Number(props.plan?.workforce?.planning_labour_minutes_per_kg || 0),
+);
+const weeklyExtraOutput = computed(() =>
+	form.extra_output_enabled ? Number(upcomingPlanRow.value?.extra_output_qty || 0) : 0,
+);
+const weeklyTargetOutput = computed(() => roundQuantity(weeklyKg.value + weeklyExtraOutput.value));
+const weeklyCapacity = computed(() => {
+	const sessions = upcomingRuns.value.map((row) => {
+		const hours = Math.min(Math.max(Number(row.scheduled_elapsed_hours || 0), 0), 8);
+		const people = Math.max(Math.floor(Number(row.planned_people || 0)), 0);
+		const effectivePeople = effectiveWorkerCount(people);
+		return { row, hours, people, effectivePeople, effectiveHours: hours * effectivePeople };
+	});
+	const rawTeamHours = sessions.reduce((sum, row) => sum + row.hours * row.people, 0);
+	const effectiveHours = sessions.reduce((sum, row) => sum + row.effectiveHours, 0);
+	const requiredLabourHours = weeklyTargetOutput.value * planningMinutesPerKg.value / 60;
+	const scheduledElapsedHours = sessions.reduce((sum, row) => sum + row.hours, 0);
+	const averageEffectivePeople = scheduledElapsedHours ? effectiveHours / scheduledElapsedHours : 0;
+	const minimumElapsedHours = averageEffectivePeople ? requiredLabourHours / averageEffectivePeople : 0;
+	const capacityKg = planningMinutesPerKg.value ? effectiveHours * 60 / planningMinutesPerKg.value : 0;
+	const differenceKg = capacityKg - weeklyTargetOutput.value;
+	const ready = Boolean(planningMinutesPerKg.value && sessions.length && differenceKg >= -0.0005);
+	const allAtShiftLimit = Boolean(sessions.length && sessions.every((row) => row.hours >= 8));
+	let consequence = "Post a timed production run so BulkBite can establish a demonstrated labour rate.";
+	if (planningMinutesPerKg.value && !sessions.length) consequence = "Add a cooking session for the upcoming meal.";
+	else if (planningMinutesPerKg.value && !ready && allAtShiftLimit) consequence = "Add another cooking session. The current team is already at the eight-hour shift limit.";
+	else if (planningMinutesPerKg.value && !ready) consequence = "Increase this session's time or crew, or add another run before production.";
+	else if (ready && weeklyExtraOutput.value > 0) consequence = "Capacity is ready. Confirm freezer space before keeping the extra food.";
+	else if (ready) consequence = "The upcoming customer requirement fits inside the planned cooking sessions.";
+	return {
+		sessions,
+		rawTeamHours,
+		effectiveHours,
+		requiredLabourHours,
+		minimumElapsedHours,
+		capacityKg,
+		differenceKg,
+		efficiencyPercent: rawTeamHours ? effectiveHours / rawTeamHours * 100 : 0,
+		taktMinutesPerKg: weeklyTargetOutput.value ? effectiveHours * 60 / weeklyTargetOutput.value : 0,
+		ready,
+		consequence,
+	};
+});
 const capacitySummary = computed(() => {
 	const totals = scenarioForecast.value.reduce(
 		(summary, row) => ({
@@ -387,6 +449,9 @@ function hydrate() {
 				target_week: 8,
 			};
 		}),
+		extra_output_enabled: Boolean(
+			props.plan?.rows?.find((row) => Number(row.week_number) === Number(props.plan?.next_production?.row?.week_number || 1))?.extra_output_qty,
+		),
 	});
 	scenarioForecast.value = [];
 	formDirty.value = false;
@@ -524,16 +589,24 @@ function addCapacityRun(weekNumber = 1) {
 	const sameWeek = form.capacity_runs.filter(
 		(row) => Number(row.week_number) === Number(weekNumber),
 	);
+	const previousRun = sameWeek[sameWeek.length - 1];
 	form.capacity_runs.push({
 		week_number: Number(weekNumber),
 		run_number: sameWeek.length + 1,
 		day_of_week: "Saturday",
 		output_mode: "Auto",
 		planned_output_qty: 0,
-		scheduled_elapsed_hours: 5,
+		scheduled_elapsed_hours: 8,
 		team_template: form.default_team_template,
-		planned_people: templateSize(form.default_team_template),
+		planned_people: Number(previousRun?.planned_people || templateSize(form.default_team_template) || 1),
 	});
+}
+function addUpcomingRun() {
+	addCapacityRun(upcomingWeekNumber.value);
+}
+function removeUpcomingRun(row) {
+	const index = form.capacity_runs.indexOf(row);
+	if (index >= 0) removeCapacityRun(index);
 }
 function removeCapacityRun(index) {
 	form.capacity_runs.splice(index, 1);
@@ -572,6 +645,10 @@ async function savePlan() {
 			location: "Ingredients",
 			plan_rows: form.plan_rows.map((row) => ({
 				...row,
+				extra_output_qty:
+					Number(row.week_number) === upcomingWeekNumber.value && !form.extra_output_enabled
+						? 0
+						: Number(row.extra_output_qty || 0),
 				customer_required_output_qty: roundQuantity(weeklyKg.value),
 				planned_output_qty: roundQuantity(
 					weeklyKg.value + Number(row.extra_output_qty || 0),
@@ -634,6 +711,11 @@ async function cancelDirection() {
 function roundQuantity(value) {
 	return Math.round(Number(value || 0) * 1000) / 1000;
 }
+function effectiveWorkerCount(people) {
+	const count = Math.max(Math.floor(Number(people || 0)), 0);
+	if (!count) return 0;
+	return 1 + Math.log2(count) * 0.85;
+}
 function number(value) {
 	return Number(value || 0).toLocaleString("en-ZA", { maximumFractionDigits: 1 });
 }
@@ -676,123 +758,63 @@ function number(value) {
 		<div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
 		<div v-if="offlineNotice" class="state-message" role="status">{{ offlineNotice }}</div>
 
-		<section v-if="mode === 'planning'" class="form-section">
-			<div class="section-heading">
-				<div>
-					<p class="eyebrow">Customers</p>
-					<h2>Current customer mix</h2>
-					<p>
-						Update these counts whenever customers change. Serving sizes and meal
-						frequency come from customer plan records.
-					</p>
-				</div>
-				<SystemBadge>{{ totalCustomers }} customers</SystemBadge>
-			</div>
-			<div class="field-grid">
-				<SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" />
-			</div>
-			<div class="plan-mix">
-				<article
-					v-for="row in form.customer_mix"
-					:key="row.plan_type"
-					class="plan-mix__row"
-				>
-					<div>
-						<strong>{{ row.plan_type }}</strong
-						><small
-							>{{ number(row.serving_size_g) }} g per meal ·
-							{{ row.meals_per_day }} meals/day</small
-						>
-					</div>
-					<SystemFormControl
-						v-model="row.customer_count"
-						type="number"
-						label="Customers"
-						min="0"
-						step="1"
-						size="lg"
-					/>
-					<div class="calculated-value">
-						<span>Food per week</span
-						><strong
-							>{{
-								number(
-									(Number(row.customer_count || 0) *
-										row.meals_per_day *
-										row.days_per_week *
-										row.serving_size_g) /
-										1000,
-								)
-							}}
-							kg</strong
-						>
-					</div>
-				</article>
-			</div>
-			<div class="metric-board">
-				<div>
-					<strong>{{ totalCustomers }}</strong
-					><span>customers</span>
-				</div>
-				<div>
-					<strong>{{ weeklyServings }}</strong
-					><span>portions per week</span>
-				</div>
-				<div>
-					<strong>{{ number(weeklyKg) }} kg</strong><span>food per week</span>
-				</div>
-				<div>
-					<strong>{{ number(weeklyKg * 4) }} kg</strong><span>one full cycle</span>
-				</div>
-			</div>
-		</section>
+		<SystemAccordion v-if="mode === 'planning'" type="multiple" class="planning-setup">
+			<SystemAccordionItem value="setup" class="planning-setup__card">
+				<SystemAccordionTrigger class="planning-setup__trigger">
+					<div class="section-heading"><div><p class="eyebrow">Setup</p><h2>Customers and repeating meals</h2><p>Open this only when customer numbers or the four-meal direction change.</p></div><SystemBadge>{{ totalCustomers }} customers</SystemBadge></div>
+				</SystemAccordionTrigger>
+				<SystemAccordionContent class="planning-setup__content">
+					<SystemAccordion type="multiple" class="planning-setup__subsections">
+						<SystemAccordionItem value="customers" class="planning-setup__subcard">
+							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Customers</span><strong>Current customer mix</strong></div></SystemAccordionTrigger>
+							<SystemAccordionContent class="planning-setup__subcontent">
+								<SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" />
+								<div class="plan-mix"><article v-for="row in form.customer_mix" :key="row.plan_type" class="plan-mix__row"><div><strong>{{ row.plan_type }}</strong><small>{{ number(row.serving_size_g) }} g per meal · {{ row.meals_per_day }} meals/day</small></div><SystemFormControl v-model="row.customer_count" type="number" label="Customers" min="0" step="1" size="lg" /><div class="calculated-value"><span>Food per week</span><strong>{{ number((Number(row.customer_count || 0) * row.meals_per_day * row.days_per_week * row.serving_size_g) / 1000) }} kg</strong></div></article></div>
+								<div class="metric-board"><div><strong>{{ totalCustomers }}</strong><span>customers</span></div><div><strong>{{ weeklyServings }}</strong><span>portions per week</span></div><div><strong>{{ number(weeklyKg) }} kg</strong><span>food per week</span></div><div><strong>{{ number(weeklyKg * 4) }} kg</strong><span>one full cycle</span></div></div>
+							</SystemAccordionContent>
+						</SystemAccordionItem>
+						<SystemAccordionItem value="meals" class="planning-setup__subcard">
+							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Meal direction</span><strong>Four repeating meals</strong></div></SystemAccordionTrigger>
+							<SystemAccordionContent class="planning-setup__subcontent"><div class="week-grid"><article v-for="row in form.plan_rows" :key="row.week_number" class="week-card"><SystemBadge>MEAL {{ row.week_number }}</SystemBadge><SystemLinkedRecordField v-model="row.recipe" label="Meal recipe" :options="recipeOptions" placeholder="Choose this meal" create-label="Add recipe" manage-label="Manage recipes" @create="openLinked('create', 'BulkBite Recipe')" @manage="openLinked('list', 'BulkBite Recipe')" /><div class="calculated-field"><span>Customer food required</span><strong>{{ number(weeklyKg) }} kg</strong></div></article></div></SystemAccordionContent>
+						</SystemAccordionItem>
+					</SystemAccordion>
+				</SystemAccordionContent>
+			</SystemAccordionItem>
+		</SystemAccordion>
 
-		<section v-if="mode === 'planning'" class="form-section">
-			<div class="section-heading">
-				<div>
-					<p class="eyebrow">Meal cycle</p>
-					<h2>Choose the four repeating meals</h2>
-					<p>
-						Production advances through these meals in order, then starts again at meal
-						one.
-					</p>
+		<SystemAccordion v-if="mode === 'planning'" type="multiple" :default-value="['weekly-plan']" class="weekly-plan-accordion">
+			<SystemAccordionItem value="weekly-plan" class="form-section weekly-plan">
+			<SystemAccordionTrigger class="weekly-plan__trigger"><div class="section-heading">
+				<div><p class="eyebrow">Cooking schedule</p><h2>Plan the upcoming week</h2><p>BulkBite has selected meal {{ upcomingWeekNumber }} from the repeating direction. Add only the cooking sessions available for this meal.</p></div>
+				<SystemBadge>{{ upcomingRuns.length }} {{ upcomingRuns.length === 1 ? 'run' : 'runs' }}</SystemBadge>
+			</div></SystemAccordionTrigger>
+			<SystemAccordionContent class="weekly-plan__content">
+			<div class="weekly-plan__actions"><SystemOperationalButton variant="solid" @click="addUpcomingRun">Add run</SystemOperationalButton></div>
+			<article class="weekly-position" :class="weeklyCapacity.ready ? 'is-ready' : 'is-under'">
+				<div class="weekly-position__heading"><div><p class="eyebrow">Upcoming meal</p><h3>{{ upcomingPlanRow?.recipe ? recipeOptions.find((item) => item.value === upcomingPlanRow.recipe)?.label || upcomingPlanRow.recipe : 'Choose the meal in Setup' }}</h3></div><SystemBadge :theme="weeklyCapacity.ready ? 'green' : 'red'">{{ weeklyCapacity.ready ? 'Capacity ready' : 'Capacity gap' }}</SystemBadge></div>
+				<div class="weekly-position__metrics">
+					<div><strong>{{ number(weeklyKg) }} kg</strong><span>customer food required</span></div>
+					<div><strong>{{ number(weeklyExtraOutput) }} kg</strong><span>extra planned</span></div>
+					<div><strong>{{ number(planningMinutesPerKg) }} min/kg</strong><span>{{ demonstratedMinutesPerKg ? 'past demonstrated rate' : 'estimated labour rate' }}</span></div>
+					<div><strong>{{ number(weeklyCapacity.efficiencyPercent) }}%</strong><span>estimated team efficiency</span></div>
+					<div><strong>{{ number(weeklyCapacity.minimumElapsedHours) }} h</strong><span>minimum elapsed time</span></div>
+					<div><strong>{{ number(weeklyCapacity.taktMinutesPerKg) }} min/kg</strong><span>available takt</span></div>
 				</div>
+				<p class="weekly-position__consequence"><strong>Next consequence</strong><span>{{ weeklyCapacity.consequence }}</span></p>
+				<p class="weekly-position__storage"><strong>Freezer capacity</strong><span>Not configured yet. Extra output is flagged for a storage check, but no capacity is assumed.</span></p>
+			</article>
+			<div class="extra-output-control"><SystemCheckboxShadcn v-model="form.extra_output_enabled" label="Plan extra output for this week" /><SystemFormControl v-if="form.extra_output_enabled && upcomingPlanRow" v-model="upcomingPlanRow.extra_output_qty" type="number" min="0" step="0.1" label="Extra output (kg)" /><div v-else class="calculated-field"><span>Required weekly output</span><strong>{{ number(weeklyKg) }} kg</strong></div></div>
+			<div class="weekly-run-list">
+				<article v-for="row in upcomingRuns" :key="`${row.week_number}-${row.run_number}`"><SystemSelect v-model="row.day_of_week" label="Day" :options="dayOptions" /><SystemFormControl v-model="row.scheduled_elapsed_hours" type="number" min="0.1" max="8" step="0.1" label="Cooking hours" /><SystemFormControl v-model="row.planned_people" type="number" min="1" step="1" label="People working" /><SystemOperationalButton variant="ghost" @click="removeUpcomingRun(row)">Remove</SystemOperationalButton></article>
+				<p v-if="!upcomingRuns.length" class="weekly-run-list__empty">No cooking session is planned for the upcoming meal.</p>
 			</div>
-			<div class="week-grid">
-				<article v-for="row in form.plan_rows" :key="row.week_number" class="week-card">
-					<SystemBadge>MEAL {{ row.week_number }}</SystemBadge>
-					<SystemLinkedRecordField
-						v-model="row.recipe"
-						label="Meal recipe"
-						:options="recipeOptions"
-						placeholder="Choose this meal"
-						create-label="Add recipe"
-						manage-label="Manage recipes"
-						@create="openLinked('create', 'BulkBite Recipe')"
-						@manage="openLinked('list', 'BulkBite Recipe')"
-					/>
-					<div class="calculated-field">
-						<span>Customer food required</span
-						><strong>{{ number(weeklyKg) }} kg</strong>
-					</div>
-					<SystemFormControl
-						v-model="row.extra_output_qty"
-						type="number"
-						min="0"
-						step="0.1"
-						label="Extra for ourselves (kg)"
-					/>
-					<p class="meal-total">
-						<strong
-							>{{ number(weeklyKg + Number(row.extra_output_qty || 0)) }} kg</strong
-						><span>total planned output</span>
-					</p>
-				</article>
-			</div>
-		</section>
+			<p class="capacity-method-note">People are not treated as linearly interchangeable. The estimate uses the demonstrated labour rate first and applies diminishing returns as the crew grows. A person is never allocated more than eight hours in one session.</p>
+			</SystemAccordionContent>
+			</SystemAccordionItem>
+		</SystemAccordion>
 
 		<template v-if="mode === 'planning' || mode === 'forecasting'">
-			<section class="form-section capacity-plan-section">
+			<section v-if="mode === 'forecasting'" class="form-section capacity-plan-section">
 				<div class="section-heading">
 					<div>
 						<p class="eyebrow">
@@ -873,7 +895,7 @@ function number(value) {
 				</div>
 			</section>
 
-			<section class="form-section">
+			<section v-if="mode === 'forecasting'" class="form-section">
 				<div class="section-heading">
 					<div>
 						<p class="eyebrow">Cooking schedule</p>
@@ -980,7 +1002,7 @@ function number(value) {
 				</div>
 			</section>
 
-			<section class="data-section workforce-section">
+			<section v-if="mode === 'forecasting'" class="data-section workforce-section">
 				<div class="section-heading">
 					<div>
 						<p class="eyebrow">
@@ -1276,6 +1298,35 @@ function number(value) {
 </template>
 
 <style scoped>
+.planning-setup{display:grid;gap:var(--spacing-s)}
+.planning-setup__card,.planning-setup__subcard{overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-block);background:var(--theme-surface)}
+.planning-setup__trigger,.planning-setup__subtrigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}
+.planning-setup__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}
+.planning-setup__content{padding:0 var(--spacing-m) var(--spacing-m)}
+.planning-setup__subsections{display:grid;gap:var(--spacing-xs)}
+.planning-setup__subcard{border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+.planning-setup__subtrigger>div{display:grid;gap:var(--spacing-3xs)}
+.planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:.08em}
+.planning-setup__subtrigger strong{font-size:var(--font-size-0)}
+.planning-setup__subcontent{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-s) var(--spacing-s)}
+.weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0}.weekly-plan__trigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m);padding:0 var(--spacing-m) var(--spacing-m)}.weekly-plan__actions{display:flex;justify-content:flex-end}
+.weekly-position{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+.weekly-position.is-ready{border-color:color-mix(in oklch,var(--theme-success) 45%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 5%,var(--theme-surface-raised))}
+.weekly-position.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 7%,var(--theme-surface-raised))}
+.weekly-position__heading{display:flex;align-items:start;justify-content:space-between;gap:var(--spacing-s)}
+.weekly-position__heading h3{margin:var(--spacing-3xs) 0 0;font-size:var(--font-size-1)}
+.weekly-position__metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface-raised)}
+.weekly-position__metrics>div{display:grid;gap:var(--spacing-3xs);min-width:0;padding:var(--spacing-xs);border-right:var(--border-width-1) solid var(--theme-border)}
+.weekly-position__metrics>div:last-child{border-right:0}
+.weekly-position__metrics strong{font-size:var(--font-size-0);overflow-wrap:anywhere}.weekly-position__metrics span{color:var(--theme-text-muted);font-size:var(--font-size--2)}
+.weekly-position__consequence,.weekly-position__storage{display:grid;grid-template-columns:minmax(9rem,.25fr) minmax(0,1fr);gap:var(--spacing-s);margin:0;padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-field);background:var(--theme-secondary)}
+.weekly-position__consequence span,.weekly-position__storage span,.capacity-method-note,.weekly-run-list__empty{color:var(--theme-text-muted)}
+.extra-output-control{display:grid;grid-template-columns:minmax(14rem,1fr) minmax(14rem,.6fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+.weekly-run-list{display:grid;gap:var(--spacing-xs)}
+.weekly-run-list article{display:grid;grid-template-columns:minmax(9rem,.75fr) minmax(9rem,.65fr) minmax(9rem,.65fr) auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+.weekly-run-list__empty,.capacity-method-note{margin:0;padding:var(--spacing-xs) var(--spacing-s)}
+@media(max-width:72rem){.weekly-position__metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.weekly-position__metrics>div:nth-child(3){border-right:0}.weekly-position__metrics>div:nth-child(-n+3){border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-run-list article{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-run-list article :deep(button){width:100%}}
+@media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article{grid-template-columns:1fr}.weekly-position__metrics>div{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-position__metrics>div:last-child{border-bottom:0}.weekly-position__consequence,.weekly-position__storage{grid-template-columns:1fr;gap:var(--spacing-3xs)}}
 .capacity-window-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
