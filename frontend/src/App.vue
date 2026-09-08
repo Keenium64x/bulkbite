@@ -439,7 +439,7 @@ watch(
 	color: var(--theme-text-muted);
 	font-size: var(--font-size--2);
 	font-weight: var(--font-weight-600);
-	letter-spacing: .08em;
+	letter-spacing: var(--font-letter-spacing-2);
 	text-transform: uppercase;
 }
 

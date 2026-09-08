@@ -1306,7 +1306,7 @@ function number(value) {
 .planning-setup__subsections{display:grid;gap:var(--spacing-xs)}
 .planning-setup__subcard{border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .planning-setup__subtrigger>div{display:grid;gap:var(--spacing-3xs)}
-.planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:.08em}
+.planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:var(--font-letter-spacing-2)}
 .planning-setup__subtrigger strong{font-size:var(--font-size-0)}
 .planning-setup__subcontent{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-s) var(--spacing-s)}
 .weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0}.weekly-plan__trigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m);padding:0 var(--spacing-m) var(--spacing-m)}.weekly-plan__actions{display:flex;justify-content:flex-end}
