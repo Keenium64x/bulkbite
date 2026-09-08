@@ -2,6 +2,10 @@
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
+	SystemAccordion,
+	SystemAccordionContent,
+	SystemAccordionItem,
+	SystemAccordionTrigger,
 	SystemBadge,
 	SystemDatePicker,
 	SystemFormControl,
@@ -14,7 +18,6 @@ import {
 	allocateFinishedFood,
 	createAdHocProductionRun,
 	createRunFromPlan,
-	discardProductionRun,
 	getFinishedFoodPosition,
 	getContainerSuggestion,
 	getProductionHistorySnapshot,
@@ -548,6 +551,13 @@ async function postRun() {
 	}
 }
 
+async function saveAndPostRun() {
+	if (run.value?.docstatus || draftLocked.value) return;
+	const saved = await saveRun();
+	if (!saved || queuedMutationId.value) return;
+	await postRun();
+}
+
 async function loadFinishedFood() {
 	if (!run.value?.docstatus || !run.value?.finished_item) return;
 	finishedFood.value = await getFinishedFoodPosition(
@@ -602,25 +612,6 @@ async function saveAllocation() {
 	}
 }
 
-async function discardRun() {
-	if (
-		!run.value ||
-		!window.confirm("Discard this production draft and reload the latest customer direction?")
-	)
-		return;
-	busy.value = true;
-	error.value = "";
-	try {
-		await discardProductionRun(run.value.name);
-		run.value = null;
-		emit("changed");
-	} catch (exception) {
-		error.value = exception.message;
-	} finally {
-		busy.value = false;
-	}
-}
-
 function roundQuantity(value) {
 	return Math.round(Number(value || 0) * 1000) / 1000;
 }
@@ -633,11 +624,6 @@ const recipeOptions = computed(() =>
 		value: row.name,
 	})),
 );
-const directionOptions = [
-	{ label: "Advance when this meal target is complete", value: "Advance Direction" },
-	{ label: "Repeat this planned meal next time", value: "Repeat Meal" },
-	{ label: "Off-plan meal, leave direction where it is", value: "Off Plan" },
-];
 async function changeRecipe(recipe) {
 	selectedRecipe.value = recipe;
 	if (run.value || !recipe) return;
@@ -813,13 +799,9 @@ function openRecipeRecords(create = false) {
 					:disabled="draftLocked"
 					@click="adHocMode ? returnToDirection() : startAdHocProduction()"
 					>{{
-						adHocMode ? "Return to direction" : "Make something else"
-					}}</SystemOperationalButton
-				><SystemOperationalButton variant="outline" @click="emit('open-employees')"
-					>Manage employees</SystemOperationalButton
-				><SystemOperationalButton variant="outline" @click="emit('open-worker-sheets')"
-					>Worker sheets</SystemOperationalButton
-				><SystemOperationalButton variant="outline" @click="emit('open-history')"
+					adHocMode ? "Return to direction" : "Custom run"
+				}}</SystemOperationalButton
+			><SystemOperationalButton variant="outline" @click="emit('open-history')"
 					>Production history</SystemOperationalButton
 				><SystemBadge v-if="selectedRow && !adHocMode"
 					>Cycle {{ station.cycle_number || 1 }} · Meal
@@ -849,13 +831,7 @@ function openRecipeRecords(create = false) {
 										: selectedRow.finished_item_name
 								}}
 							</h2>
-							<p>
-								{{
-									adHocMode
-										? "The target creates recipe theory for this run only."
-										: `${plan.plan_title}, meal ${selectedRow.week_number}. Choose whether this run completes the planned meal, repeats it next time, or records something off plan.`
-								}}
-							</p>
+						<p v-if="adHocMode">Choose an approved recipe and target. This run will not move the planned meal direction.</p>
 						</div>
 						<SystemBadge v-if="!adHocMode"
 							>{{ quantity(selectedRow.planned_output_qty) }} kg
@@ -870,55 +846,31 @@ function openRecipeRecords(create = false) {
 							placeholder="Choose a recipe"
 							create-label="Create recipe"
 							manage-label="Manage recipes"
-							:disabled="Boolean(run) || draftLocked"
+						:disabled="!adHocMode || Boolean(run) || draftLocked"
 							@update:model-value="changeRecipe"
 							@create="openRecipeRecords(true)"
 							@manage="openRecipeRecords(false)"
-						/><SystemSelect
-							v-if="!adHocMode"
-							v-model="directionAction"
-							label="After this run"
-							:options="directionOptions"
-							:disabled="Boolean(run) || draftLocked"
-						/>
-						<div v-else class="calculated-hours">
-							<span>After this run</span
-							><strong>Leave meal direction unchanged</strong>
-						</div>
-						<SystemFormControl
+					/><SystemFormControl
 							v-model="plannedOutput"
 							type="number"
 							label="Target for this run (kg)"
 							min="0.1"
 							step="0.1"
-							:disabled="Boolean(run) || draftLocked"
+						:disabled="!adHocMode || Boolean(run) || draftLocked"
 						/>
 					</div>
-					<div class="direction-note">
-						<strong v-if="directionAction === 'Repeat Meal'"
-							>This planned meal will stay next after posting.</strong
-						><strong v-else-if="directionAction === 'Off Plan'"
-							>This run will post actual stock and labour but will not move the meal
-							direction.</strong
-						><strong v-else-if="selectedRow.remaining_output_qty"
-							>{{ quantity(selectedRow.completed_output_qty) }} kg has already been
-							made. This run targets the remaining
-							{{ quantity(selectedRow.remaining_output_qty) }} kg.</strong
-						><strong v-else
-							>The direction advances only after posted production covers this meal
-							target. A smaller run leaves the remaining quantity for the next
-							run.</strong
-						>
+				<div v-if="!adHocMode && selectedRow.remaining_output_qty" class="direction-note">
+					<strong
+						>{{ quantity(selectedRow.completed_output_qty) }} kg has already been
+						made. This run targets the remaining
+						{{ quantity(selectedRow.remaining_output_qty) }} kg.</strong>
 					</div>
 					<div class="button-row instruction-actions">
 						<SystemOperationalButton
 							variant="outline"
 							:loading="busy"
 							@click="openInstructions"
-							>Build cooking plan</SystemOperationalButton
-						><SystemOperationalButton variant="ghost" @click="openRecipeRecords(false)"
-							>Edit recipe method</SystemOperationalButton
-						>
+						>Build cooking plan</SystemOperationalButton>
 					</div>
 					<div class="production-topline">
 						<div class="field-grid">
@@ -947,33 +899,18 @@ function openRecipeRecords(create = false) {
 								@update:model-value="setFinishedContainerCount"
 							/>
 						</div>
-						<div class="button-row">
-							<SystemOperationalButton
-								v-if="!run || !run.docstatus"
-								variant="outline"
-								size="lg"
-								:loading="busy"
-								:disabled="draftLocked"
-								@click="saveRun"
-								>{{
-									draftLocked ? "Waiting to sync" : "Save draft"
-								}}</SystemOperationalButton
-							><SystemOperationalButton
-								v-if="run && !run.docstatus"
-								variant="ghost"
-								size="lg"
-								:disabled="busy || draftLocked"
-								@click="discardRun"
-								>Discard draft</SystemOperationalButton
-							><SystemOperationalButton
-								v-if="run && !run.docstatus"
-								variant="solid"
-								size="lg"
-								:loading="busy"
-								:disabled="dirtySinceSave || draftLocked"
-								@click="postRun"
-								>Post production</SystemOperationalButton
-							>
+					<div class="button-row">
+						<SystemOperationalButton
+							v-if="!run?.docstatus"
+							variant="solid"
+							size="lg"
+							:loading="busy"
+							:disabled="draftLocked"
+							@click="saveAndPostRun"
+							>{{
+								draftLocked ? "Waiting to sync" : "Post production run"
+							}}</SystemOperationalButton
+						>
 						</div>
 					</div>
 					<div v-if="containerSuggestion?.available" class="container-suggestion">
@@ -981,14 +918,17 @@ function openRecipeRecords(create = false) {
 						<div><span>Your entry</span><strong>{{ finishedContainerCount || 0 }} containers</strong><small v-if="finishedContainerCount > 0">{{ quantity(actualOutput / finishedContainerCount) }} kg average fill</small></div>
 					</div>
 				</section>
-				<section class="data-section">
-					<div class="section-heading">
+				<SystemAccordion type="multiple" class="production-details">
+				<SystemAccordionItem value="measurements" class="data-section production-details__card">
+					<SystemAccordionTrigger class="production-details__trigger"><div class="section-heading">
 						<div>
 							<p class="eyebrow">Measurements</p>
-							<h2>Enter what happened</h2>
+							<h2>Actual items used and production notes</h2>
 							<p>Use quantity used, or enter what remained after the cook.</p>
 						</div>
-					</div>
+						<SystemBadge>{{ measurements.length }} items</SystemBadge>
+					</div></SystemAccordionTrigger>
+					<SystemAccordionContent class="production-details__content">
 					<div class="measurement-list">
 						<article
 							v-for="item in measurements"
@@ -1044,7 +984,9 @@ function openRecipeRecords(create = false) {
 						:rows="3"
 						:disabled="draftLocked"
 					/>
-				</section>
+					</SystemAccordionContent>
+				</SystemAccordionItem>
+				</SystemAccordion>
 				<section class="data-section actual-timing-section">
 					<div class="section-heading">
 						<div>
@@ -1073,26 +1015,12 @@ function openRecipeRecords(create = false) {
 							<div class="calculated-hours"><span>Hours worked</span><strong>{{ row.completion_status === "Completed" ? quantity(actualElapsedHours) : "0" }} h</strong></div>
 						</article>
 					</div>
-					<div v-else class="direction-note">Build and save the cooking plan first so the planned team is available for actual attendance and labour evidence.</div>
+					<div v-else class="direction-note">No planned team is attached to this run yet.</div>
 				</section>
-				<footer class="posting-bar">
+				<footer v-if="run?.docstatus" class="posting-bar">
 					<div>
-						<SystemBadge>{{
-							run
-								? run.docstatus
-									? "STOCK UPDATED"
-									: "READY TO POST"
-								: "MEASUREMENTS NOT SAVED"
-						}}</SystemBadge>
-						<p>
-							{{
-								run
-									? run.docstatus
-										? "Ingredient use and finished meals are now reflected in stock."
-										: "Review the saved measurements, then post the production run."
-									: "Save the measurements first. Stock will not change yet."
-							}}
-						</p>
+						<SystemBadge>STOCK UPDATED</SystemBadge>
+						<p>Ingredient use and finished meals are now reflected in stock.</p>
 					</div>
 				</footer>
 				<section v-if="run?.docstatus" class="data-section finished-allocation">
@@ -1192,6 +1120,7 @@ function openRecipeRecords(create = false) {
 </template>
 
 <style scoped>
+.production-details{display:grid}.production-details__card{overflow:hidden;padding:0}.production-details__trigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}.production-details__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.production-details__content{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-m) var(--spacing-m)}
 .history-summary,
 .history-run-list > article {
 	display: grid;

@@ -34,12 +34,14 @@ const busy = ref(false)
 const error = ref("")
 const saved = ref(false)
 const teamTemplate = ref("")
-const kitchenWindowHours = ref(0)
+	const kitchenWindowHours = ref(8)
 const employeeRows = reactive([])
 const assignmentLinks = ref({ can_manage: false, links: [] })
 const generatedLinks = reactive({})
 const linkBusyEmployee = ref("")
 const copiedEmployee = ref("")
+let kitchenSaveTimer
+let hydratingPlan = false
 
 const run = computed(() => workspace.value?.run || null)
 const employeeOptions = computed(() => workspace.value?.employees || [])
@@ -73,6 +75,7 @@ const capacityStatus = computed(() => {
   return short ? "Under capacity" : "Ready to cook"
 })
 watch(kitchenWindowHours, syncEmployeeAvailability)
+watch([teamTemplate, kitchenWindowHours, employeeRows], queueKitchenPlanSave, { deep: true })
 
 onMounted(loadWorkspace)
 
@@ -101,20 +104,22 @@ async function loadAssignmentLinks() {
 }
 
 function hydrateRun(value) {
+	  hydratingPlan = true
   teamTemplate.value = value?.team_template || ""
-  kitchenWindowHours.value = Number(value?.scheduled_elapsed_hours || 0)
+	  kitchenWindowHours.value = Number(value?.scheduled_elapsed_hours || 8)
   employeeRows.splice(0, employeeRows.length, ...(value?.employees || []).map((row) => ({
     ...row,
-    available_hours: Number(row.custom_hours ? row.available_hours : value?.scheduled_elapsed_hours || 0),
+	    available_hours: Number(row.custom_hours ? row.available_hours : value?.scheduled_elapsed_hours || 8),
     custom_hours: Boolean(row.custom_hours),
   })))
-  if (!employeeRows.length && teamTemplate.value) applyTeamTemplate()
+	  if (teamTemplate.value && (!employeeRows.length || !value?.team_template)) applyTeamTemplate()
+	  window.setTimeout(() => { hydratingPlan = false }, 0)
 }
 
 function applyTeamTemplate() {
   const template = teamTemplates.value.find((row) => row.name === teamTemplate.value)
   if (!template) return
-  if (!kitchenWindowHours.value) kitchenWindowHours.value = Number(template.default_elapsed_hours || 0)
+	  if (!kitchenWindowHours.value) kitchenWindowHours.value = Number(template.default_elapsed_hours || 8)
   employeeRows.splice(0, employeeRows.length, ...(template.members || []).map((member) => {
     const employee = employeeByName.value.get(member.employee)
     return {
@@ -129,6 +134,11 @@ function applyTeamTemplate() {
     }
   }))
   rebuildPlan()
+}
+
+function changeTeamTemplate(value) {
+  teamTemplate.value = value
+  applyTeamTemplate()
 }
 
 function addEmployee() {
@@ -162,6 +172,12 @@ function restoreAutomaticAvailability(row) {
   row.available_hours = Math.max(Number(kitchenWindowHours.value || 0), 0)
 }
 
+function queueKitchenPlanSave() {
+  if (hydratingPlan || busy.value || run.value?.docstatus || !employeeRows.some((row) => row.employee)) return
+  window.clearTimeout(kitchenSaveTimer)
+  kitchenSaveTimer = window.setTimeout(() => saveKitchenPlan({ quiet: true }), 500)
+}
+
 function removeEmployee(index) {
   employeeRows.splice(index, 1)
   rebuildPlan()
@@ -180,7 +196,7 @@ async function rebuildPlan() {
   }
 }
 
-async function saveKitchenPlan() {
+async function saveKitchenPlan({ quiet = false } = {}) {
   if (run.value?.docstatus) return
   if (!employeeRows.some((row) => row.employee)) {
     error.value = "Assign at least one employee before saving the cooking plan."
@@ -188,7 +204,7 @@ async function saveKitchenPlan() {
   }
   busy.value = true
   error.value = ""
-  saved.value = false
+	  if (!quiet) saved.value = false
   try {
     const updated = await saveKitchenPlanTeam(
       run.value.name,
@@ -200,7 +216,7 @@ async function saveKitchenPlan() {
     hydrateRun(updated)
     await rebuildPlan()
     await loadAssignmentLinks()
-    saved.value = true
+	    if (!quiet) saved.value = true
     emit("changed")
   } catch (exception) {
     error.value = exception.message
@@ -481,7 +497,6 @@ function printKitchenPack() {
         <SystemOperationalButton variant="outline" @click="emit('close')">Back to production</SystemOperationalButton>
         <SystemOperationalButton variant="outline" :loading="busy" @click="rebuildPlan">Rebuild plan</SystemOperationalButton>
         <SystemOperationalButton variant="outline" :disabled="!instructions || !activeTeam.length" @click="printKitchenPack">Print kitchen pack</SystemOperationalButton>
-        <SystemOperationalButton v-if="!run?.docstatus" variant="solid" :loading="busy" @click="saveKitchenPlan">Save cooking plan</SystemOperationalButton>
       </div>
     </header>
 
@@ -521,8 +536,7 @@ function printKitchenPack() {
           <SystemAccordionContent class="section-content">
             <div class="section-actions"><div class="button-row"><SystemOperationalButton variant="ghost" @click="emit('open-employees')">Manage employees</SystemOperationalButton><SystemOperationalButton v-if="!run.docstatus" variant="outline" @click="addEmployee">Add employee</SystemOperationalButton></div></div>
             <div class="team-controls">
-              <SystemSelect v-model="teamTemplate" label="Team template" :options="teamTemplateOptions" placeholder="Choose a saved team" :disabled="Boolean(run.docstatus)" />
-              <SystemOperationalButton variant="outline" :disabled="Boolean(run.docstatus) || !teamTemplate" @click="applyTeamTemplate">Apply template</SystemOperationalButton>
+	              <SystemSelect :model-value="teamTemplate" label="Team template" :options="teamTemplateOptions" placeholder="Choose a saved team" :disabled="Boolean(run.docstatus)" @update:model-value="changeTeamTemplate" />
               <SystemFormControl v-model="kitchenWindowHours" label="Kitchen time available (hours)" type="number" min="0" step="0.1" :disabled="Boolean(run.docstatus)" />
             </div>
             <div class="employee-list">
