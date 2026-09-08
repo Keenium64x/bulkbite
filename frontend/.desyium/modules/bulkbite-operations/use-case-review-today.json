@@ -1,0 +1,38 @@
+{
+  "id": "use-case-review-today",
+  "name": "Review Today Use Case",
+  "type": "use-case",
+  "purpose": "See current bulkbite operations state.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.useCases.review-today"
+  ],
+  "dependencies": [
+    "domain"
+  ],
+  "usedBy": [
+    "block-review-today"
+  ],
+  "invariants": [
+    "A use case names the actor, job, inputs, outputs, decisions, and failure states before UI composition.",
+    "Backend capability may be larger than the controls shown in the block."
+  ],
+  "tests": [
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation"
+  ],
+  "contract": {
+    "id": "review-today",
+    "actor": "Operator",
+    "job": "See current bulkbite operations state.",
+    "controls": [
+      "Primary filter"
+    ],
+    "outputs": [
+      "Key metrics",
+      "Next required action"
+    ]
+  }
+}

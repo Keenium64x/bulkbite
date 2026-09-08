@@ -1,0 +1,80 @@
+{
+  "id": "validation",
+  "name": "Validation Plan",
+  "type": "validation",
+  "purpose": "Define focused proof for backend logic, contracts, frontend rendering, platform behavior, and release gates.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/tests"
+  ],
+  "dependencies": [
+    "domain",
+    "block-review-today",
+    "block-complete-workflow",
+    "block-manage-exceptions",
+    "block-maintain-system",
+    "block-ai-upload-review",
+    "block-structured-importer",
+    "shell-dashboard",
+    "shell-mobile",
+    "shell-admin",
+    "shell-all-forms"
+  ],
+  "usedBy": [
+    "doctor",
+    "release-check"
+  ],
+  "invariants": [
+    "Run backend unit tests when business logic changes.",
+    "Run frontend and platform proof in proportion to the changed surface.",
+    "Full suites are release or broad infrastructure gates, not every tiny UI pass."
+  ],
+  "tests": [
+    "permission boundaries",
+    "command idempotency",
+    "state transitions",
+    "derived totals and calculations",
+    "AI extraction is proposal-only",
+    "review approval gates deterministic submit",
+    "schema validation rejects malformed AI output",
+    "required headers are validated",
+    "row preview does not commit records",
+    "commit returns created skipped and error counts",
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation",
+    "generated route compiles",
+    "lean block controls render",
+    "loading/error/empty states exist",
+    "mobile pull-to-refresh lifecycle check"
+  ],
+  "contract": {
+    "backendUnitTests": [
+      "permission boundaries",
+      "command idempotency",
+      "state transitions",
+      "derived totals and calculations",
+      "AI extraction is proposal-only",
+      "review approval gates deterministic submit",
+      "schema validation rejects malformed AI output",
+      "required headers are validated",
+      "row preview does not commit records",
+      "commit returns created skipped and error counts"
+    ],
+    "contractChecks": [
+      "intent contract validation",
+      "module owner lookup",
+      "page/block dependency direction",
+      "form-system contract validation"
+    ],
+    "frontendProof": [
+      "generated route compiles",
+      "lean block controls render",
+      "loading/error/empty states exist"
+    ],
+    "platformProof": [
+      "mobile pull-to-refresh lifecycle check"
+    ]
+  }
+}

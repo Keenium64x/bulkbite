@@ -1,0 +1,44 @@
+{
+  "id": "use-case-ai-upload-review",
+  "name": "Ai Upload Review Use Case",
+  "type": "use-case",
+  "purpose": "Upload a document, receive a schema-bound AI proposal, correct it, and submit through backend-owned validation.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.useCases.ai-upload-review"
+  ],
+  "dependencies": [
+    "domain"
+  ],
+  "usedBy": [
+    "block-ai-upload-review"
+  ],
+  "invariants": [
+    "A use case names the actor, job, inputs, outputs, decisions, and failure states before UI composition.",
+    "Backend capability may be larger than the controls shown in the block."
+  ],
+  "tests": [
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation"
+  ],
+  "contract": {
+    "id": "ai-upload-review",
+    "actor": "Operator",
+    "job": "Upload a document, receive a schema-bound AI proposal, correct it, and submit through backend-owned validation.",
+    "controls": [
+      "File",
+      "Extraction schema",
+      "Review fields",
+      "Approve or reject"
+    ],
+    "outputs": [
+      "Upload status",
+      "Extracted proposal",
+      "Confidence notes",
+      "Validation errors",
+      "Submitted record"
+    ]
+  }
+}

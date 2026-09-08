@@ -1,0 +1,13 @@
+{
+  "id": "bulkbite-operations",
+  "purpose": "Dysium backend-first Frappe handoff.",
+  "files": {
+    "backend": ".desyium/frappe/bulkbite-operations/backend.json",
+    "testPlan": ".desyium/frappe/bulkbite-operations/test-plan.py"
+  },
+  "next": [
+    "Create or update Frappe DocTypes and services from backend.json.",
+    "Replace generated NotImplementedError placeholders with real pytest/Frappe tests.",
+    "Only compose frontend blocks after backend contracts are explicit."
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "plan": ".desyium/integrations/bulkbite-operations/plan.json",
+  "files": [
+    "src/dysium-integrations/ai-upload-form/uploadForm.js",
+    "bulkbite/integrations/ai-upload-form.py",
+    "src/dysium-integrations/structured-importer/importer.js",
+    "bulkbite/integrations/structured-importer.py"
+  ],
+  "backend": {
+    "appPath": "/home/keenan/BulkBite/apps/bulkbite",
+    "moduleName": "bulkbite"
+  },
+  "next": [
+    "Install listed dependencies only for selected integrations.",
+    "Put provider secrets in Frappe/site environment, never frontend code.",
+    "Replace generated backend NotImplementedError stubs with real provider calls and tests."
+  ]
+}

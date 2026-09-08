@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "systemId": "bulkbite-operations",
+  "responsibility": "Standardize automatic microanimations for generated Dysium cards and their sub-elements.",
+  "defaultPolicy": {
+    "enabled": true,
+    "intensity": "quiet",
+    "runtime": "css-first",
+    "escalationRule": "Use GSAP only for sequenced page or spatial choreography; ordinary card hover stays CSS-owned.",
+    "sourceLessons": [
+      "Poloway card affordance",
+      "BulkBite operational card hover"
+    ]
+  },
+  "targets": [
+    {
+      "id": "major-card",
+      "selector": "[data-dysium-motion='major-card']",
+      "trigger": "hover-or-focus-within",
+      "effect": "lift-shadow-border",
+      "timing": {
+        "durationMs": 140,
+        "easing": "cubic-bezier(.2,0,0,1)",
+        "liftPx": -2,
+        "childLiftPx": -1
+      }
+    },
+    {
+      "id": "card-child",
+      "selector": "[data-dysium-motion-child]",
+      "trigger": "parent-hover-or-focus-within",
+      "effect": "synchronized-subtle-lift",
+      "timing": {
+        "durationMs": 140,
+        "easing": "cubic-bezier(.2,0,0,1)",
+        "liftPx": -1
+      }
+    }
+  ],
+  "accessibility": {
+    "reducedMotion": "Disable transform travel and keep color, outline, and shadow state changes readable.",
+    "keyboard": "Focus-within receives the same state as hover.",
+    "coarsePointer": "Keep transition but avoid relying on hover to reveal required information."
+  },
+  "performance": {
+    "properties": [
+      "transform",
+      "box-shadow",
+      "border-color",
+      "background-color"
+    ],
+    "layoutRule": "Never animate width, height, top, left, margin, padding, or grid placement for card hover.",
+    "dependencyPolicy": "No runtime dependency is installed for default microanimations."
+  }
+}

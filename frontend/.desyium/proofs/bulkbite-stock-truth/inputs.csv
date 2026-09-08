@@ -1,0 +1,7 @@
+name,label,source,example,notes
+opening-stock,opening-stock,doctype-field-or-user-entry,TODO,Define where this value comes from before coding the calculation.
+approved-receipts,approved-receipts,doctype-field-or-user-entry,TODO,Define where this value comes from before coding the calculation.
+approved-production-usage,approved-production-usage,doctype-field-or-user-entry,TODO,Define where this value comes from before coding the calculation.
+physical-count,physical-count,doctype-field-or-user-entry,TODO,Define where this value comes from before coding the calculation.
+price-history,price-history,doctype-field-or-user-entry,TODO,Define where this value comes from before coding the calculation.
+approved-stock-events,approved-stock-events,doctype-field-or-user-entry,TODO,Define where this value comes from before coding the calculation.

@@ -1,0 +1,224 @@
+{
+  "id": "bulkbite-operations-block-types",
+  "blocks": [],
+  "types": [
+    {
+      "id": "review-today",
+      "category": "Operations",
+      "job": "See current bulkbite operations state.",
+      "whenToUse": "Use when the user needs to see current bulkbite operations state.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "User enters BulkBite Operations.",
+      "outgoingState": "Finish the active workflow with minimal input.",
+      "contentContract": [
+        "control: Primary filter",
+        "output: Key metrics",
+        "output: Next required action"
+      ],
+      "primaryAction": "Primary filter",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ]
+    },
+    {
+      "id": "complete-workflow",
+      "category": "Operations",
+      "job": "Finish the active workflow with minimal input.",
+      "whenToUse": "Use when the user needs to finish the active workflow with minimal input.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "See current bulkbite operations state.",
+      "outgoingState": "Resolve blocked or unusual records.",
+      "contentContract": [
+        "control: Required fields",
+        "control: Submit action",
+        "output: Result state",
+        "output: Validation feedback"
+      ],
+      "primaryAction": "Required fields",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ]
+    },
+    {
+      "id": "manage-exceptions",
+      "category": "Operations",
+      "job": "Resolve blocked or unusual records.",
+      "whenToUse": "Use when the user needs to resolve blocked or unusual records.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Finish the active workflow with minimal input.",
+      "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "contentContract": [
+        "control: Decision action",
+        "control: Note",
+        "output: Exception list",
+        "output: Audit trail"
+      ],
+      "primaryAction": "Decision action",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ]
+    },
+    {
+      "id": "maintain-system",
+      "category": "Operations",
+      "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "whenToUse": "Use when the user needs to access complete backend maintenance screens without cluttering normal workflows.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Resolve blocked or unusual records.",
+      "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "contentContract": [
+        "control: DocType selector",
+        "output: All forms access",
+        "output: Permission state"
+      ],
+      "primaryAction": "DocType selector",
+      "secondaryAction": "Return to normal workflow",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ]
+    },
+    {
+      "id": "ai-upload-review",
+      "category": "Operations",
+      "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "whenToUse": "Use when the user needs to expose a lean upload and review workflow while ai remains proposal-only and backend submission stays deterministic.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "contentContract": [
+        "control: File",
+        "control: Extraction schema",
+        "control: Review fields",
+        "control: Approve or reject",
+        "output: Upload status",
+        "output: Extracted proposal",
+        "output: Confidence notes",
+        "output: Validation errors",
+        "output: Submitted record"
+      ],
+      "primaryAction": "File",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ]
+    },
+    {
+      "id": "structured-importer",
+      "category": "Operations",
+      "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "whenToUse": "Use when the user needs to expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "whenNotToUse": "Do not expose backend detail that is not needed for this workflow.",
+      "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
+      "contentContract": [
+        "control: Template",
+        "control: File",
+        "control: Validate",
+        "control: Commit approved rows",
+        "output: Header status",
+        "output: Import preview",
+        "output: Error rows",
+        "output: Created count",
+        "output: Skipped count"
+      ],
+      "primaryAction": "Template",
+      "secondaryAction": "Inspect supporting detail",
+      "componentRoles": [
+        "button",
+        "stat",
+        "link"
+      ],
+      "primitiveRoles": [
+        "structure"
+      ],
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "accessibilityPerformance": "Controls have labels, outputs retain text meaning, and the block has no provider-specific imports.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "failureModes": [
+        "Backend fields are dumped into the interface.",
+        "Optional maintenance controls compete with the primary workflow."
+      ],
+      "sourceIds": [
+        "desyium-block-contract"
+      ]
+    }
+  ]
+}

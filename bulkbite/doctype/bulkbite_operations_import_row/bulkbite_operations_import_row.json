@@ -1,0 +1,58 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "import_batch",
+      "label": "Import Batch",
+      "fieldtype": "Link",
+      "options": "BulkBite Operations Import Batch",
+      "reqd": 1
+    },
+    {
+      "fieldname": "row_number",
+      "label": "Row Number",
+      "fieldtype": "Int",
+      "reqd": 1
+    },
+    {
+      "fieldname": "row_payload",
+      "label": "Row Payload",
+      "fieldtype": "JSON",
+      "reqd": 1
+    },
+    {
+      "fieldname": "row_status",
+      "label": "Row Status",
+      "fieldtype": "Select",
+      "options": "Valid\nWarning\nError\nCommitted",
+      "reqd": 1
+    },
+    {
+      "fieldname": "error_message",
+      "label": "Error Message",
+      "fieldtype": "Small Text",
+      "reqd": 0
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "module": "Bulkbite",
+  "name": "BulkBite Operations Import Row",
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "export": 1,
+      "report": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

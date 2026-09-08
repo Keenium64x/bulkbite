@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "required": false,
+  "routes": [],
+  "metadata": {
+    "titleSource": "page purpose and system name",
+    "descriptionSource": "primary audience, primary action, and backend-visible outcome",
+    "canonicalSource": "route path"
+  },
+  "validationPrompts": [
+    "Every public route has a title, description, canonical path, and visible purpose.",
+    "SEO copy describes the concrete workflow outcome rather than decorative brand language.",
+    "Private, admin, and all-forms routes are excluded from public metadata unless explicitly allowed."
+  ],
+  "outputPlan": {
+    "ssr": "not-requested",
+    "static": "not-requested"
+  }
+}

@@ -1,0 +1,4864 @@
+{
+  "_generatedBy": "desyium",
+  "schemaVersion": 1,
+  "id": "project",
+  "generatedAt": "2026-09-08T04:04:07.160Z",
+  "station": "page-block-architecture",
+  "responsibility": "Restore BulkBite operational system context across planning, stock truth logic, Frappe contracts, generated app source, and design-system owners.",
+  "projectBrief": {
+    "$schema": "../node_modules/@keenium86x/desyium/schema/brief.schema.json",
+    "schemaVersion": 1,
+    "status": "approved",
+    "project": {
+      "name": "BulkBite Operations",
+      "type": "operational application",
+      "purpose": "Keep kitchen stock truth fast, reviewable, and dependable",
+      "primaryAction": "Record stock truth"
+    },
+    "company": {
+      "meaning": "More food, less stock uncertainty",
+      "intent": "Make receiving, production use, and physical counts obvious to kitchen workers",
+      "evidence": [
+        "Reviewed receipts, approved recipes, measured usage, physical counts, immutable stock events, and accountant exports"
+      ]
+    },
+    "audience": {
+      "primary": "BulkBite kitchen workers and managers",
+      "needs": [
+        "A quick way to receive stock, record what was used or left, and reconcile real stock"
+      ],
+      "desiredPerception": [
+        "substantial",
+        "direct",
+        "energetic",
+        "honest"
+      ]
+    },
+    "constraints": [
+      "Frappe remains the host, authentication, database, permission, and API boundary",
+      "ERPNext is not installed and cannot be a runtime dependency",
+      "Worker documents create review drafts only and never post stock automatically",
+      "Every component job uses one selected Desyium owner and public System export",
+      "Frappe UI owns form and operational controls before shadcn-vue or project providers",
+      "No raster image inspection is used for design or validation"
+    ],
+    "openQuestions": []
+  },
+  "brandAuthority": {
+    "$schema": "../node_modules/@keenium86x/desyium/schema/brand.schema.json",
+    "schemaVersion": 1,
+    "id": "project-brand",
+    "name": "BulkBite Operations",
+    "status": "approved",
+    "provenance": {
+      "brief": ".desyium/brief.json",
+      "territory": "operations-territory",
+      "rule": "Confirmed evidence is interpreted explicitly; references contribute principles but never declare brand truth."
+    },
+    "truth": {
+      "meaning": "More food, less stock uncertainty",
+      "intent": "Make receiving, production use, and physical counts obvious to kitchen workers",
+      "evidence": [
+        "Reviewed receipts, approved recipes, measured usage, physical counts, immutable stock events, and accountant exports"
+      ],
+      "audience": "BulkBite kitchen workers and managers",
+      "audienceNeeds": [
+        "A quick way to receive stock, record what was used or left, and reconcile real stock"
+      ],
+      "desiredPerception": [
+        "substantial",
+        "direct",
+        "energetic",
+        "honest"
+      ],
+      "category": "Prepared-meal kitchen operations and stock control",
+      "differentiation": "BulkBite Operations treats the worker's physical count, receipt, and production measurement as the centre of the system, with accounting kept behind a clean export boundary.",
+      "antiPositioning": [
+        "Accounting-first kitchen forms",
+        "Soft generic SaaS styling",
+        "Automatic stock posting from unreviewed extraction"
+      ],
+      "constraints": [
+        "Frappe remains the host, authentication, database, permission, and API boundary",
+        "ERPNext is not installed and cannot be a runtime dependency",
+        "Worker documents create review drafts only and never post stock automatically",
+        "Every component job uses one selected Desyium owner and public System export",
+        "Frappe UI owns form and operational controls before shadcn-vue or project providers",
+        "No raster image inspection is used for design or validation"
+      ]
+    },
+    "positioning": {
+      "statement": "A direct kitchen stock system that shows what should exist, records what arrived or was used, and keeps every approved movement traceable.",
+      "promise": "Workers can record stock truth quickly, while managers can see the difference between recipe theory and the kitchen's actual numbers.",
+      "reasonsToBelieve": [
+        "Reviewed receipts, approved recipes, measured usage, physical counts, immutable stock events, and accountant exports"
+      ]
+    },
+    "identity": {
+      "personality": [
+        "direct",
+        "substantial",
+        "practical",
+        "calm under pressure"
+      ],
+      "values": [
+        "honesty",
+        "speed",
+        "traceability"
+      ],
+      "tensions": [
+        "campaign energy and operational calm",
+        "dense records and fast scanning",
+        "immutable history and simple correction workflows"
+      ],
+      "antiValues": [
+        "decorative complexity",
+        "accounting jargon in worker screens",
+        "false certainty from AI extraction"
+      ],
+      "recognitionCues": [
+        "large quantities",
+        "neutral canvas and white work zones",
+        "one orange posting action",
+        "soft rounded working surfaces"
+      ]
+    },
+    "messaging": {
+      "hierarchy": [
+        "Show the current stock or production state",
+        "Show the expected number beside the actual number",
+        "Name the evidence and the next explicit posting action"
+      ],
+      "voice": [
+        "plain",
+        "specific",
+        "helpful",
+        "confident"
+      ],
+      "vocabulary": [
+        "received",
+        "used",
+        "left",
+        "counted",
+        "expected",
+        "difference",
+        "review"
+      ],
+      "avoid": [
+        "ERPNext terminology",
+        "general-ledger jargon",
+        "AI magic claims",
+        "vague status labels"
+      ]
+    },
+    "selectedTerritory": {
+      "id": "operations-territory",
+      "concept": "A substantial kitchen field manual: stock truth is framed with the same bold, direct energy as the BulkBite customer brand, while dense work stays calm and legible.",
+      "sharedVisualGrammar": "Neutral structural fields, white work surfaces, soft rounded boundaries, clear numeric evidence, compact operational labels, and one orange action signal per screen.",
+      "projectTranslationBoundary": "References supply evidence and principles only; the approved project theme must be translated from this project's brief and must not copy a reference identity."
+    },
+    "interpretations": [
+      {
+        "id": "brand-operational-hierarchy",
+        "source": "BulkBite brand guide: substantial, straightforward, energetic, honest, and student-first",
+        "meaning": "Operational screens should feel recognisably BulkBite without sacrificing working clarity.",
+        "implication": "Scale, contrast, and one orange action establish hierarchy; controls remain familiar and explicit.",
+        "owner": "theme",
+        "expression": "System-sans hierarchy, neutral canvas, white work surfaces, orange primary action, rounded geometry, and familiar controls.",
+        "proof": "Dashboard and receipt intake workflows",
+        "confidence": "confirmed"
+      },
+      {
+        "id": "review-before-stock",
+        "source": "User requirement that handwritten worker records and receipt evidence enter the system safely",
+        "meaning": "Extraction is evidence assistance, not posting authority.",
+        "implication": "Every extracted row exposes source text, match confidence, warning, and human approval before it can reach a production or audit draft.",
+        "owner": "block",
+        "expression": "Evidence, review, and apply are separate reusable workflow blocks with explicit state.",
+        "proof": "Worker document review workflow",
+        "confidence": "confirmed"
+      }
+    ],
+    "proofPlan": [
+      "Mounted Frappe UI form controls expose selected System exports and accessible states",
+      "Receipt, production, worker review, and audit blocks preserve one job and one posting boundary",
+      "Complete application proof covers dashboard, stock, plan, receipt, production, worker sheet, audit, scanner, and accountant export"
+    ],
+    "openQuestions": []
+  },
+  "selectedTerritory": {
+    "id": "operations-territory",
+    "name": "Substantial kitchen truth",
+    "concept": "A substantial kitchen field manual: stock truth is framed with the same bold, direct energy as the BulkBite customer brand, while dense work stays calm and legible.",
+    "desiredPerception": [
+      "substantial",
+      "direct",
+      "fast",
+      "dependable"
+    ],
+    "sharedVisualGrammar": "Neutral structural fields, white work surfaces, soft rounded boundaries, clear numeric evidence, compact operational labels, and one orange action signal per screen.",
+    "alignmentRhythm": "A twelve-column desktop grid and reduced mobile flow use strong left axes, 8 px spacing increments, dense work zones, and generous separation around decisions.",
+    "references": [
+      {
+        "source": "BulkBite design system.txt and the public bulkbite.co.za HTML/CSS",
+        "evidence": "Anton display type, #101010 ink, #F5F0E6 warm paper, #FF5A1F orange, large quantities, direct copy, and sharp rectangular framing.",
+        "principleToBorrow": "Use scale and contrast to make the important quantity and next action obvious within seconds.",
+        "doNotCopy": "Do not copy public sales-page content, food photography, or marketing-only interactions into the kitchen application."
+      },
+      {
+        "source": "BulkBite Poster Campaign: Final Creative Brief",
+        "evidence": "Campaign compositions use one dominant statement, restrained orange emphasis, short supporting copy, and one tested action.",
+        "principleToBorrow": "Each operational screen should have one dominant job and one clear posting action.",
+        "doNotCopy": "Do not place poster slogans, tracked QR advertising, or unverified appetite claims in operational workflows."
+      }
+    ],
+    "typography": "System sans owns page titles, quantities, instructions, forms, tables, metadata, and long reading. Operational hierarchy comes from weight and spacing, not display typography.",
+    "colorMaterial": "A very light neutral canvas supports white work surfaces. Charcoal carries text, orange marks the primary action or current step, and muted grey carries low-priority context.",
+    "geometryLines": "Soft one-pixel borders, 12 to 16 pixel surface radii, and 8 to 10 pixel control radii. Avoid sharp poster framing, floating pills, glossy depth, and gradients.",
+    "imagery": "Use the supplied wordmark or symbol assets only. Operational meaning uses simple line icons and textual evidence. Food imagery is unnecessary in the stock app.",
+    "spacingDensity": "Dashboard claims receive breathing room; forms and tables become compact where repeated entry benefits from density. Touch targets remain at least 44 px.",
+    "composition": "Every workflow moves from current state to evidence, entry, review, and one explicit posting action. Mobile stacks this order without hiding units or status.",
+    "primitiveFamilies": [
+      "solid-field",
+      "surface-frame",
+      "grain"
+    ],
+    "motion": "Fast state confirmation and short directional transitions. Reduced motion renders the final hierarchy immediately, with no information depending on movement.",
+    "systemCompatibility": "Desyium theme tokens own color, type, radius, spacing treatment, motion policy, and prohibitions. Frappe UI component owners supply operational controls through generated System exports. Blocks own workflow composition.",
+    "projectTranslationBoundary": "References supply evidence and principles only; the approved project theme must be translated from this project's brief and must not copy a reference identity.",
+    "openQuestions": [],
+    "status": "selected"
+  },
+  "activeTheme": {
+    "id": "bulkbite-operations",
+    "name": "BulkBite Operations",
+    "status": "approved",
+    "category": "Prepared-meal operations",
+    "purpose": "Provide a self-explanatory BulkBite stock dashboard with a restrained charcoal-and-muted-orange shell around calm neutral operational work surfaces",
+    "keywords": [
+      "bulkbite",
+      "kitchen",
+      "stock",
+      "operations",
+      "dashboard",
+      "neutral",
+      "rounded",
+      "clear"
+    ],
+    "identity": {
+      "desiredPerception": [
+        "clear",
+        "familiar",
+        "dependable",
+        "easy to scan"
+      ],
+      "personality": [
+        "practical",
+        "quiet",
+        "direct",
+        "calm under pressure"
+      ],
+      "tensions": [
+        "brand recognition and operational restraint",
+        "dense records and fast scanning"
+      ],
+      "antiValues": [
+        "campaign styling",
+        "decorative complexity",
+        "oversized typography",
+        "ambiguous state"
+      ]
+    },
+    "tokens": {
+      "--font-family-a": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "--font-family-b": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "--font-family-c": "ui-monospace, SFMono-Regular, Menlo, monospace",
+      "--theme-primary": "#E14709",
+      "--theme-primary-foreground": "#FFFFFF",
+      "--theme-canvas": "#EEEAE2",
+      "--theme-surface": "#F8F5EF",
+      "--theme-surface-raised": "#FFFDF9",
+      "--theme-navigation-sidebar": "#302D2B",
+      "--theme-navigation-sidebar-panel": "#393533",
+      "--theme-navigation-sidebar-control": "#45403D",
+      "--theme-navigation-sidebar-hover": "#4C4642",
+      "--theme-navigation-sidebar-border": "#5B544F",
+      "--theme-navigation-sidebar-text": "#FFF9F3",
+      "--theme-navigation-sidebar-muted": "#CFC6BE",
+      "--theme-navigation-header": "#B95730",
+      "--theme-navigation-tabs": "#B95730",
+      "--theme-navigation-header-control": "#8F3F24",
+      "--theme-navigation-header-hover": "#7E361F",
+      "--theme-navigation-header-border": "#873A21",
+      "--theme-navigation-header-text": "#FFF9F3",
+      "--theme-navigation-header-muted": "#F2D6C9",
+      "--theme-navigation-tab": "#AA5030",
+      "--theme-navigation-tab-hover": "#984427",
+      "--theme-navigation-active": "#F8F1E9",
+      "--theme-navigation-active-text": "#302D2B",
+      "--theme-navigation-active-border": "#E3D5C9",
+      "--theme-navigation-active-accent": "#302D2B",
+      "--theme-field": "#F2EEE6",
+      "--theme-popup": "#FFFDF9",
+      "--theme-text": "#252522",
+      "--theme-text-muted": "#6F706B",
+      "--theme-secondary": "#E7E2D9",
+      "--theme-secondary-foreground": "#252522",
+      "--theme-accent": "#E14709",
+      "--theme-accent-soft": "#F7E5DC",
+      "--theme-border": "#D5CFC4",
+      "--component-radius-button": "10px",
+      "--component-radius-field": "10px",
+      "--component-radius-card": "14px",
+      "--component-radius-block": "16px"
+    },
+    "composition": {
+      "hierarchy": "Use a compact page title, one-sentence purpose, visible workflow stages, one main work area, and a separate review or posting boundary.",
+      "negativeSpace": "Use calm dashboard spacing. Group each decision with its evidence and next action while keeping repeated rows efficient.",
+      "geometry": "Use a compact collapsible soft-charcoal setup rail, one calm muted-orange top area, separated horizontal workflow navigation, neutral work surfaces, soft borders, and generous but consistent rounding.",
+      "density": "Keep forms and tables efficient without making the task feel cramped. Touch targets remain at least 44 pixels high.",
+      "lighting": "Use restrained surface elevation and tonal separation. No decorative lighting, gradients, textures, or atmospheric effects."
+    },
+    "componentTreatment": {
+      "buttons": "Use ordinary Frappe UI button sizing with explicit labels and rounded geometry. Workflow tabs use separated low-contrast segments with a light active surface and dark indicator. Refresh has a fixed footprint and a strictly bounded loading indicator.",
+      "forms": "Frappe UI behavior with persistent labels, 44 pixel targets, consistent internal padding, tinted field surfaces, visible units, direct help, explicit errors, and raised neutral popovers.",
+      "cards": "Use tinted work surfaces with soft borders and 14 to 16 pixel rounding. Reserve the brightest surface for the current decision or open popover.",
+      "presets": {
+        "primary-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "secondary-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "quiet-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "destructive-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "operational-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "field": {
+          "component": "form-control",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "text-input": {
+          "component": "text-input",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "select": {
+          "component": "select",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "textarea": {
+          "component": "textarea",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "file": {
+          "component": "file-uploader",
+          "treatment": "default",
+          "effect": "none"
+        }
+      }
+    },
+    "primitiveTreatment": {
+      "preferred": [
+        "solid-field"
+      ],
+      "layerBudget": 1,
+      "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from flow, spacing, semantic surface levels, and soft borders."
+    },
+    "recipeTreatment": {
+      "preferred": [
+        "precision-frame"
+      ],
+      "rule": "Keep precision-frame available for an exceptional evidence boundary, but do not apply decorative recipes to ordinary operational pages."
+    },
+    "blockTreatment": {
+      "signature": [
+        "dashboard-overview"
+      ],
+      "rhythm": "Orient the user, show numbered stages, present one current work area, then expose review and posting as an explicit final boundary."
+    },
+    "motion": {
+      "character": "Still by default. Use only provider-native state transitions required for control feedback.",
+      "reduced": "Render final state immediately; no meaning or hierarchy depends on movement."
+    },
+    "voice": {
+      "tone": [
+        "plain",
+        "direct",
+        "specific",
+        "helpful"
+      ],
+      "avoid": [
+        "accounting jargon",
+        "AI magic claims",
+        "vague status",
+        "marketing superlatives"
+      ]
+    },
+    "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
+    "prohibitions": [
+      "Use muted orange only for the top shell area, active workflow emphasis, warnings that require it, and the primary action. Routine keyboard focus uses neutral high contrast.",
+      "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
+      "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
+      "Do not use gradients, glossy surfaces, bright campaign-orange fields, non-collapsible dominant sidebars, or decorative panels.",
+      "Do not use white, warm paper, paper shadow, or another near-white value for the sidebar or top shell area.",
+      "Do not make the canvas, sidebar, work panels, fields, and popovers the same white surface.",
+      "Do not place raw controls in pages when a selected System owner exists.",
+      "Do not hide posting, reconciliation, or review state behind menus.",
+      "Do not use accounting dimensions in worker entry workflows."
+    ],
+    "scope": "project"
+  },
+  "projectDesign": {
+    "systemVersion": "0.4.1",
+    "profile": "vue",
+    "preset": "app",
+    "theme": "bulkbite-operations",
+    "components": [
+      "accordion",
+      "badge",
+      "button",
+      "calendar",
+      "card",
+      "chart",
+      "checkbox-shadcn",
+      "combobox",
+      "date-picker",
+      "date-range-picker",
+      "date-time-picker",
+      "dialog",
+      "drawer",
+      "file-uploader",
+      "flow",
+      "form-control",
+      "link",
+      "linked-record-field",
+      "list-view",
+      "logo",
+      "month-picker",
+      "multi-file-uploader",
+      "multi-select",
+      "navigation-menu",
+      "operational-button",
+      "operational-progress",
+      "progress",
+      "rating",
+      "scan-code-field",
+      "select",
+      "slider",
+      "stat",
+      "switch",
+      "tabs",
+      "text-input",
+      "textarea",
+      "time-picker",
+      "tree"
+    ],
+    "primitives": [
+      "cartesian-grid",
+      "focal-glow",
+      "grain",
+      "tonal-radial"
+    ],
+    "blocks": [
+      "accountant-export",
+      "auxiliary-records",
+      "bulkbite-app-shell",
+      "buying-plan",
+      "document-review",
+      "employee-management",
+      "kitchen-execution-plan",
+      "kitchen-worker-assignment",
+      "monthly-planning",
+      "native-availability-state",
+      "price-history",
+      "production-measurement",
+      "receipt-intake",
+      "stock-overview",
+      "stock-reconciliation"
+    ],
+    "surfaces": [],
+    "architecture": {
+      "id": "vue-vite",
+      "status": "ready"
+    },
+    "experiences": [
+      {
+        "id": "entrance-hierarchy",
+        "source": "src/experiences/entrance-hierarchy.js",
+        "target": "[data-experience-root]",
+        "status": "ready",
+        "engine": "gsap"
+      },
+      {
+        "id": "flip-layout-transition",
+        "source": "src/experiences/bulkbite-nav-expand.js",
+        "target": "[data-nav-groups]",
+        "status": "ready",
+        "engine": "gsap",
+        "mountExport": "mountFlipLayoutTransition"
+      }
+    ]
+  },
+  "intent": {
+    "id": "bulkbite-operations",
+    "schemaVersion": 1,
+    "mode": "implementation",
+    "priority": "backend-first",
+    "prompt": "Build BulkBite as a Frappe-backed operations app for kitchen stock truth: receipt intake, document review, stock overview, buying plan, monthly planning, kitchen execution, worker assignment, production measurement, stock reconciliation, price history, accountant export, hidden all-forms admin, mobile task flow, permissions, immutable stock events, manager approval and reporting.",
+    "system": {
+      "name": "BulkBite Operations",
+      "kind": "operations",
+      "primaryGoal": "Build BulkBite as a Frappe-backed operations app for kitchen stock truth: receipt intake, document review, stock overview, buying plan, monthly planning, kitchen execution, worker assignment, production measurement, stock reconciliation, price history, accountant export, hidden all-forms admin, mobile task flow, permissions, immutable stock events, manager approval and reporting.",
+      "surfaces": [
+        "dashboard",
+        "mobile",
+        "admin",
+        "all-forms"
+      ],
+      "featureHints": [
+        "mobile-shell",
+        "pull-to-refresh",
+        "roles",
+        "audit",
+        "all-forms",
+        "admin",
+        "auth",
+        "ai-upload-review",
+        "structured-importer"
+      ]
+    },
+    "planes": {
+      "domain": {
+        "responsibility": "Own data truth, business rules, permissions, events, calculations, and tests before UI composition.",
+        "docTypes": [
+          "BulkBite Operations Setting",
+          "BulkBite Operations Event",
+          "BulkBite Operations Item",
+          "BulkBite Operations Task",
+          "BulkBite Operations Batch",
+          "BulkBite Operations Audit",
+          "BulkBite Operations Role Assignment",
+          "BulkBite Operations Upload Batch",
+          "BulkBite Operations Extracted Draft",
+          "BulkBite Operations Review Decision",
+          "BulkBite Operations Import Template",
+          "BulkBite Operations Import Batch",
+          "BulkBite Operations Import Row"
+        ],
+        "docTypeContracts": [
+          {
+            "name": "BulkBite Operations Setting",
+            "purpose": "Project-level configuration and defaults.",
+            "exposure": "hidden-admin",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "is_enabled",
+                "label": "Is Enabled",
+                "fieldtype": "Check",
+                "reqd": 0
+              },
+              {
+                "fieldname": "default_status",
+                "label": "Default Status",
+                "fieldtype": "Data",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Event",
+            "purpose": "Append-only business or audit event.",
+            "exposure": "hidden-admin",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "event_type",
+                "label": "Event Type",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "subject",
+                "label": "Subject",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "payload",
+                "label": "Payload",
+                "fieldtype": "JSON",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Item",
+            "purpose": "Business record owned by the domain plane.",
+            "exposure": "workflow",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "title",
+                "label": "Title",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "status",
+                "label": "Status",
+                "fieldtype": "Select",
+                "options": "Draft\nActive\nPaused\nClosed",
+                "reqd": 0
+              },
+              {
+                "fieldname": "owner_user",
+                "label": "Owner User",
+                "fieldtype": "Link",
+                "options": "User",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Task",
+            "purpose": "Business record owned by the domain plane.",
+            "exposure": "workflow",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "title",
+                "label": "Title",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "status",
+                "label": "Status",
+                "fieldtype": "Select",
+                "options": "Draft\nActive\nPaused\nClosed",
+                "reqd": 0
+              },
+              {
+                "fieldname": "owner_user",
+                "label": "Owner User",
+                "fieldtype": "Link",
+                "options": "User",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Batch",
+            "purpose": "Business record owned by the domain plane.",
+            "exposure": "workflow",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "title",
+                "label": "Title",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "status",
+                "label": "Status",
+                "fieldtype": "Select",
+                "options": "Draft\nActive\nPaused\nClosed",
+                "reqd": 0
+              },
+              {
+                "fieldname": "owner_user",
+                "label": "Owner User",
+                "fieldtype": "Link",
+                "options": "User",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Audit",
+            "purpose": "Business record owned by the domain plane.",
+            "exposure": "hidden-admin",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "reference_doctype",
+                "label": "Reference DocType",
+                "fieldtype": "Data",
+                "reqd": 0
+              },
+              {
+                "fieldname": "reference_name",
+                "label": "Reference Name",
+                "fieldtype": "Data",
+                "reqd": 0
+              },
+              {
+                "fieldname": "decision",
+                "label": "Decision",
+                "fieldtype": "Data",
+                "reqd": 0
+              },
+              {
+                "fieldname": "reason",
+                "label": "Reason",
+                "fieldtype": "Small Text",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Role Assignment",
+            "purpose": "Business record owned by the domain plane.",
+            "exposure": "workflow",
+            "source": "intent-inference",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "title",
+                "label": "Title",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "status",
+                "label": "Status",
+                "fieldtype": "Select",
+                "options": "Draft\nActive\nPaused\nClosed",
+                "reqd": 0
+              },
+              {
+                "fieldname": "owner_user",
+                "label": "Owner User",
+                "fieldtype": "Link",
+                "options": "User",
+                "reqd": 0
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "testsRequired": [
+              "permission boundaries",
+              "command idempotency",
+              "state transitions",
+              "derived totals and calculations"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Upload Batch",
+            "purpose": "Backend-owned upload, extraction, review, and submission state.",
+            "exposure": "workflow",
+            "layout": "task-first-record-form",
+            "fieldOrder": [
+              "source_file",
+              "status",
+              "schema_id",
+              "proposal_json"
+            ],
+            "actions": [
+              {
+                "id": "save-draft",
+                "job": "Preserve a record before business-state commit."
+              },
+              {
+                "id": "submit",
+                "job": "Submit through backend validation and workflow logic."
+              }
+            ],
+            "visibility": {
+              "allFormsAdmin": true,
+              "normalWorkflow": true
+            },
+            "source": "dysium-form-system",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "source_file",
+                "label": "Source File",
+                "fieldtype": "Attach",
+                "reqd": 1
+              },
+              {
+                "fieldname": "status",
+                "label": "Status",
+                "fieldtype": "Select",
+                "options": "Uploaded\nExtracted\nNeeds Review\nApproved\nRejected\nSubmitted",
+                "reqd": 1
+              },
+              {
+                "fieldname": "schema_id",
+                "label": "Schema ID",
+                "fieldtype": "Data"
+              },
+              {
+                "fieldname": "proposal_json",
+                "label": "Proposal JSON",
+                "fieldtype": "JSON"
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "testsRequired": [
+              "AI extraction is proposal-only",
+              "review approval gates deterministic submit",
+              "schema validation rejects malformed AI output",
+              "required headers are validated",
+              "row preview does not commit records",
+              "commit returns created skipped and error counts"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Extracted Draft",
+            "purpose": "Backend-owned upload, extraction, review, and submission state.",
+            "exposure": "workflow",
+            "layout": "task-first-record-form",
+            "fieldOrder": [
+              "upload_batch",
+              "field_values",
+              "confidence_notes",
+              "validation_errors"
+            ],
+            "actions": [
+              {
+                "id": "save-draft",
+                "job": "Preserve a record before business-state commit."
+              },
+              {
+                "id": "submit",
+                "job": "Submit through backend validation and workflow logic."
+              }
+            ],
+            "visibility": {
+              "allFormsAdmin": true,
+              "normalWorkflow": true
+            },
+            "source": "dysium-form-system",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "upload_batch",
+                "label": "Upload Batch",
+                "fieldtype": "Link",
+                "options": "Dynamic Link",
+                "reqd": 1
+              },
+              {
+                "fieldname": "field_values",
+                "label": "Field Values",
+                "fieldtype": "JSON",
+                "reqd": 1
+              },
+              {
+                "fieldname": "confidence_notes",
+                "label": "Confidence Notes",
+                "fieldtype": "Small Text"
+              },
+              {
+                "fieldname": "validation_errors",
+                "label": "Validation Errors",
+                "fieldtype": "JSON"
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "testsRequired": [
+              "AI extraction is proposal-only",
+              "review approval gates deterministic submit",
+              "schema validation rejects malformed AI output",
+              "required headers are validated",
+              "row preview does not commit records",
+              "commit returns created skipped and error counts"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Review Decision",
+            "purpose": "Backend-owned upload, extraction, review, and submission state.",
+            "exposure": "hidden-admin",
+            "layout": "all-forms-admin-table",
+            "fieldOrder": [
+              "reference_doctype",
+              "reference_name",
+              "decision",
+              "reason"
+            ],
+            "actions": [
+              {
+                "id": "save-draft",
+                "job": "Preserve a record before business-state commit."
+              },
+              {
+                "id": "submit",
+                "job": "Submit through backend validation and workflow logic."
+              }
+            ],
+            "visibility": {
+              "allFormsAdmin": true,
+              "normalWorkflow": false
+            },
+            "source": "dysium-form-system",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "reference_doctype",
+                "label": "Reference DocType",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "reference_name",
+                "label": "Reference Name",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "decision",
+                "label": "Decision",
+                "fieldtype": "Select",
+                "options": "Approve\nReject\nNeeds Correction",
+                "reqd": 1
+              },
+              {
+                "fieldname": "reason",
+                "label": "Reason",
+                "fieldtype": "Small Text"
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "testsRequired": [
+              "AI extraction is proposal-only",
+              "review approval gates deterministic submit",
+              "schema validation rejects malformed AI output",
+              "required headers are validated",
+              "row preview does not commit records",
+              "commit returns created skipped and error counts"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Import Template",
+            "purpose": "Backend-owned import state and row proof.",
+            "exposure": "hidden-admin",
+            "layout": "all-forms-admin-table",
+            "fieldOrder": [
+              "template_name",
+              "target_doctype",
+              "required_headers",
+              "is_active"
+            ],
+            "actions": [
+              {
+                "id": "save-draft",
+                "job": "Preserve a record before business-state commit."
+              },
+              {
+                "id": "submit",
+                "job": "Submit through backend validation and workflow logic."
+              }
+            ],
+            "visibility": {
+              "allFormsAdmin": true,
+              "normalWorkflow": false
+            },
+            "source": "dysium-form-system",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "template_name",
+                "label": "Template Name",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "target_doctype",
+                "label": "Target DocType",
+                "fieldtype": "Data",
+                "reqd": 1
+              },
+              {
+                "fieldname": "required_headers",
+                "label": "Required Headers",
+                "fieldtype": "JSON",
+                "reqd": 1
+              },
+              {
+                "fieldname": "is_active",
+                "label": "Is Active",
+                "fieldtype": "Check"
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "testsRequired": [
+              "AI extraction is proposal-only",
+              "review approval gates deterministic submit",
+              "schema validation rejects malformed AI output",
+              "required headers are validated",
+              "row preview does not commit records",
+              "commit returns created skipped and error counts"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Import Batch",
+            "purpose": "Backend-owned import state and row proof.",
+            "exposure": "workflow",
+            "layout": "task-first-record-form",
+            "fieldOrder": [
+              "template",
+              "source_file",
+              "status",
+              "summary_json"
+            ],
+            "actions": [
+              {
+                "id": "save-draft",
+                "job": "Preserve a record before business-state commit."
+              },
+              {
+                "id": "submit",
+                "job": "Submit through backend validation and workflow logic."
+              }
+            ],
+            "visibility": {
+              "allFormsAdmin": true,
+              "normalWorkflow": true
+            },
+            "source": "dysium-form-system",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "template",
+                "label": "Template",
+                "fieldtype": "Link",
+                "options": "BulkBite Operations Import Template",
+                "reqd": 1
+              },
+              {
+                "fieldname": "source_file",
+                "label": "Source File",
+                "fieldtype": "Attach",
+                "reqd": 1
+              },
+              {
+                "fieldname": "status",
+                "label": "Status",
+                "fieldtype": "Select",
+                "options": "Uploaded\nValidated\nReady\nCommitted\nFailed",
+                "reqd": 1
+              },
+              {
+                "fieldname": "summary_json",
+                "label": "Summary JSON",
+                "fieldtype": "JSON"
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "testsRequired": [
+              "AI extraction is proposal-only",
+              "review approval gates deterministic submit",
+              "schema validation rejects malformed AI output",
+              "required headers are validated",
+              "row preview does not commit records",
+              "commit returns created skipped and error counts"
+            ]
+          },
+          {
+            "name": "BulkBite Operations Import Row",
+            "purpose": "Backend-owned import state and row proof.",
+            "exposure": "hidden-admin",
+            "layout": "all-forms-admin-table",
+            "fieldOrder": [
+              "import_batch",
+              "row_number",
+              "row_payload",
+              "row_status",
+              "error_message"
+            ],
+            "actions": [
+              {
+                "id": "save-draft",
+                "job": "Preserve a record before business-state commit."
+              },
+              {
+                "id": "submit",
+                "job": "Submit through backend validation and workflow logic."
+              }
+            ],
+            "visibility": {
+              "allFormsAdmin": true,
+              "normalWorkflow": false
+            },
+            "source": "dysium-form-system",
+            "controllerRequired": true,
+            "permissionsRequired": true,
+            "fields": [
+              {
+                "fieldname": "import_batch",
+                "label": "Import Batch",
+                "fieldtype": "Link",
+                "options": "BulkBite Operations Import Batch",
+                "reqd": 1
+              },
+              {
+                "fieldname": "row_number",
+                "label": "Row Number",
+                "fieldtype": "Int",
+                "reqd": 1
+              },
+              {
+                "fieldname": "row_payload",
+                "label": "Row Payload",
+                "fieldtype": "JSON",
+                "reqd": 1
+              },
+              {
+                "fieldname": "row_status",
+                "label": "Row Status",
+                "fieldtype": "Select",
+                "options": "Valid\nWarning\nError\nCommitted",
+                "reqd": 1
+              },
+              {
+                "fieldname": "error_message",
+                "label": "Error Message",
+                "fieldtype": "Small Text"
+              }
+            ],
+            "permissions": [
+              {
+                "role": "System Manager",
+                "read": 1,
+                "write": 1,
+                "create": 1,
+                "delete": 0,
+                "export": 1,
+                "report": 1
+              }
+            ],
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "testsRequired": [
+              "AI extraction is proposal-only",
+              "review approval gates deterministic submit",
+              "schema validation rejects malformed AI output",
+              "required headers are validated",
+              "row preview does not commit records",
+              "commit returns created skipped and error counts"
+            ]
+          }
+        ],
+        "services": [
+          "BulkBite Operations query service",
+          "BulkBite Operations command service",
+          "BulkBite Operations permission service",
+          "mobile refresh service",
+          "audit event service",
+          "BulkBite Operations upload intake service",
+          "BulkBite Operations AI extraction proposal service",
+          "BulkBite Operations review decision service",
+          "BulkBite Operations deterministic submit service",
+          "BulkBite Operations import template service",
+          "BulkBite Operations workbook validation service",
+          "BulkBite Operations import preview service",
+          "BulkBite Operations import commit service"
+        ],
+        "serviceContracts": [
+          {
+            "name": "BulkBite Operations query service",
+            "purpose": "Backend API/service boundary consumed by use-case contracts.",
+            "endpoint": "bulkbite_operations_query_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "input": [
+              "validated kwargs from a Dysium use-case contract"
+            ],
+            "output": [
+              "typed response payload for lean blocks",
+              "standardized error state"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "review-today",
+              "complete-workflow",
+              "manage-exceptions",
+              "maintain-system"
+            ]
+          },
+          {
+            "name": "BulkBite Operations command service",
+            "purpose": "Backend API/service boundary consumed by use-case contracts.",
+            "endpoint": "bulkbite_operations_command_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": true,
+            "input": [
+              "validated kwargs from a Dysium use-case contract"
+            ],
+            "output": [
+              "typed response payload for lean blocks",
+              "standardized error state"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "review-today",
+              "complete-workflow",
+              "manage-exceptions",
+              "maintain-system"
+            ]
+          },
+          {
+            "name": "BulkBite Operations permission service",
+            "purpose": "Centralize role and permission decisions for generated blocks and Frappe endpoints.",
+            "endpoint": "bulkbite_operations_permission_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "input": [
+              "validated kwargs from a Dysium use-case contract"
+            ],
+            "output": [
+              "typed response payload for lean blocks",
+              "standardized error state"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "review-today",
+              "complete-workflow",
+              "manage-exceptions",
+              "maintain-system"
+            ]
+          },
+          {
+            "name": "mobile refresh service",
+            "purpose": "Return the smallest stale-data payload required by the mobile shell.",
+            "endpoint": "mobile_refresh_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "input": [
+              "validated kwargs from a Dysium use-case contract"
+            ],
+            "output": [
+              "typed response payload for lean blocks",
+              "standardized error state"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": []
+          },
+          {
+            "name": "audit event service",
+            "purpose": "Backend API/service boundary consumed by use-case contracts.",
+            "endpoint": "audit_event_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "input": [
+              "validated kwargs from a Dysium use-case contract"
+            ],
+            "output": [
+              "typed response payload for lean blocks",
+              "standardized error state"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": []
+          },
+          {
+            "name": "BulkBite Operations upload intake service",
+            "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+            "endpoint": "bulkbite_operations_upload_intake_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "attached file",
+              "schema id",
+              "review corrections",
+              "approval decision"
+            ],
+            "output": [
+              "proposal payload",
+              "validation errors",
+              "review status",
+              "submitted record"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "ai-upload-review"
+            ]
+          },
+          {
+            "name": "BulkBite Operations AI extraction proposal service",
+            "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+            "endpoint": "bulkbite_operations_ai_extraction_proposal_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "attached file",
+              "schema id",
+              "review corrections",
+              "approval decision"
+            ],
+            "output": [
+              "proposal payload",
+              "validation errors",
+              "review status",
+              "submitted record"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "ai-upload-review"
+            ]
+          },
+          {
+            "name": "BulkBite Operations review decision service",
+            "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+            "endpoint": "bulkbite_operations_review_decision_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": true,
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "attached file",
+              "schema id",
+              "review corrections",
+              "approval decision"
+            ],
+            "output": [
+              "proposal payload",
+              "validation errors",
+              "review status",
+              "submitted record"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "ai-upload-review"
+            ]
+          },
+          {
+            "name": "BulkBite Operations deterministic submit service",
+            "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+            "endpoint": "bulkbite_operations_deterministic_submit_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": true,
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            },
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "attached file",
+              "schema id",
+              "review corrections",
+              "approval decision"
+            ],
+            "output": [
+              "proposal payload",
+              "validation errors",
+              "review status",
+              "submitted record"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "ai-upload-review"
+            ]
+          },
+          {
+            "name": "BulkBite Operations import template service",
+            "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+            "endpoint": "bulkbite_operations_import_template_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "template id",
+              "attached workbook",
+              "validated row decisions"
+            ],
+            "output": [
+              "header status",
+              "row preview",
+              "error rows",
+              "commit counts"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "structured-importer"
+            ]
+          },
+          {
+            "name": "BulkBite Operations workbook validation service",
+            "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+            "endpoint": "bulkbite_operations_workbook_validation_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": true,
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "template id",
+              "attached workbook",
+              "validated row decisions"
+            ],
+            "output": [
+              "header status",
+              "row preview",
+              "error rows",
+              "commit counts"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "structured-importer"
+            ]
+          },
+          {
+            "name": "BulkBite Operations import preview service",
+            "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+            "endpoint": "bulkbite_operations_import_preview_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": false,
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "template id",
+              "attached workbook",
+              "validated row decisions"
+            ],
+            "output": [
+              "header status",
+              "row preview",
+              "error rows",
+              "commit counts"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "structured-importer"
+            ]
+          },
+          {
+            "name": "BulkBite Operations import commit service",
+            "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+            "endpoint": "bulkbite_operations_import_commit_service",
+            "whitelisted": true,
+            "ownsValidation": true,
+            "ownsStateTransition": true,
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            },
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "input": [
+              "template id",
+              "attached workbook",
+              "validated row decisions"
+            ],
+            "output": [
+              "header status",
+              "row preview",
+              "error rows",
+              "commit counts"
+            ],
+            "permissions": [
+              "System Manager"
+            ],
+            "usedBy": [
+              "structured-importer"
+            ]
+          }
+        ],
+        "invariants": [
+          "Frontend pages must not decide business validity.",
+          "All state transitions belong in Frappe services or DocType controllers.",
+          "Protected history and audit events are explicit backend concerns."
+        ]
+      },
+      "experience": {
+        "responsibility": "Expose only the controls and outputs needed for each real workflow.",
+        "useCases": [
+          {
+            "id": "review-today",
+            "actor": "Operator",
+            "job": "See current bulkbite operations state.",
+            "controls": [
+              "Primary filter"
+            ],
+            "outputs": [
+              "Key metrics",
+              "Next required action"
+            ]
+          },
+          {
+            "id": "complete-workflow",
+            "actor": "Operator",
+            "job": "Finish the active workflow with minimal input.",
+            "controls": [
+              "Required fields",
+              "Submit action"
+            ],
+            "outputs": [
+              "Result state",
+              "Validation feedback"
+            ]
+          },
+          {
+            "id": "manage-exceptions",
+            "actor": "Manager",
+            "job": "Resolve blocked or unusual records.",
+            "controls": [
+              "Decision action",
+              "Note"
+            ],
+            "outputs": [
+              "Exception list",
+              "Audit trail"
+            ]
+          },
+          {
+            "id": "maintain-system",
+            "actor": "Admin",
+            "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "controls": [
+              "DocType selector"
+            ],
+            "outputs": [
+              "All forms access",
+              "Permission state"
+            ]
+          },
+          {
+            "id": "ai-upload-review",
+            "actor": "Operator",
+            "job": "Upload a document, receive a schema-bound AI proposal, correct it, and submit through backend-owned validation.",
+            "controls": [
+              "File",
+              "Extraction schema",
+              "Review fields",
+              "Approve or reject"
+            ],
+            "outputs": [
+              "Upload status",
+              "Extracted proposal",
+              "Confidence notes",
+              "Validation errors",
+              "Submitted record"
+            ]
+          },
+          {
+            "id": "structured-importer",
+            "actor": "Operator",
+            "job": "Upload a spreadsheet, validate required columns, review row-level issues, and commit deterministic records.",
+            "controls": [
+              "Template",
+              "File",
+              "Validate",
+              "Commit approved rows"
+            ],
+            "outputs": [
+              "Header status",
+              "Import preview",
+              "Error rows",
+              "Created count",
+              "Skipped count"
+            ]
+          }
+        ],
+        "blocks": [
+          {
+            "id": "review-today",
+            "name": "Review Today",
+            "job": "See current bulkbite operations state.",
+            "actor": "Operator",
+            "components": [
+              "SystemButton",
+              "SystemFieldGroup",
+              "SystemMetric",
+              "SystemRecordList"
+            ],
+            "patterns": [
+              "FieldGroup",
+              "MetricRow",
+              "RecordList",
+              "StatusFeedback"
+            ],
+            "controls": [
+              "Primary filter"
+            ],
+            "outputs": [
+              "Key metrics",
+              "Next required action"
+            ],
+            "surfaces": [
+              "dashboard",
+              "mobile",
+              "admin"
+            ],
+            "disclosure": "lean-default"
+          },
+          {
+            "id": "complete-workflow",
+            "name": "Complete Workflow",
+            "job": "Finish the active workflow with minimal input.",
+            "actor": "Operator",
+            "components": [
+              "SystemButton",
+              "SystemFieldGroup",
+              "SystemMetric",
+              "SystemRecordList"
+            ],
+            "patterns": [
+              "FieldGroup",
+              "MetricRow",
+              "RecordList",
+              "StatusFeedback"
+            ],
+            "controls": [
+              "Required fields",
+              "Submit action"
+            ],
+            "outputs": [
+              "Result state",
+              "Validation feedback"
+            ],
+            "surfaces": [
+              "dashboard",
+              "mobile",
+              "admin"
+            ],
+            "disclosure": "lean-default"
+          },
+          {
+            "id": "manage-exceptions",
+            "name": "Manage Exceptions",
+            "job": "Resolve blocked or unusual records.",
+            "actor": "Manager",
+            "components": [
+              "SystemButton",
+              "SystemFieldGroup",
+              "SystemMetric",
+              "SystemRecordList"
+            ],
+            "patterns": [
+              "FieldGroup",
+              "MetricRow",
+              "RecordList",
+              "StatusFeedback"
+            ],
+            "controls": [
+              "Decision action",
+              "Note"
+            ],
+            "outputs": [
+              "Exception list",
+              "Audit trail"
+            ],
+            "surfaces": [
+              "dashboard",
+              "mobile",
+              "admin"
+            ],
+            "disclosure": "lean-default"
+          },
+          {
+            "id": "maintain-system",
+            "name": "Maintain System",
+            "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "actor": "Admin",
+            "components": [
+              "SystemButton",
+              "SystemFieldGroup",
+              "SystemMetric",
+              "SystemRecordList"
+            ],
+            "patterns": [
+              "FieldGroup",
+              "MetricRow",
+              "RecordList",
+              "StatusFeedback"
+            ],
+            "controls": [
+              "DocType selector"
+            ],
+            "outputs": [
+              "All forms access",
+              "Permission state"
+            ],
+            "surfaces": [
+              "dashboard",
+              "mobile",
+              "admin"
+            ],
+            "disclosure": "hidden-admin"
+          },
+          {
+            "id": "ai-upload-review",
+            "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "disclosure": "workflow",
+            "surfaces": [
+              "dashboard",
+              "mobile",
+              "admin"
+            ],
+            "controls": [
+              "File",
+              "Extraction schema",
+              "Review fields",
+              "Approve or reject"
+            ],
+            "outputs": [
+              "Upload status",
+              "Extracted proposal",
+              "Confidence notes",
+              "Validation errors",
+              "Submitted record"
+            ],
+            "incomingHandoff": "Operator has an unstructured document and needs a safe draft.",
+            "outgoingHandoff": "Approved data is submitted through backend validation or returned for correction.",
+            "formWorkflow": "ai-upload-review",
+            "validationBehavior": {
+              "mode": "proposal-review-validation",
+              "clientChecks": [
+                "file selected",
+                "schema selected",
+                "approval decision present"
+              ],
+              "serverChecks": [
+                "schema-bound AI output",
+                "review corrections",
+                "permission",
+                "deterministic submit"
+              ],
+              "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "extract": "create_ai_upload_proposal",
+              "validate": "validate_reviewed_proposal",
+              "submit": "submit_approved_upload"
+            }
+          },
+          {
+            "id": "structured-importer",
+            "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "disclosure": "workflow",
+            "surfaces": [
+              "dashboard",
+              "mobile",
+              "admin"
+            ],
+            "controls": [
+              "Template",
+              "File",
+              "Validate",
+              "Commit approved rows"
+            ],
+            "outputs": [
+              "Header status",
+              "Import preview",
+              "Error rows",
+              "Created count",
+              "Skipped count"
+            ],
+            "incomingHandoff": "Operator has a data file and needs deterministic import proof.",
+            "outgoingHandoff": "Records are committed or blocked with row-level reasons.",
+            "formWorkflow": "structured-importer",
+            "validationBehavior": {
+              "mode": "deterministic-row-validation",
+              "clientChecks": [
+                "file selected",
+                "template selected"
+              ],
+              "serverChecks": [
+                "required headers",
+                "row schema",
+                "duplicate policy",
+                "commit permission"
+              ],
+              "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+            },
+            "roleVisibility": {
+              "primaryRole": "Operator",
+              "adminRoles": [
+                "System Manager"
+              ],
+              "hiddenFrom": [
+                "Guest",
+                "Customer"
+              ],
+              "allFormsAdmin": true,
+              "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+            },
+            "customHandlers": {
+              "validate": "validate_import_workbook",
+              "preview": "preview_import_rows",
+              "submit": "commit_validated_import_rows"
+            }
+          }
+        ]
+      },
+      "platform": {
+        "responsibility": "Provide routing, auth, loading, errors, refresh, SSR, SEO, and shell behavior without page-local plumbing.",
+        "shells": [
+          {
+            "id": "dashboard-shell",
+            "surface": "dashboard",
+            "responsibility": "Application navigation, loading, errors, and permission states.",
+            "features": [
+              "roles",
+              "admin",
+              "auth"
+            ]
+          },
+          {
+            "id": "mobile-shell",
+            "surface": "mobile",
+            "responsibility": "Compact operator workflows with safe-area layout and refresh behavior.",
+            "features": [
+              "pull-to-refresh",
+              "mobile-shell",
+              "roles",
+              "admin",
+              "auth"
+            ]
+          },
+          {
+            "id": "admin-shell",
+            "surface": "admin",
+            "responsibility": "Application navigation, loading, errors, and permission states.",
+            "features": [
+              "roles",
+              "admin",
+              "auth"
+            ]
+          },
+          {
+            "id": "all-forms-shell",
+            "surface": "all-forms",
+            "responsibility": "Hidden full-system maintenance access.",
+            "features": [
+              "all-forms",
+              "roles",
+              "admin",
+              "auth"
+            ]
+          }
+        ],
+        "seo": null
+      }
+    },
+    "generation": {
+      "dependencyDirection": [
+        "pages",
+        "blocks",
+        "patterns",
+        "components",
+        "adapters",
+        "external-libraries"
+      ],
+      "nextCommands": [
+        "desyium intent check bulkbite-operations",
+        "desyium intent blocks bulkbite-operations",
+        "desyium context build bulkbite-operations --intent bulkbite-operations"
+      ],
+      "moduleContractsRequired": [
+        "domain",
+        "use-case",
+        "block",
+        "shell",
+        "seo",
+        "validation",
+        "form-system"
+      ]
+    },
+    "validation": {
+      "backendUnitTests": [
+        "permission boundaries",
+        "command idempotency",
+        "state transitions",
+        "derived totals and calculations",
+        "AI extraction is proposal-only",
+        "review approval gates deterministic submit",
+        "schema validation rejects malformed AI output",
+        "required headers are validated",
+        "row preview does not commit records",
+        "commit returns created skipped and error counts"
+      ],
+      "contractChecks": [
+        "intent contract validation",
+        "module owner lookup",
+        "page/block dependency direction",
+        "form-system contract validation"
+      ],
+      "frontendProof": [
+        "generated route compiles",
+        "lean block controls render",
+        "loading/error/empty states exist"
+      ],
+      "platformProof": [
+        "mobile pull-to-refresh lifecycle check"
+      ]
+    }
+  },
+  "page": {
+    "schemaVersion": 5,
+    "id": "bulkbite-operations",
+    "purpose": "Run BulkBite as a rolling customer-led meal cycle through planning, buying, receipts, production, reports, and stock truth",
+    "audience": "Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile",
+    "primaryAction": "Open and complete the next required operational task",
+    "theme": "bulkbite-operations",
+    "brandGuidance": {
+      "name": "BulkBite Operations",
+      "purpose": "Provide a self-explanatory BulkBite stock dashboard with a restrained charcoal-and-muted-orange shell around calm neutral operational work surfaces",
+      "identity": {
+        "desiredPerception": [
+          "clear",
+          "familiar",
+          "dependable",
+          "easy to scan"
+        ],
+        "personality": [
+          "practical",
+          "quiet",
+          "direct",
+          "calm under pressure"
+        ],
+        "tensions": [
+          "brand recognition and operational restraint",
+          "dense records and fast scanning"
+        ],
+        "antiValues": [
+          "campaign styling",
+          "decorative complexity",
+          "oversized typography",
+          "ambiguous state"
+        ]
+      },
+      "composition": {
+        "hierarchy": "Use a compact page title, one-sentence purpose, visible workflow stages, one main work area, and a separate review or posting boundary.",
+        "negativeSpace": "Use calm dashboard spacing. Group each decision with its evidence and next action while keeping repeated rows efficient.",
+        "geometry": "Use a compact collapsible soft-charcoal setup rail, one calm muted-orange top area, separated horizontal workflow navigation, neutral work surfaces, soft borders, and generous but consistent rounding.",
+        "density": "Keep forms and tables efficient without making the task feel cramped. Touch targets remain at least 44 pixels high.",
+        "lighting": "Use restrained surface elevation and tonal separation. No decorative lighting, gradients, textures, or atmospheric effects."
+      },
+      "componentPresets": {
+        "primary-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "secondary-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "quiet-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "destructive-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "operational-action": {
+          "component": "operational-button",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "field": {
+          "component": "form-control",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "text-input": {
+          "component": "text-input",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "select": {
+          "component": "select",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "textarea": {
+          "component": "textarea",
+          "treatment": "default",
+          "effect": "none"
+        },
+        "file": {
+          "component": "file-uploader",
+          "treatment": "default",
+          "effect": "none"
+        }
+      },
+      "primitiveTreatment": {
+        "preferred": [
+          "solid-field"
+        ],
+        "layerBudget": 1,
+        "rule": "Keep solid-field available as the required fallback primitive, but do not mount visual primitives in ordinary operations views. Structure comes from flow, spacing, semantic surface levels, and soft borders."
+      },
+      "recipeTreatment": {
+        "preferred": [
+          "precision-frame"
+        ],
+        "rule": "Keep precision-frame available for an exceptional evidence boundary, but do not apply decorative recipes to ordinary operational pages."
+      },
+      "blockTreatment": {
+        "signature": [
+          "dashboard-overview"
+        ],
+        "rhythm": "Orient the user, show numbered stages, present one current work area, then expose review and posting as an explicit final boundary."
+      },
+      "motion": {
+        "character": "Still by default. Use only provider-native state transitions required for control feedback.",
+        "reduced": "Render final state immediately; no meaning or hierarchy depends on movement."
+      },
+      "voice": {
+        "tone": [
+          "plain",
+          "direct",
+          "specific",
+          "helpful"
+        ],
+        "avoid": [
+          "accounting jargon",
+          "AI magic claims",
+          "vague status",
+          "marketing superlatives"
+        ]
+      },
+      "responsive": "Protect state, units, evidence, and action order. Collapse columns before reducing targets or hiding labels.",
+      "prohibitions": [
+        "Use muted orange only for the top shell area, active workflow emphasis, warnings that require it, and the primary action. Routine keyboard focus uses neutral high contrast.",
+        "Do not use Anton, campaign slogans, oversized all-caps headings, black feature panels, or poster composition in the dashboard.",
+        "Do not mount decorative primitives, recipes, or entrance experiences in operational views.",
+        "Do not use gradients, glossy surfaces, bright campaign-orange fields, non-collapsible dominant sidebars, or decorative panels.",
+        "Do not use white, warm paper, paper shadow, or another near-white value for the sidebar or top shell area.",
+        "Do not make the canvas, sidebar, work panels, fields, and popovers the same white surface.",
+        "Do not place raw controls in pages when a selected System owner exists.",
+        "Do not hide posting, reconciliation, or review state behind menus.",
+        "Do not use accounting dimensions in worker entry workflows."
+      ],
+      "constructionAuthority": null
+    },
+    "audienceConsequence": {
+      "actor": "Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile",
+      "need": "Run BulkBite as a rolling customer-led meal cycle through planning, buying, receipts, production, reports, and stock truth",
+      "risk": "This page fails when Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile cannot identify the next relevant action from the ordered blocks.",
+      "consequence": "The Open and complete the next required operational task action must stay reachable, legible, and justified by the preceding content.",
+      "validationPrompt": "Can Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile understand the page purpose, locate the main action, and recover if a block fails or is skipped?",
+      "fallback": "If motion, rich surfaces, or optional blocks fail, render the review-today -> complete-workflow -> manage-exceptions -> maintain-system -> ai-upload-review -> structured-importer sequence as readable semantic sections."
+    },
+    "hierarchy": [
+      "page purpose",
+      "ordered block types",
+      "component jobs",
+      "System* components",
+      "provider implementations",
+      "treatments and effects",
+      "visual recipes"
+    ],
+    "compositionContract": {
+      "alignment": {
+        "largeGrid": "12 columns",
+        "intermediateGrid": "8 columns",
+        "mobileGrid": "one recomposed reading column",
+        "localLayoutRule": "The page grid establishes territories. Each block then selects grid, flex, stack, overlay, or flow from its content relationship.",
+        "intentionalOffsets": "Any offset must repeat as a page rule; isolated nudges are prohibited."
+      },
+      "rhythm": {
+        "densityProgression": "Alternate expansive orientation, compact proof, structured explanation, and decisive action; adjacent blocks must not all carry equal density.",
+        "verticalCadence": "Use one page spacing scale and make section padding changes correspond to narrative importance.",
+        "adjacency": "Block edges meet deliberately; accidental gaps, floating islands, and unrelated container widths are prohibited."
+      },
+      "surfaceDistribution": {
+        "focalBlocks": [
+          "review-today"
+        ],
+        "quietBlocks": [
+          "manage-exceptions",
+          "maintain-system",
+          "ai-upload-review",
+          "structured-importer"
+        ],
+        "rule": "Spend the strongest contrast and richest surface treatment on the focal block; ambient treatments dissolve into their owning field and adjacent surfaces without arbitrary straight seams."
+      },
+      "focalHierarchy": {
+        "primary": "review-today",
+        "progression": [
+          "review-today",
+          "complete-workflow",
+          "manage-exceptions",
+          "maintain-system",
+          "ai-upload-review",
+          "structured-importer"
+        ],
+        "rule": "Each block must have one focal job and must hand attention to the next block without competing with the page promise."
+      }
+    },
+    "motifContract": {
+      "enabled": false,
+      "id": null,
+      "selector": null,
+      "semanticPurpose": null,
+      "responsiveForm": null,
+      "removalRule": "No persistent guide, rail, line, or motif exists unless a project brand contract explicitly enables and proves it."
+    },
+    "principleContract": {
+      "authorities": [
+        "Top-Tier Digital Design Principles",
+        "Complete Brand Theme Authority Contract",
+        "Blocks — Components in Composition",
+        "Website Composition From Blocks"
+      ],
+      "traceRule": "Every block decision cites principle authority for responsibility, hierarchy, spacing, layout, expression, surface, and motion.",
+      "rejectionRule": "Reject technically valid output when geometry, spacing, layout strategy, surface ownership, action treatment, or motion is arbitrary or untraceable."
+    },
+    "motionPlan": {
+      "defaultExperience": "entrance-hierarchy",
+      "substantiveBlockOrders": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "signatureRule": "Select at most one or two semantic signature mechanisms; Three.js, pinning, FLIP, and card effects require a brand or narrative reason.",
+      "availableReadyExperiences": [
+        "entrance-hierarchy",
+        "testimonial-horizontal-story",
+        "pinned-chapter-story",
+        "spatial-hero-three",
+        "flip-layout-transition",
+        "kinetic-headline",
+        "svg-motion-path",
+        "pointer-parallax-field",
+        "morphing-state-diagram",
+        "material-response-cards",
+        "cursor-lens-inspector",
+        "before-after-inspector",
+        "text-scramble-system",
+        "continuous-marquee-field",
+        "magnetic-action-cluster"
+      ],
+      "reducedMotion": "Every experience has a readable final-state equivalent and deterministic teardown."
+    },
+    "featurePlan": null,
+    "primitiveGrammar": {
+      "sharedTopology": "Use one coherent topology and origin across the page rather than unrelated effect families.",
+      "sharedOrigin": "Visual layers align to the page grid, focal content, or a named transition seam; arbitrary origins are prohibited.",
+      "pageLayerBudget": 4,
+      "focalLayerBudget": 1,
+      "secondaryLayerBudget": 1,
+      "supportingLayerBudget": 1,
+      "removalRule": "Every layer must name its hierarchy, structure, continuity, or material job; remove it when the page communicates equally well without it.",
+      "edgeContinuity": "Ambient primitive layers occupy the full semantic owner and dissolve into its field through fade or continuous color. A sharp edge is permitted only around a semantically bounded object."
+    },
+    "connectionContract": {
+      "defaultOwner": "adjacent-block-edges",
+      "dedicatedBlockRule": "A connector normally lives in how one block ends, how the next begins, or both edges sharing a field. Insert a dedicated block only when the connector owns meaningful content, narrative, or an intermediate audience state.",
+      "gradientRule": "Resolve the relationship from both block descriptions first, then compile one full-pair field with a stable substrate, named energy direction, off-boundary source when needed, sufficient falloff depth, and responsive geometry.",
+      "contracts": [
+        {
+          "id": "connection-1-2",
+          "mode": "edge-continuity",
+          "treatment": "connected-gradient",
+          "fieldScope": "connected-pair",
+          "fromBlock": "review-today",
+          "toBlock": "complete-workflow",
+          "relationship": {
+            "id": "review-today-to-complete-workflow",
+            "sourceTrace": {
+              "fromBlock": "review-today",
+              "fromJob": "See current bulkbite operations state.",
+              "fromOutgoingState": "Finish the active workflow with minimal input.",
+              "toBlock": "complete-workflow",
+              "toJob": "Finish the active workflow with minimal input.",
+              "toIncomingState": "See current bulkbite operations state."
+            },
+            "narrativeHandoff": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition.",
+            "outgoingResponsibility": "Release the completed audience state described by: Finish the active workflow with minimal input.",
+            "incomingResponsibility": "Receive the audience state described by: See current bulkbite operations state.",
+            "fieldDecision": {
+              "family": "gradient",
+              "boundary": "flush",
+              "fieldScope": "connected-pair",
+              "energyDirection": "carry-through-pair",
+              "sourceOwner": "connected-pair",
+              "sourceOffsetY": 0,
+              "depth": 360,
+              "substrate": "stable-opaque-material"
+            },
+            "motionDecision": {
+              "continuity": "preserve-final-field",
+              "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+            }
+          },
+          "boundary": {
+            "kind": "flush",
+            "sampleOffset": 0.5,
+            "colorTolerance": 1,
+            "alphaTolerance": 0.005,
+            "geometryTolerance": 0.5,
+            "phaseTolerance": 0.01
+          },
+          "coordinateSpace": {
+            "kind": "boundary-space",
+            "anchor": "boundary",
+            "axis": "vertical",
+            "origin": {
+              "x": 50,
+              "xUnit": "boundary-percent",
+              "y": 0,
+              "yUnit": "boundary-px"
+            },
+            "radius": {
+              "x": 58,
+              "xUnit": "boundary-percent",
+              "y": 360,
+              "yUnit": "px"
+            }
+          },
+          "edgeBands": {
+            "outgoing": {
+              "value": 280,
+              "unit": "px",
+              "sample": "end"
+            },
+            "incoming": {
+              "value": 320,
+              "unit": "px",
+              "sample": "start"
+            }
+          },
+          "sharedLayers": [
+            {
+              "id": "material",
+              "kind": "material",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "color": "var(--desyium-block-connection, var(--theme-surface))"
+            },
+            {
+              "id": "gradient",
+              "kind": "gradient",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "geometry": "linear",
+              "angle": 180,
+              "colors": [
+                "transparent",
+                "var(--desyium-connection-accent, transparent)",
+                "transparent"
+              ],
+              "stops": [
+                0,
+                52,
+                100
+              ]
+            }
+          ],
+          "materialHandoff": {
+            "from": "stable-opaque-material",
+            "to": "stable-opaque-material",
+            "boundary": "continuous",
+            "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
+            "tolerance": 1
+          },
+          "responsive": {
+            "intermediate": {
+              "maxWidth": 1024,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 160,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 160,
+                  "unit": "px"
+                }
+              }
+            },
+            "mobile": {
+              "maxWidth": 640,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 120,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 120,
+                  "unit": "px"
+                }
+              },
+              "coordinateSpace": {
+                "origin": {
+                  "x": 50,
+                  "xUnit": "boundary-percent",
+                  "y": 0,
+                  "yUnit": "boundary-px"
+                }
+              }
+            }
+          },
+          "reducedMotion": {
+            "motion": "static-final-state"
+          },
+          "fallback": {
+            "renderer": "css",
+            "preserve": "geometry-edge-color-pattern-phase"
+          },
+          "fromBlockOrder": 1,
+          "toBlockOrder": 2,
+          "owner": "shared-edges",
+          "dedicatedBlockOrder": null,
+          "outgoingEdge": {
+            "semanticOwner": "[data-page-block-order='1']",
+            "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input."
+          },
+          "incomingEdge": {
+            "semanticOwner": "[data-page-block-order='2']",
+            "responsibility": "Receive the audience state described by: See current bulkbite operations state."
+          },
+          "sharedField": {
+            "kind": "gradient",
+            "id": "connection-1-2-field",
+            "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+          },
+          "continuityRule": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+          "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+          "reducedMotionForm": "Keep the final matched field and remove only movement.",
+          "owners": {
+            "outgoing": "review-today",
+            "incoming": "complete-workflow",
+            "outgoingSelector": "[data-block=\"review-today\"]",
+            "incomingSelector": "[data-block=\"complete-workflow\"]"
+          },
+          "overlap": {
+            "enabled": false,
+            "depth": 0,
+            "unit": "px",
+            "owner": "shared-edges",
+            "contentSafeArea": "required"
+          },
+          "stacking": {
+            "outgoing": 0,
+            "shared": 1,
+            "incoming": 0,
+            "content": 2
+          },
+          "proof": {
+            "adjacencyTolerance": 1,
+            "coordinateTolerance": 0.5,
+            "colorTolerance": 1
+          },
+          "schemaVersion": 2
+        },
+        {
+          "id": "connection-2-3",
+          "mode": "edge-continuity",
+          "treatment": "connected-gradient",
+          "fieldScope": "connected-pair",
+          "fromBlock": "complete-workflow",
+          "toBlock": "manage-exceptions",
+          "relationship": {
+            "id": "complete-workflow-to-manage-exceptions",
+            "sourceTrace": {
+              "fromBlock": "complete-workflow",
+              "fromJob": "Finish the active workflow with minimal input.",
+              "fromOutgoingState": "Resolve blocked or unusual records.",
+              "toBlock": "manage-exceptions",
+              "toJob": "Resolve blocked or unusual records.",
+              "toIncomingState": "Finish the active workflow with minimal input."
+            },
+            "narrativeHandoff": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition.",
+            "outgoingResponsibility": "Release the completed audience state described by: Resolve blocked or unusual records.",
+            "incomingResponsibility": "Receive the audience state described by: Finish the active workflow with minimal input.",
+            "fieldDecision": {
+              "family": "gradient",
+              "boundary": "flush",
+              "fieldScope": "connected-pair",
+              "energyDirection": "carry-through-pair",
+              "sourceOwner": "connected-pair",
+              "sourceOffsetY": 0,
+              "depth": 360,
+              "substrate": "stable-opaque-material"
+            },
+            "motionDecision": {
+              "continuity": "preserve-final-field",
+              "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+            }
+          },
+          "boundary": {
+            "kind": "flush",
+            "sampleOffset": 0.5,
+            "colorTolerance": 1,
+            "alphaTolerance": 0.005,
+            "geometryTolerance": 0.5,
+            "phaseTolerance": 0.01
+          },
+          "coordinateSpace": {
+            "kind": "boundary-space",
+            "anchor": "boundary",
+            "axis": "vertical",
+            "origin": {
+              "x": 50,
+              "xUnit": "boundary-percent",
+              "y": 0,
+              "yUnit": "boundary-px"
+            },
+            "radius": {
+              "x": 58,
+              "xUnit": "boundary-percent",
+              "y": 360,
+              "yUnit": "px"
+            }
+          },
+          "edgeBands": {
+            "outgoing": {
+              "value": 280,
+              "unit": "px",
+              "sample": "end"
+            },
+            "incoming": {
+              "value": 320,
+              "unit": "px",
+              "sample": "start"
+            }
+          },
+          "sharedLayers": [
+            {
+              "id": "material",
+              "kind": "material",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "color": "var(--desyium-block-connection, var(--theme-surface))"
+            },
+            {
+              "id": "gradient",
+              "kind": "gradient",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "geometry": "linear",
+              "angle": 180,
+              "colors": [
+                "transparent",
+                "var(--desyium-connection-accent, transparent)",
+                "transparent"
+              ],
+              "stops": [
+                0,
+                52,
+                100
+              ]
+            }
+          ],
+          "materialHandoff": {
+            "from": "stable-opaque-material",
+            "to": "stable-opaque-material",
+            "boundary": "continuous",
+            "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
+            "tolerance": 1
+          },
+          "responsive": {
+            "intermediate": {
+              "maxWidth": 1024,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 160,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 160,
+                  "unit": "px"
+                }
+              }
+            },
+            "mobile": {
+              "maxWidth": 640,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 120,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 120,
+                  "unit": "px"
+                }
+              },
+              "coordinateSpace": {
+                "origin": {
+                  "x": 50,
+                  "xUnit": "boundary-percent",
+                  "y": 0,
+                  "yUnit": "boundary-px"
+                }
+              }
+            }
+          },
+          "reducedMotion": {
+            "motion": "static-final-state"
+          },
+          "fallback": {
+            "renderer": "css",
+            "preserve": "geometry-edge-color-pattern-phase"
+          },
+          "fromBlockOrder": 2,
+          "toBlockOrder": 3,
+          "owner": "shared-edges",
+          "dedicatedBlockOrder": null,
+          "outgoingEdge": {
+            "semanticOwner": "[data-page-block-order='2']",
+            "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records."
+          },
+          "incomingEdge": {
+            "semanticOwner": "[data-page-block-order='3']",
+            "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input."
+          },
+          "sharedField": {
+            "kind": "gradient",
+            "id": "connection-2-3-field",
+            "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+          },
+          "continuityRule": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+          "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+          "reducedMotionForm": "Keep the final matched field and remove only movement.",
+          "owners": {
+            "outgoing": "complete-workflow",
+            "incoming": "manage-exceptions",
+            "outgoingSelector": "[data-block=\"complete-workflow\"]",
+            "incomingSelector": "[data-block=\"manage-exceptions\"]"
+          },
+          "overlap": {
+            "enabled": false,
+            "depth": 0,
+            "unit": "px",
+            "owner": "shared-edges",
+            "contentSafeArea": "required"
+          },
+          "stacking": {
+            "outgoing": 0,
+            "shared": 1,
+            "incoming": 0,
+            "content": 2
+          },
+          "proof": {
+            "adjacencyTolerance": 1,
+            "coordinateTolerance": 0.5,
+            "colorTolerance": 1
+          },
+          "schemaVersion": 2
+        },
+        {
+          "id": "connection-3-4",
+          "mode": "edge-continuity",
+          "treatment": "connected-gradient",
+          "fieldScope": "connected-pair",
+          "fromBlock": "manage-exceptions",
+          "toBlock": "maintain-system",
+          "relationship": {
+            "id": "manage-exceptions-to-maintain-system",
+            "sourceTrace": {
+              "fromBlock": "manage-exceptions",
+              "fromJob": "Resolve blocked or unusual records.",
+              "fromOutgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+              "toBlock": "maintain-system",
+              "toJob": "Access complete backend maintenance screens without cluttering normal workflows.",
+              "toIncomingState": "Resolve blocked or unusual records."
+            },
+            "narrativeHandoff": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition.",
+            "outgoingResponsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+            "incomingResponsibility": "Receive the audience state described by: Resolve blocked or unusual records.",
+            "fieldDecision": {
+              "family": "gradient",
+              "boundary": "flush",
+              "fieldScope": "connected-pair",
+              "energyDirection": "carry-through-pair",
+              "sourceOwner": "connected-pair",
+              "sourceOffsetY": 0,
+              "depth": 360,
+              "substrate": "stable-opaque-material"
+            },
+            "motionDecision": {
+              "continuity": "preserve-final-field",
+              "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+            }
+          },
+          "boundary": {
+            "kind": "flush",
+            "sampleOffset": 0.5,
+            "colorTolerance": 1,
+            "alphaTolerance": 0.005,
+            "geometryTolerance": 0.5,
+            "phaseTolerance": 0.01
+          },
+          "coordinateSpace": {
+            "kind": "boundary-space",
+            "anchor": "boundary",
+            "axis": "vertical",
+            "origin": {
+              "x": 50,
+              "xUnit": "boundary-percent",
+              "y": 0,
+              "yUnit": "boundary-px"
+            },
+            "radius": {
+              "x": 58,
+              "xUnit": "boundary-percent",
+              "y": 360,
+              "yUnit": "px"
+            }
+          },
+          "edgeBands": {
+            "outgoing": {
+              "value": 280,
+              "unit": "px",
+              "sample": "end"
+            },
+            "incoming": {
+              "value": 320,
+              "unit": "px",
+              "sample": "start"
+            }
+          },
+          "sharedLayers": [
+            {
+              "id": "material",
+              "kind": "material",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "color": "var(--desyium-block-connection, var(--theme-surface))"
+            },
+            {
+              "id": "gradient",
+              "kind": "gradient",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "geometry": "linear",
+              "angle": 180,
+              "colors": [
+                "transparent",
+                "var(--desyium-connection-accent, transparent)",
+                "transparent"
+              ],
+              "stops": [
+                0,
+                52,
+                100
+              ]
+            }
+          ],
+          "materialHandoff": {
+            "from": "stable-opaque-material",
+            "to": "stable-opaque-material",
+            "boundary": "continuous",
+            "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
+            "tolerance": 1
+          },
+          "responsive": {
+            "intermediate": {
+              "maxWidth": 1024,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 160,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 160,
+                  "unit": "px"
+                }
+              }
+            },
+            "mobile": {
+              "maxWidth": 640,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 120,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 120,
+                  "unit": "px"
+                }
+              },
+              "coordinateSpace": {
+                "origin": {
+                  "x": 50,
+                  "xUnit": "boundary-percent",
+                  "y": 0,
+                  "yUnit": "boundary-px"
+                }
+              }
+            }
+          },
+          "reducedMotion": {
+            "motion": "static-final-state"
+          },
+          "fallback": {
+            "renderer": "css",
+            "preserve": "geometry-edge-color-pattern-phase"
+          },
+          "fromBlockOrder": 3,
+          "toBlockOrder": 4,
+          "owner": "shared-edges",
+          "dedicatedBlockOrder": null,
+          "outgoingEdge": {
+            "semanticOwner": "[data-page-block-order='3']",
+            "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
+          },
+          "incomingEdge": {
+            "semanticOwner": "[data-page-block-order='4']",
+            "responsibility": "Receive the audience state described by: Resolve blocked or unusual records."
+          },
+          "sharedField": {
+            "kind": "gradient",
+            "id": "connection-3-4-field",
+            "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+          },
+          "continuityRule": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+          "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+          "reducedMotionForm": "Keep the final matched field and remove only movement.",
+          "owners": {
+            "outgoing": "manage-exceptions",
+            "incoming": "maintain-system",
+            "outgoingSelector": "[data-block=\"manage-exceptions\"]",
+            "incomingSelector": "[data-block=\"maintain-system\"]"
+          },
+          "overlap": {
+            "enabled": false,
+            "depth": 0,
+            "unit": "px",
+            "owner": "shared-edges",
+            "contentSafeArea": "required"
+          },
+          "stacking": {
+            "outgoing": 0,
+            "shared": 1,
+            "incoming": 0,
+            "content": 2
+          },
+          "proof": {
+            "adjacencyTolerance": 1,
+            "coordinateTolerance": 0.5,
+            "colorTolerance": 1
+          },
+          "schemaVersion": 2
+        },
+        {
+          "id": "connection-4-5",
+          "mode": "edge-continuity",
+          "treatment": "connected-gradient",
+          "fieldScope": "connected-pair",
+          "fromBlock": "maintain-system",
+          "toBlock": "ai-upload-review",
+          "relationship": {
+            "id": "maintain-system-to-ai-upload-review",
+            "sourceTrace": {
+              "fromBlock": "maintain-system",
+              "fromJob": "Access complete backend maintenance screens without cluttering normal workflows.",
+              "fromOutgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+              "toBlock": "ai-upload-review",
+              "toJob": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+              "toIncomingState": "Access complete backend maintenance screens without cluttering normal workflows."
+            },
+            "narrativeHandoff": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition.",
+            "outgoingResponsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "incomingResponsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+            "fieldDecision": {
+              "family": "gradient",
+              "boundary": "flush",
+              "fieldScope": "connected-pair",
+              "energyDirection": "carry-through-pair",
+              "sourceOwner": "connected-pair",
+              "sourceOffsetY": 0,
+              "depth": 360,
+              "substrate": "stable-opaque-material"
+            },
+            "motionDecision": {
+              "continuity": "preserve-final-field",
+              "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+            }
+          },
+          "boundary": {
+            "kind": "flush",
+            "sampleOffset": 0.5,
+            "colorTolerance": 1,
+            "alphaTolerance": 0.005,
+            "geometryTolerance": 0.5,
+            "phaseTolerance": 0.01
+          },
+          "coordinateSpace": {
+            "kind": "boundary-space",
+            "anchor": "boundary",
+            "axis": "vertical",
+            "origin": {
+              "x": 50,
+              "xUnit": "boundary-percent",
+              "y": 0,
+              "yUnit": "boundary-px"
+            },
+            "radius": {
+              "x": 58,
+              "xUnit": "boundary-percent",
+              "y": 360,
+              "yUnit": "px"
+            }
+          },
+          "edgeBands": {
+            "outgoing": {
+              "value": 280,
+              "unit": "px",
+              "sample": "end"
+            },
+            "incoming": {
+              "value": 320,
+              "unit": "px",
+              "sample": "start"
+            }
+          },
+          "sharedLayers": [
+            {
+              "id": "material",
+              "kind": "material",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "color": "var(--desyium-block-connection, var(--theme-surface))"
+            },
+            {
+              "id": "gradient",
+              "kind": "gradient",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "geometry": "linear",
+              "angle": 180,
+              "colors": [
+                "transparent",
+                "var(--desyium-connection-accent, transparent)",
+                "transparent"
+              ],
+              "stops": [
+                0,
+                52,
+                100
+              ]
+            }
+          ],
+          "materialHandoff": {
+            "from": "stable-opaque-material",
+            "to": "stable-opaque-material",
+            "boundary": "continuous",
+            "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
+            "tolerance": 1
+          },
+          "responsive": {
+            "intermediate": {
+              "maxWidth": 1024,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 160,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 160,
+                  "unit": "px"
+                }
+              }
+            },
+            "mobile": {
+              "maxWidth": 640,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 120,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 120,
+                  "unit": "px"
+                }
+              },
+              "coordinateSpace": {
+                "origin": {
+                  "x": 50,
+                  "xUnit": "boundary-percent",
+                  "y": 0,
+                  "yUnit": "boundary-px"
+                }
+              }
+            }
+          },
+          "reducedMotion": {
+            "motion": "static-final-state"
+          },
+          "fallback": {
+            "renderer": "css",
+            "preserve": "geometry-edge-color-pattern-phase"
+          },
+          "fromBlockOrder": 4,
+          "toBlockOrder": 5,
+          "owner": "shared-edges",
+          "dedicatedBlockOrder": null,
+          "outgoingEdge": {
+            "semanticOwner": "[data-page-block-order='4']",
+            "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
+          },
+          "incomingEdge": {
+            "semanticOwner": "[data-page-block-order='5']",
+            "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
+          },
+          "sharedField": {
+            "kind": "gradient",
+            "id": "connection-4-5-field",
+            "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+          },
+          "continuityRule": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+          "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+          "reducedMotionForm": "Keep the final matched field and remove only movement.",
+          "owners": {
+            "outgoing": "maintain-system",
+            "incoming": "ai-upload-review",
+            "outgoingSelector": "[data-block=\"maintain-system\"]",
+            "incomingSelector": "[data-block=\"ai-upload-review\"]"
+          },
+          "overlap": {
+            "enabled": false,
+            "depth": 0,
+            "unit": "px",
+            "owner": "shared-edges",
+            "contentSafeArea": "required"
+          },
+          "stacking": {
+            "outgoing": 0,
+            "shared": 1,
+            "incoming": 0,
+            "content": 2
+          },
+          "proof": {
+            "adjacencyTolerance": 1,
+            "coordinateTolerance": 0.5,
+            "colorTolerance": 1
+          },
+          "schemaVersion": 2
+        },
+        {
+          "id": "connection-5-6",
+          "mode": "edge-continuity",
+          "treatment": "connected-gradient",
+          "fieldScope": "connected-pair",
+          "fromBlock": "ai-upload-review",
+          "toBlock": "structured-importer",
+          "relationship": {
+            "id": "ai-upload-review-to-structured-importer",
+            "sourceTrace": {
+              "fromBlock": "ai-upload-review",
+              "fromJob": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+              "fromOutgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+              "toBlock": "structured-importer",
+              "toJob": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+              "toIncomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
+            },
+            "narrativeHandoff": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition.",
+            "outgoingResponsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "incomingResponsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "fieldDecision": {
+              "family": "gradient",
+              "boundary": "flush",
+              "fieldScope": "connected-pair",
+              "energyDirection": "carry-through-pair",
+              "sourceOwner": "connected-pair",
+              "sourceOffsetY": 0,
+              "depth": 360,
+              "substrate": "stable-opaque-material"
+            },
+            "motionDecision": {
+              "continuity": "preserve-final-field",
+              "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
+            }
+          },
+          "boundary": {
+            "kind": "flush",
+            "sampleOffset": 0.5,
+            "colorTolerance": 1,
+            "alphaTolerance": 0.005,
+            "geometryTolerance": 0.5,
+            "phaseTolerance": 0.01
+          },
+          "coordinateSpace": {
+            "kind": "boundary-space",
+            "anchor": "boundary",
+            "axis": "vertical",
+            "origin": {
+              "x": 50,
+              "xUnit": "boundary-percent",
+              "y": 0,
+              "yUnit": "boundary-px"
+            },
+            "radius": {
+              "x": 58,
+              "xUnit": "boundary-percent",
+              "y": 360,
+              "yUnit": "px"
+            }
+          },
+          "edgeBands": {
+            "outgoing": {
+              "value": 280,
+              "unit": "px",
+              "sample": "end"
+            },
+            "incoming": {
+              "value": 320,
+              "unit": "px",
+              "sample": "start"
+            }
+          },
+          "sharedLayers": [
+            {
+              "id": "material",
+              "kind": "material",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "color": "var(--desyium-block-connection, var(--theme-surface))"
+            },
+            {
+              "id": "gradient",
+              "kind": "gradient",
+              "renderer": "css",
+              "continuity": "same-field",
+              "phase": "shared",
+              "enabled": true,
+              "opacity": 1,
+              "blendMode": "normal",
+              "outgoingVisibility": [
+                1,
+                1
+              ],
+              "incomingVisibility": [
+                1,
+                1
+              ],
+              "geometry": "linear",
+              "angle": 180,
+              "colors": [
+                "transparent",
+                "var(--desyium-connection-accent, transparent)",
+                "transparent"
+              ],
+              "stops": [
+                0,
+                52,
+                100
+              ]
+            }
+          ],
+          "materialHandoff": {
+            "from": "stable-opaque-material",
+            "to": "stable-opaque-material",
+            "boundary": "continuous",
+            "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
+            "tolerance": 1
+          },
+          "responsive": {
+            "intermediate": {
+              "maxWidth": 1024,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 160,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 160,
+                  "unit": "px"
+                }
+              }
+            },
+            "mobile": {
+              "maxWidth": 640,
+              "edgeBands": {
+                "outgoing": {
+                  "value": 120,
+                  "unit": "px"
+                },
+                "incoming": {
+                  "value": 120,
+                  "unit": "px"
+                }
+              },
+              "coordinateSpace": {
+                "origin": {
+                  "x": 50,
+                  "xUnit": "boundary-percent",
+                  "y": 0,
+                  "yUnit": "boundary-px"
+                }
+              }
+            }
+          },
+          "reducedMotion": {
+            "motion": "static-final-state"
+          },
+          "fallback": {
+            "renderer": "css",
+            "preserve": "geometry-edge-color-pattern-phase"
+          },
+          "fromBlockOrder": 5,
+          "toBlockOrder": 6,
+          "owner": "shared-edges",
+          "dedicatedBlockOrder": null,
+          "outgoingEdge": {
+            "semanticOwner": "[data-page-block-order='5']",
+            "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit."
+          },
+          "incomingEdge": {
+            "semanticOwner": "[data-page-block-order='6']",
+            "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
+          },
+          "sharedField": {
+            "kind": "gradient",
+            "id": "connection-5-6-field",
+            "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+          },
+          "continuityRule": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+          "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+          "reducedMotionForm": "Keep the final matched field and remove only movement.",
+          "owners": {
+            "outgoing": "ai-upload-review",
+            "incoming": "structured-importer",
+            "outgoingSelector": "[data-block=\"ai-upload-review\"]",
+            "incomingSelector": "[data-block=\"structured-importer\"]"
+          },
+          "overlap": {
+            "enabled": false,
+            "depth": 0,
+            "unit": "px",
+            "owner": "shared-edges",
+            "contentSafeArea": "required"
+          },
+          "stacking": {
+            "outgoing": 0,
+            "shared": 1,
+            "incoming": 0,
+            "content": 2
+          },
+          "proof": {
+            "adjacencyTolerance": 1,
+            "coordinateTolerance": 0.5,
+            "colorTolerance": 1
+          },
+          "schemaVersion": 2
+        }
+      ]
+    },
+    "rules": [
+      "Pages and blocks import only System* exports from @/desyium.",
+      "A component-job gap must be resolved in the registry; it does not authorize page-local control invention.",
+      "Primitive operations are composed through code-owned visual recipes and VisualSurface.",
+      "Large layouts use 12 columns, intermediate layouts use 8, and mobile recomposes the hierarchy."
+    ],
+    "blocks": [
+      {
+        "order": 1,
+        "type": "review-today",
+        "job": "See current bulkbite operations state.",
+        "incomingState": "User enters BulkBite Operations.",
+        "outgoingState": "Finish the active workflow with minimal input.",
+        "contentContract": [
+          "control: Primary filter",
+          "output: Key metrics",
+          "output: Next required action"
+        ],
+        "primaryAction": "Primary filter",
+        "secondaryAction": "Inspect supporting detail",
+        "componentJobs": [
+          "button",
+          "stat",
+          "link"
+        ],
+        "primitiveRoles": [
+          "structure"
+        ],
+        "connectionProfile": {
+          "blockId": "review-today",
+          "descriptionTrace": {
+            "job": "See current bulkbite operations state.",
+            "incomingState": "User enters BulkBite Operations.",
+            "outgoingState": "Finish the active workflow with minimal input.",
+            "primitiveRoles": [
+              "structure"
+            ]
+          },
+          "entry": {
+            "intent": "receive",
+            "responsibility": "Receive the audience state described by: User enters BulkBite Operations.",
+            "acceptsFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern",
+              "material",
+              "illumination",
+              "layered"
+            ]
+          },
+          "exit": {
+            "intent": "develop",
+            "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input.",
+            "preferredFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern"
+            ],
+            "sourcePreference": "none"
+          },
+          "intensity": "supporting",
+          "boundaryBias": "continuous"
+        },
+        "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+        "successMeasure": "The workflow can be completed without reading the full backend schema.",
+        "handoffTo": "complete-workflow",
+        "principleTrace": {
+          "authorities": [
+            "tokens-theme",
+            "blocks-pages",
+            "primitives-surfaces"
+          ],
+          "responsibility": "goal-before-appearance",
+          "hierarchy": "hierarchy-before-decoration",
+          "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+          "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+          "expression": "familiar-behavior-distinctive-brand-treatment",
+          "motion": "purposeful-motion-with-reduced-motion-equivalent"
+        },
+        "layoutContract": {
+          "strategy": "flow",
+          "pageAlignment": "grid",
+          "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+          "gap": "var(--spacing-m)",
+          "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+          "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+          "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+        },
+        "surfaceContract": {
+          "placement": "none",
+          "semanticOwner": "[data-page-block-order='1']",
+          "recipeId": null,
+          "scope": "none",
+          "edgeTreatment": "none",
+          "boundaryReason": null,
+          "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+          "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+        },
+        "actionContract": {
+          "primaryPreset": "primary-action",
+          "secondaryPreset": "secondary-action",
+          "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+          "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+        },
+        "motionContract": {
+          "mode": "experience",
+          "experienceId": "entrance-hierarchy",
+          "justification": null,
+          "targets": [
+            "[data-experience-item]"
+          ],
+          "reducedMotion": "Render every item in its final visible state without translation."
+        },
+        "edgeContract": {
+          "start": {
+            "connectionId": null,
+            "role": "page-entry",
+            "treatment": "enter-page-field",
+            "responsibility": "Establish the page's opening field without inventing a connector object."
+          },
+          "end": {
+            "connectionId": "connection-1-2",
+            "role": "outgoing-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input."
+          }
+        }
+      },
+      {
+        "order": 2,
+        "type": "complete-workflow",
+        "job": "Finish the active workflow with minimal input.",
+        "incomingState": "See current bulkbite operations state.",
+        "outgoingState": "Resolve blocked or unusual records.",
+        "contentContract": [
+          "control: Required fields",
+          "control: Submit action",
+          "output: Result state",
+          "output: Validation feedback"
+        ],
+        "primaryAction": "Required fields",
+        "secondaryAction": "Inspect supporting detail",
+        "componentJobs": [
+          "button",
+          "stat",
+          "link"
+        ],
+        "primitiveRoles": [
+          "structure"
+        ],
+        "connectionProfile": {
+          "blockId": "complete-workflow",
+          "descriptionTrace": {
+            "job": "Finish the active workflow with minimal input.",
+            "incomingState": "See current bulkbite operations state.",
+            "outgoingState": "Resolve blocked or unusual records.",
+            "primitiveRoles": [
+              "structure"
+            ]
+          },
+          "entry": {
+            "intent": "receive",
+            "responsibility": "Receive the audience state described by: See current bulkbite operations state.",
+            "acceptsFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern",
+              "material",
+              "illumination",
+              "layered"
+            ]
+          },
+          "exit": {
+            "intent": "develop",
+            "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records.",
+            "preferredFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern"
+            ],
+            "sourcePreference": "none"
+          },
+          "intensity": "supporting",
+          "boundaryBias": "continuous"
+        },
+        "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+        "successMeasure": "The workflow can be completed without reading the full backend schema.",
+        "handoffTo": "manage-exceptions",
+        "principleTrace": {
+          "authorities": [
+            "tokens-theme",
+            "blocks-pages",
+            "primitives-surfaces"
+          ],
+          "responsibility": "goal-before-appearance",
+          "hierarchy": "hierarchy-before-decoration",
+          "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+          "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+          "expression": "familiar-behavior-distinctive-brand-treatment",
+          "motion": "purposeful-motion-with-reduced-motion-equivalent"
+        },
+        "layoutContract": {
+          "strategy": "flow",
+          "pageAlignment": "grid",
+          "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+          "gap": "var(--spacing-m)",
+          "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+          "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+          "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+        },
+        "surfaceContract": {
+          "placement": "none",
+          "semanticOwner": "[data-page-block-order='2']",
+          "recipeId": null,
+          "scope": "none",
+          "edgeTreatment": "none",
+          "boundaryReason": null,
+          "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+          "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+        },
+        "actionContract": {
+          "primaryPreset": "primary-action",
+          "secondaryPreset": "secondary-action",
+          "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+          "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+        },
+        "motionContract": {
+          "mode": "experience",
+          "experienceId": "entrance-hierarchy",
+          "justification": null,
+          "targets": [
+            "[data-experience-item]"
+          ],
+          "reducedMotion": "Render every item in its final visible state without translation."
+        },
+        "edgeContract": {
+          "start": {
+            "connectionId": "connection-1-2",
+            "role": "incoming-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Receive the audience state described by: See current bulkbite operations state."
+          },
+          "end": {
+            "connectionId": "connection-2-3",
+            "role": "outgoing-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records."
+          }
+        }
+      },
+      {
+        "order": 3,
+        "type": "manage-exceptions",
+        "job": "Resolve blocked or unusual records.",
+        "incomingState": "Finish the active workflow with minimal input.",
+        "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+        "contentContract": [
+          "control: Decision action",
+          "control: Note",
+          "output: Exception list",
+          "output: Audit trail"
+        ],
+        "primaryAction": "Decision action",
+        "secondaryAction": "Inspect supporting detail",
+        "componentJobs": [
+          "button",
+          "stat",
+          "link"
+        ],
+        "primitiveRoles": [
+          "structure"
+        ],
+        "connectionProfile": {
+          "blockId": "manage-exceptions",
+          "descriptionTrace": {
+            "job": "Resolve blocked or unusual records.",
+            "incomingState": "Finish the active workflow with minimal input.",
+            "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "primitiveRoles": [
+              "structure"
+            ]
+          },
+          "entry": {
+            "intent": "receive",
+            "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input.",
+            "acceptsFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern",
+              "material",
+              "illumination",
+              "layered"
+            ]
+          },
+          "exit": {
+            "intent": "develop",
+            "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+            "preferredFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern"
+            ],
+            "sourcePreference": "none"
+          },
+          "intensity": "supporting",
+          "boundaryBias": "continuous"
+        },
+        "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+        "successMeasure": "The workflow can be completed without reading the full backend schema.",
+        "handoffTo": "maintain-system",
+        "principleTrace": {
+          "authorities": [
+            "tokens-theme",
+            "blocks-pages",
+            "primitives-surfaces"
+          ],
+          "responsibility": "goal-before-appearance",
+          "hierarchy": "hierarchy-before-decoration",
+          "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+          "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+          "expression": "familiar-behavior-distinctive-brand-treatment",
+          "motion": "purposeful-motion-with-reduced-motion-equivalent"
+        },
+        "layoutContract": {
+          "strategy": "flow",
+          "pageAlignment": "grid",
+          "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+          "gap": "var(--spacing-m)",
+          "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+          "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+          "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+        },
+        "surfaceContract": {
+          "placement": "none",
+          "semanticOwner": "[data-page-block-order='3']",
+          "recipeId": null,
+          "scope": "none",
+          "edgeTreatment": "none",
+          "boundaryReason": null,
+          "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+          "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+        },
+        "actionContract": {
+          "primaryPreset": "primary-action",
+          "secondaryPreset": "secondary-action",
+          "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+          "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+        },
+        "motionContract": {
+          "mode": "experience",
+          "experienceId": "entrance-hierarchy",
+          "justification": null,
+          "targets": [
+            "[data-experience-item]"
+          ],
+          "reducedMotion": "Render every item in its final visible state without translation."
+        },
+        "edgeContract": {
+          "start": {
+            "connectionId": "connection-2-3",
+            "role": "incoming-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input."
+          },
+          "end": {
+            "connectionId": "connection-3-4",
+            "role": "outgoing-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
+          }
+        }
+      },
+      {
+        "order": 4,
+        "type": "maintain-system",
+        "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+        "incomingState": "Resolve blocked or unusual records.",
+        "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+        "contentContract": [
+          "control: DocType selector",
+          "output: All forms access",
+          "output: Permission state"
+        ],
+        "primaryAction": "DocType selector",
+        "secondaryAction": "Return to normal workflow",
+        "componentJobs": [
+          "button",
+          "stat",
+          "link"
+        ],
+        "primitiveRoles": [
+          "structure"
+        ],
+        "connectionProfile": {
+          "blockId": "maintain-system",
+          "descriptionTrace": {
+            "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "incomingState": "Resolve blocked or unusual records.",
+            "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "primitiveRoles": [
+              "structure"
+            ]
+          },
+          "entry": {
+            "intent": "receive",
+            "responsibility": "Receive the audience state described by: Resolve blocked or unusual records.",
+            "acceptsFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern",
+              "material",
+              "illumination",
+              "layered"
+            ]
+          },
+          "exit": {
+            "intent": "develop",
+            "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "preferredFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern"
+            ],
+            "sourcePreference": "none"
+          },
+          "intensity": "supporting",
+          "boundaryBias": "continuous"
+        },
+        "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+        "successMeasure": "The workflow can be completed without reading the full backend schema.",
+        "handoffTo": "ai-upload-review",
+        "principleTrace": {
+          "authorities": [
+            "tokens-theme",
+            "blocks-pages",
+            "primitives-surfaces"
+          ],
+          "responsibility": "goal-before-appearance",
+          "hierarchy": "hierarchy-before-decoration",
+          "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+          "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+          "expression": "familiar-behavior-distinctive-brand-treatment",
+          "motion": "purposeful-motion-with-reduced-motion-equivalent"
+        },
+        "layoutContract": {
+          "strategy": "flow",
+          "pageAlignment": "grid",
+          "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+          "gap": "var(--spacing-m)",
+          "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+          "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+          "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+        },
+        "surfaceContract": {
+          "placement": "none",
+          "semanticOwner": "[data-page-block-order='4']",
+          "recipeId": null,
+          "scope": "none",
+          "edgeTreatment": "none",
+          "boundaryReason": null,
+          "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+          "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+        },
+        "actionContract": {
+          "primaryPreset": "primary-action",
+          "secondaryPreset": "secondary-action",
+          "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+          "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+        },
+        "motionContract": {
+          "mode": "experience",
+          "experienceId": "entrance-hierarchy",
+          "justification": null,
+          "targets": [
+            "[data-experience-item]"
+          ],
+          "reducedMotion": "Render every item in its final visible state without translation."
+        },
+        "edgeContract": {
+          "start": {
+            "connectionId": "connection-3-4",
+            "role": "incoming-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Receive the audience state described by: Resolve blocked or unusual records."
+          },
+          "end": {
+            "connectionId": "connection-4-5",
+            "role": "outgoing-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
+          }
+        }
+      },
+      {
+        "order": 5,
+        "type": "ai-upload-review",
+        "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+        "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+        "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+        "contentContract": [
+          "control: File",
+          "control: Extraction schema",
+          "control: Review fields",
+          "control: Approve or reject",
+          "output: Upload status",
+          "output: Extracted proposal",
+          "output: Confidence notes",
+          "output: Validation errors",
+          "output: Submitted record"
+        ],
+        "primaryAction": "File",
+        "secondaryAction": "Inspect supporting detail",
+        "componentJobs": [
+          "button",
+          "stat",
+          "link"
+        ],
+        "primitiveRoles": [
+          "structure"
+        ],
+        "connectionProfile": {
+          "blockId": "ai-upload-review",
+          "descriptionTrace": {
+            "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "primitiveRoles": [
+              "structure"
+            ]
+          },
+          "entry": {
+            "intent": "receive",
+            "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+            "acceptsFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern",
+              "material",
+              "illumination",
+              "layered"
+            ]
+          },
+          "exit": {
+            "intent": "develop",
+            "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "preferredFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern"
+            ],
+            "sourcePreference": "none"
+          },
+          "intensity": "supporting",
+          "boundaryBias": "continuous"
+        },
+        "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+        "successMeasure": "The workflow can be completed without reading the full backend schema.",
+        "handoffTo": "structured-importer",
+        "principleTrace": {
+          "authorities": [
+            "tokens-theme",
+            "blocks-pages",
+            "primitives-surfaces"
+          ],
+          "responsibility": "goal-before-appearance",
+          "hierarchy": "hierarchy-before-decoration",
+          "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+          "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+          "expression": "familiar-behavior-distinctive-brand-treatment",
+          "motion": "purposeful-motion-with-reduced-motion-equivalent"
+        },
+        "layoutContract": {
+          "strategy": "flow",
+          "pageAlignment": "grid",
+          "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+          "gap": "var(--spacing-m)",
+          "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+          "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+          "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+        },
+        "surfaceContract": {
+          "placement": "none",
+          "semanticOwner": "[data-page-block-order='5']",
+          "recipeId": null,
+          "scope": "none",
+          "edgeTreatment": "none",
+          "boundaryReason": null,
+          "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+          "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+        },
+        "actionContract": {
+          "primaryPreset": "primary-action",
+          "secondaryPreset": "secondary-action",
+          "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+          "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+        },
+        "motionContract": {
+          "mode": "experience",
+          "experienceId": "entrance-hierarchy",
+          "justification": null,
+          "targets": [
+            "[data-experience-item]"
+          ],
+          "reducedMotion": "Render every item in its final visible state without translation."
+        },
+        "edgeContract": {
+          "start": {
+            "connectionId": "connection-4-5",
+            "role": "incoming-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
+          },
+          "end": {
+            "connectionId": "connection-5-6",
+            "role": "outgoing-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit."
+          }
+        }
+      },
+      {
+        "order": 6,
+        "type": "structured-importer",
+        "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+        "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+        "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
+        "contentContract": [
+          "control: Template",
+          "control: File",
+          "control: Validate",
+          "control: Commit approved rows",
+          "output: Header status",
+          "output: Import preview",
+          "output: Error rows",
+          "output: Created count",
+          "output: Skipped count"
+        ],
+        "primaryAction": "Template",
+        "secondaryAction": "Inspect supporting detail",
+        "componentJobs": [
+          "button",
+          "stat",
+          "link"
+        ],
+        "primitiveRoles": [
+          "structure"
+        ],
+        "connectionProfile": {
+          "blockId": "structured-importer",
+          "descriptionTrace": {
+            "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
+            "primitiveRoles": [
+              "structure"
+            ]
+          },
+          "entry": {
+            "intent": "receive",
+            "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "acceptsFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern",
+              "material",
+              "illumination",
+              "layered"
+            ]
+          },
+          "exit": {
+            "intent": "develop",
+            "responsibility": "Release the completed audience state described by: Workflow reaches a complete state or hidden maintenance handoff.",
+            "preferredFields": [
+              "gradient",
+              "structure",
+              "line",
+              "pattern"
+            ],
+            "sourcePreference": "none"
+          },
+          "intensity": "supporting",
+          "boundaryBias": "continuous"
+        },
+        "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+        "successMeasure": "The workflow can be completed without reading the full backend schema.",
+        "handoffTo": null,
+        "principleTrace": {
+          "authorities": [
+            "tokens-theme",
+            "blocks-pages",
+            "primitives-surfaces"
+          ],
+          "responsibility": "goal-before-appearance",
+          "hierarchy": "hierarchy-before-decoration",
+          "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
+          "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
+          "expression": "familiar-behavior-distinctive-brand-treatment",
+          "motion": "purposeful-motion-with-reduced-motion-equivalent"
+        },
+        "layoutContract": {
+          "strategy": "flow",
+          "pageAlignment": "grid",
+          "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
+          "gap": "var(--spacing-m)",
+          "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
+          "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
+          "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
+        },
+        "surfaceContract": {
+          "placement": "none",
+          "semanticOwner": "[data-page-block-order='6']",
+          "recipeId": null,
+          "scope": "none",
+          "edgeTreatment": "none",
+          "boundaryReason": null,
+          "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
+          "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
+        },
+        "actionContract": {
+          "primaryPreset": "primary-action",
+          "secondaryPreset": "secondary-action",
+          "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
+          "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
+        },
+        "motionContract": {
+          "mode": "experience",
+          "experienceId": "entrance-hierarchy",
+          "justification": null,
+          "targets": [
+            "[data-experience-item]"
+          ],
+          "reducedMotion": "Render every item in its final visible state without translation."
+        },
+        "edgeContract": {
+          "start": {
+            "connectionId": "connection-5-6",
+            "role": "incoming-edge",
+            "treatment": "connected-gradient",
+            "connectionIntent": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition.",
+            "fieldFamily": "gradient",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
+            "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
+          },
+          "end": {
+            "connectionId": null,
+            "role": "page-exit",
+            "treatment": "resolve-page-field",
+            "responsibility": "Resolve the page field after the final content handoff."
+          }
+        }
+      }
+    ],
+    "componentJobs": [
+      {
+        "id": "button",
+        "job": "Trigger a discrete action.",
+        "owner": "shadcn-vue",
+        "implementation": "button",
+        "publicExports": [
+          "SystemButton"
+        ],
+        "status": "ready"
+      },
+      {
+        "id": "stat",
+        "job": "Present one quantitative proof point with label and qualification.",
+        "owner": "project",
+        "implementation": "stat",
+        "publicExports": [
+          "SystemStat"
+        ],
+        "status": "ready"
+      },
+      {
+        "id": "link",
+        "job": "Navigate to another resource or location.",
+        "owner": "project",
+        "implementation": "link",
+        "publicExports": [
+          "SystemLink"
+        ],
+        "status": "ready"
+      }
+    ],
+    "primitiveRoles": [
+      "structure"
+    ],
+    "recipeSuggestions": [
+      {
+        "id": "precision-frame",
+        "purpose": "Define a focal territory through restrained frame, corner, and edge-light signals without turning content into another card.",
+        "roles": [
+          "structure",
+          "lighting"
+        ],
+        "covers": [
+          "structure"
+        ],
+        "preferred": true
+      },
+      {
+        "id": "architectural-signal",
+        "purpose": "Express measured technical authority through one grid, one controlled signal origin, and restrained material texture.",
+        "roles": [
+          "foundation",
+          "structure",
+          "lighting",
+          "material"
+        ],
+        "covers": [
+          "structure"
+        ],
+        "preferred": false
+      },
+      {
+        "id": "radiant-orbit",
+        "purpose": "Build a controlled radial technology motif around one focal subject without becoming a generic sci-fi background.",
+        "roles": [
+          "foundation",
+          "structure",
+          "lighting"
+        ],
+        "covers": [
+          "structure"
+        ],
+        "preferred": false
+      }
+    ],
+    "selectedRecipe": null,
+    "selections": {
+      "components": [
+        "button",
+        "link",
+        "stat"
+      ],
+      "primitives": [],
+      "experiences": [
+        "entrance-hierarchy"
+      ]
+    },
+    "gaps": []
+  },
+  "principles": {
+    "request": {
+      "station": "page-block-architecture",
+      "artifact": "page",
+      "responsibility": "Restore BulkBite operational system context across planning, stock truth logic, Frappe contracts, generated app source, and design-system owners.",
+      "decisions": [
+        "Frappe owns auth database permissions APIs and stock event posting",
+        "Vue exposes operational tasks only",
+        "worker uploads create review drafts",
+        "manager approvals create immutable stock events",
+        "all forms admin remains hidden"
+      ],
+      "constraints": [
+        "ERPNext is not a runtime dependency",
+        "no raster image inspection",
+        "generated Desyium internals are not edited by hand",
+        "component code imports public System exports"
+      ]
+    },
+    "routes": [
+      "blocks-pages"
+    ],
+    "sections": [
+      "System authority",
+      "Reuse boundary",
+      "Responsive composition",
+      "Narrative job",
+      "Incoming and outgoing state",
+      "Transition contract"
+    ],
+    "systemInvariants": [
+      "Copy canonical CSS verbatim and extend it only at the canonical source.",
+      "Pages and blocks import through @/desyium; raw provider imports are forbidden there.",
+      "Search component jobs, executable records, primitives, recipes, and blocks before creating project source.",
+      "Large layouts use 12 columns, intermediate layouts use 8, and mobile recomposes hierarchy instead of merely shrinking it.",
+      "The page grid establishes shared territories; local relationships deliberately select grid, flex, stack, overlay, or normal flow.",
+      "Internal padding defines an object while external gap defines its relationship to neighboring objects.",
+      "Persistent rails, guide lines, and motifs are opt-in brand decisions with semantic purpose, responsive form, and a removal rule.",
+      "Each block owns one audience-state change, a content contract, component jobs, primitive roles, responsive behavior, and a success measure.",
+      "Ordered blocks explicitly hand off to the next block.",
+      "Transitions bridge meaning and structure; primitives render their visual expression."
+    ],
+    "rejectionConditions": [
+      "A known control is rebuilt in a page or block.",
+      "Primitive CSS is recreated locally instead of selected, composed, or contributed.",
+      "A brand is reduced to colors and fonts without composition, material, motion, voice, and prohibitions.",
+      "A technically valid layout passes despite arbitrary spacing, surface ownership, action styling, or motion.",
+      "A block exists only for visual variety.",
+      "Adjacent blocks have incompatible outgoing and incoming states.",
+      "A transition disguises a missing narrative handoff."
+    ],
+    "validationPrompts": [
+      "Which system record owns every reusable decision?",
+      "Can a clean consumer reproduce this without chat history?",
+      "What does the visitor know or do after this block?",
+      "Why is the next block the correct next state?",
+      "Does the transition reinforce that handoff?"
+    ]
+  },
+  "authority": [
+    "Project brief, selected structured territory, and approved project brand authority",
+    "Active complete theme",
+    "Canonical Desyium CSS and registries",
+    "System* public wrappers, visual recipes, executable blocks, and page blueprint"
+  ]
+}

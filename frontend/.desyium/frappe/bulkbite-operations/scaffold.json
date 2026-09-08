@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "intentId": "bulkbite-operations",
+  "appPath": "/home/keenan/BulkBite/apps/bulkbite",
+  "moduleName": "bulkbite",
+  "blueprint": ".desyium/frappe/bulkbite-operations/backend.json",
+  "files": [
+    "bulkbite/dysium_services.py",
+    "bulkbite/tests/test_bulkbite_operations_backend.py",
+    "bulkbite/doctype/bulkbite_operations_setting/bulkbite_operations_setting.json",
+    "bulkbite/doctype/bulkbite_operations_setting/bulkbite_operations_setting.py",
+    "bulkbite/doctype/bulkbite_operations_event/bulkbite_operations_event.json",
+    "bulkbite/doctype/bulkbite_operations_event/bulkbite_operations_event.py",
+    "bulkbite/doctype/bulkbite_operations_item/bulkbite_operations_item.json",
+    "bulkbite/doctype/bulkbite_operations_item/bulkbite_operations_item.py",
+    "bulkbite/doctype/bulkbite_operations_task/bulkbite_operations_task.json",
+    "bulkbite/doctype/bulkbite_operations_task/bulkbite_operations_task.py",
+    "bulkbite/doctype/bulkbite_operations_batch/bulkbite_operations_batch.json",
+    "bulkbite/doctype/bulkbite_operations_batch/bulkbite_operations_batch.py",
+    "bulkbite/doctype/bulkbite_operations_audit/bulkbite_operations_audit.json",
+    "bulkbite/doctype/bulkbite_operations_audit/bulkbite_operations_audit.py",
+    "bulkbite/doctype/bulkbite_operations_role_assignment/bulkbite_operations_role_assignment.json",
+    "bulkbite/doctype/bulkbite_operations_role_assignment/bulkbite_operations_role_assignment.py",
+    "bulkbite/doctype/bulkbite_operations_upload_batch/bulkbite_operations_upload_batch.json",
+    "bulkbite/doctype/bulkbite_operations_upload_batch/bulkbite_operations_upload_batch.py",
+    "bulkbite/doctype/bulkbite_operations_extracted_draft/bulkbite_operations_extracted_draft.json",
+    "bulkbite/doctype/bulkbite_operations_extracted_draft/bulkbite_operations_extracted_draft.py",
+    "bulkbite/doctype/bulkbite_operations_review_decision/bulkbite_operations_review_decision.json",
+    "bulkbite/doctype/bulkbite_operations_review_decision/bulkbite_operations_review_decision.py",
+    "bulkbite/doctype/bulkbite_operations_import_template/bulkbite_operations_import_template.json",
+    "bulkbite/doctype/bulkbite_operations_import_template/bulkbite_operations_import_template.py",
+    "bulkbite/doctype/bulkbite_operations_import_batch/bulkbite_operations_import_batch.json",
+    "bulkbite/doctype/bulkbite_operations_import_batch/bulkbite_operations_import_batch.py",
+    "bulkbite/doctype/bulkbite_operations_import_row/bulkbite_operations_import_row.json",
+    "bulkbite/doctype/bulkbite_operations_import_row/bulkbite_operations_import_row.py"
+  ],
+  "next": [
+    "Fill DocType fields and permissions from the domain contract.",
+    "Implement dysium_services.py service functions.",
+    "Replace generated NotImplementedError tests with concrete Frappe proofs.",
+    "Only treat frontend blocks as complete after backend tests pass."
+  ]
+}

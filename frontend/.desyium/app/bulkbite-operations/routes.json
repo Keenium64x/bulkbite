@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "routes": [
+    {
+      "id": "dashboard-home",
+      "surface": "dashboard",
+      "path": "/app",
+      "page": "bulkbite-operations-home",
+      "visibility": "authenticated",
+      "shell": "dashboard-shell"
+    },
+    {
+      "id": "mobile-home",
+      "surface": "mobile",
+      "path": "/app/mobile",
+      "page": "bulkbite-operations-home",
+      "visibility": "authenticated",
+      "shell": "mobile-shell"
+    },
+    {
+      "id": "admin-home",
+      "surface": "admin",
+      "path": "/app/admin",
+      "page": "bulkbite-operations-home",
+      "visibility": "hidden-admin",
+      "shell": "admin-shell"
+    },
+    {
+      "id": "all-forms",
+      "surface": "all-forms",
+      "path": "/app/admin/forms",
+      "page": "bulkbite-operations-forms",
+      "visibility": "hidden-admin",
+      "shell": "all-forms-shell"
+    }
+  ]
+}

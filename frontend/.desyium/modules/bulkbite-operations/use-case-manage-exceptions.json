@@ -1,0 +1,39 @@
+{
+  "id": "use-case-manage-exceptions",
+  "name": "Manage Exceptions Use Case",
+  "type": "use-case",
+  "purpose": "Resolve blocked or unusual records.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.useCases.manage-exceptions"
+  ],
+  "dependencies": [
+    "domain"
+  ],
+  "usedBy": [
+    "block-manage-exceptions"
+  ],
+  "invariants": [
+    "A use case names the actor, job, inputs, outputs, decisions, and failure states before UI composition.",
+    "Backend capability may be larger than the controls shown in the block."
+  ],
+  "tests": [
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation"
+  ],
+  "contract": {
+    "id": "manage-exceptions",
+    "actor": "Manager",
+    "job": "Resolve blocked or unusual records.",
+    "controls": [
+      "Decision action",
+      "Note"
+    ],
+    "outputs": [
+      "Exception list",
+      "Audit trail"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "required": true,
+  "source": ".desyium/forms/bulkbite-operations/contract.json",
+  "workflows": [
+    {
+      "id": "ai-upload-review",
+      "block": "ai-upload-review",
+      "backendRule": "AI creates proposals only; Frappe services own approval and final writes.",
+      "frontendRule": "Expose only four-ish workflow controls and standardized outputs; keep full maintenance in hidden admin/all-forms."
+    },
+    {
+      "id": "structured-importer",
+      "block": "structured-importer",
+      "backendRule": "Validation and commits are deterministic Frappe services.",
+      "frontendRule": "Expose only four-ish workflow controls and standardized outputs; keep full maintenance in hidden admin/all-forms."
+    }
+  ],
+  "hiddenMaintenance": [
+    "template fields",
+    "raw extracted JSON",
+    "row payloads",
+    "audit decisions",
+    "all DocType fields"
+  ],
+  "invariant": "The frontend is a workflow surface, not a copy of the backend schema."
+}

@@ -4,6 +4,7 @@ import { Button } from "frappe-ui"
 import App from "./App.vue"
 import PriceHistoryPage from "./pages/PriceHistoryPage.vue"
 import { SystemKitchenWorkerAssignment } from "@/desyium"
+import { routes as dysiumBulkBiteRoutes } from "./dysium-app/bulkbite-operations/router.js"
 import "@/styles/desyium/index.css"
 import "@/styles/app.css"
 import { runtimeConfig, requireNativeConfiguration } from "@/config/runtime"
@@ -19,6 +20,7 @@ const router = createRouter({
     { path: "/bulkbite/setup/:doctype", name: "BulkBiteSetupList", component: App, meta: { auxiliaryList: true } },
     { path: "/bulkbite/setup/:doctype/new", name: "AuxiliaryRecordCreate", component: App, meta: { auxiliaryRecord: true } },
     { path: "/bulkbite/setup/:doctype/:name", name: "AuxiliaryRecordEdit", component: App, meta: { auxiliaryRecord: true } },
+    ...dysiumBulkBiteRoutes,
     { path: "/:pathMatch(.*)*", component: App },
   ],
 })

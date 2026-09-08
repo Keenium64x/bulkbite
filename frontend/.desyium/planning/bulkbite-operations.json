@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "prompt": "Run BulkBite operations as a Frappe-backed kitchen stock truth system for planning, buying, receipt review, production usage, physical counts, reconciliation, manager approvals, immutable stock events, employee task assignment, price history, and accountant export.",
+  "purpose": "Classify raw project ideas before implementation and expose the missing questions that shape architecture, design, and business logic.",
+  "sections": {
+    "features": [
+      "receipt intake",
+      "document review",
+      "stock overview",
+      "buying plan",
+      "monthly planning",
+      "kitchen execution",
+      "worker assignment",
+      "production measurement",
+      "stock reconciliation",
+      "price history",
+      "accountant export",
+      "all forms admin",
+      "native mobile",
+      "inventory",
+      "document-intake",
+      "production"
+    ],
+    "businessLogic": [
+      "Worker documents create review drafts only; managers approve stock events; production usage consumes approved recipe quantities; counts reconcile physical stock; exports expose accounting evidence without frontend-owned ledger logic.",
+      "calculation",
+      "state-projection",
+      "planning-decision"
+    ],
+    "audience": [
+      "Kitchen workers",
+      "managers",
+      "buyers",
+      "production leads",
+      "and accountants"
+    ],
+    "stakeholders": [
+      "kitchen worker",
+      "stock manager",
+      "buyer",
+      "production lead",
+      "accountant",
+      "system manager"
+    ],
+    "style": [
+      "Dense",
+      "calm Frappe operational workspace with BulkBite orange action emphasis and compact scan-friendly rows"
+    ],
+    "frontendSurfaces": [
+      "dashboard",
+      "mobile",
+      "admin",
+      "all-forms"
+    ],
+    "backendSurfaces": [
+      "Frappe DocTypes",
+      "permissions",
+      "whitelisted services",
+      "immutable stock event ledger",
+      "file attachments",
+      "reports"
+    ]
+  },
+  "decisions": {
+    "buildStartRule": "Start from the smallest useful corner, then expand outward once the behavior is proven.",
+    "audienceRule": "Audience consequences drive complexity, density, copy, and visible controls.",
+    "businessRule": "Business logic is described as input, output, trigger, decision, and handoff before code."
+  },
+  "openQuestions": []
+}

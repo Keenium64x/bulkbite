@@ -1,0 +1,59 @@
+{
+  "id": "block-review-today",
+  "name": "Review Today Block",
+  "type": "block",
+  "purpose": "See current bulkbite operations state.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.blocks.review-today"
+  ],
+  "dependencies": [
+    "use-case-review-today",
+    "patterns",
+    "components"
+  ],
+  "usedBy": [
+    "page-bulkbite-operations-home"
+  ],
+  "invariants": [
+    "Blocks expose lean controls and standardized outputs.",
+    "Blocks import Dysium System* exports and never provider internals.",
+    "Hidden admin and all-forms access must not clutter normal workflow blocks."
+  ],
+  "tests": [
+    "generated route compiles",
+    "lean block controls render",
+    "loading/error/empty states exist"
+  ],
+  "contract": {
+    "id": "review-today",
+    "name": "Review Today",
+    "job": "See current bulkbite operations state.",
+    "actor": "Operator",
+    "components": [
+      "SystemButton",
+      "SystemFieldGroup",
+      "SystemMetric",
+      "SystemRecordList"
+    ],
+    "patterns": [
+      "FieldGroup",
+      "MetricRow",
+      "RecordList",
+      "StatusFeedback"
+    ],
+    "controls": [
+      "Primary filter"
+    ],
+    "outputs": [
+      "Key metrics",
+      "Next required action"
+    ],
+    "surfaces": [
+      "dashboard",
+      "mobile",
+      "admin"
+    ],
+    "disclosure": "lean-default"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "block-manage-exceptions",
+  "name": "Manage Exceptions Block",
+  "type": "block",
+  "purpose": "Resolve blocked or unusual records.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.blocks.manage-exceptions"
+  ],
+  "dependencies": [
+    "use-case-manage-exceptions",
+    "patterns",
+    "components"
+  ],
+  "usedBy": [
+    "page-bulkbite-operations-home"
+  ],
+  "invariants": [
+    "Blocks expose lean controls and standardized outputs.",
+    "Blocks import Dysium System* exports and never provider internals.",
+    "Hidden admin and all-forms access must not clutter normal workflow blocks."
+  ],
+  "tests": [
+    "generated route compiles",
+    "lean block controls render",
+    "loading/error/empty states exist"
+  ],
+  "contract": {
+    "id": "manage-exceptions",
+    "name": "Manage Exceptions",
+    "job": "Resolve blocked or unusual records.",
+    "actor": "Manager",
+    "components": [
+      "SystemButton",
+      "SystemFieldGroup",
+      "SystemMetric",
+      "SystemRecordList"
+    ],
+    "patterns": [
+      "FieldGroup",
+      "MetricRow",
+      "RecordList",
+      "StatusFeedback"
+    ],
+    "controls": [
+      "Decision action",
+      "Note"
+    ],
+    "outputs": [
+      "Exception list",
+      "Audit trail"
+    ],
+    "surfaces": [
+      "dashboard",
+      "mobile",
+      "admin"
+    ],
+    "disclosure": "lean-default"
+  }
+}

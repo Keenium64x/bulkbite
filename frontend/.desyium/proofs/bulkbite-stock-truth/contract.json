@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-stock-truth",
+  "prompt": "Prove BulkBite stock movement calculations before backend implementation: opening stock plus approved receipts minus approved production usage adjusted by physical count corrections equals closing stock, with accountant export totals matching approved stock events.",
+  "responsibility": "Prove business logic, calculations, and input-output behavior before backend implementation.",
+  "format": "csv-workbook",
+  "sheets": {
+    "inputs": [
+      {
+        "name": "opening-stock",
+        "label": "opening-stock",
+        "source": "doctype-field-or-user-entry",
+        "example": "TODO",
+        "notes": "Define where this value comes from before coding the calculation."
+      },
+      {
+        "name": "approved-receipts",
+        "label": "approved-receipts",
+        "source": "doctype-field-or-user-entry",
+        "example": "TODO",
+        "notes": "Define where this value comes from before coding the calculation."
+      },
+      {
+        "name": "approved-production-usage",
+        "label": "approved-production-usage",
+        "source": "doctype-field-or-user-entry",
+        "example": "TODO",
+        "notes": "Define where this value comes from before coding the calculation."
+      },
+      {
+        "name": "physical-count",
+        "label": "physical-count",
+        "source": "doctype-field-or-user-entry",
+        "example": "TODO",
+        "notes": "Define where this value comes from before coding the calculation."
+      },
+      {
+        "name": "price-history",
+        "label": "price-history",
+        "source": "doctype-field-or-user-entry",
+        "example": "TODO",
+        "notes": "Define where this value comes from before coding the calculation."
+      },
+      {
+        "name": "approved-stock-events",
+        "label": "approved-stock-events",
+        "source": "doctype-field-or-user-entry",
+        "example": "TODO",
+        "notes": "Define where this value comes from before coding the calculation."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "closing-stock",
+        "label": "closing-stock",
+        "destination": "frontend-visible-output-or-backend-record",
+        "expected": "TODO",
+        "notes": "Define who needs to see this output and why."
+      },
+      {
+        "name": "reconciliation-variance",
+        "label": "reconciliation-variance",
+        "destination": "frontend-visible-output-or-backend-record",
+        "expected": "TODO",
+        "notes": "Define who needs to see this output and why."
+      },
+      {
+        "name": "export-total",
+        "label": "export-total",
+        "destination": "frontend-visible-output-or-backend-record",
+        "expected": "TODO",
+        "notes": "Define who needs to see this output and why."
+      },
+      {
+        "name": "manager-exceptions",
+        "label": "manager-exceptions",
+        "destination": "frontend-visible-output-or-backend-record",
+        "expected": "TODO",
+        "notes": "Define who needs to see this output and why."
+      }
+    ],
+    "formulas": [
+      {
+        "name": "closing-stock",
+        "expression": "closing-stock=opening-stock+approved-receipts-approved-production-usage+approved-count-adjustments",
+        "inputs": "opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events",
+        "output": "closing-stock",
+        "proofStatus": "draft"
+      },
+      {
+        "name": "reconciliation-variance",
+        "expression": "reconciliation-variance=physical-count-closing-stock",
+        "inputs": "opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events",
+        "output": "closing-stock",
+        "proofStatus": "draft"
+      },
+      {
+        "name": "export-total",
+        "expression": "export-total=sum(approved-stock-events)",
+        "inputs": "opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events",
+        "output": "closing-stock",
+        "proofStatus": "draft"
+      },
+      {
+        "name": "manager-exceptions",
+        "expression": "manager-exceptions=variance-threshold-breaches",
+        "inputs": "opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events",
+        "output": "closing-stock",
+        "proofStatus": "draft"
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "normal-receiving",
+        "inputValues": "TODO",
+        "expectedOutputs": "TODO",
+        "decision": "TODO"
+      },
+      {
+        "name": "receipt-draft-not-approved",
+        "inputValues": "TODO",
+        "expectedOutputs": "TODO",
+        "decision": "TODO"
+      },
+      {
+        "name": "production-usage-approved",
+        "inputValues": "TODO",
+        "expectedOutputs": "TODO",
+        "decision": "TODO"
+      },
+      {
+        "name": "count-variance",
+        "inputValues": "TODO",
+        "expectedOutputs": "TODO",
+        "decision": "TODO"
+      },
+      {
+        "name": "accountant-export",
+        "inputValues": "TODO",
+        "expectedOutputs": "TODO",
+        "decision": "TODO"
+      }
+    ]
+  },
+  "handoff": {
+    "next": "Use this proof to write the backend service, DocType fields, frontend-visible outputs, and validation tests.",
+    "frontendRule": "Expose only the outputs and actions users need; keep backend calculation details out of the main interface."
+  }
+}

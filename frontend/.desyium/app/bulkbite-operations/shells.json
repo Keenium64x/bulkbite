@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "shells": [
+    {
+      "id": "dashboard-shell",
+      "surface": "dashboard",
+      "responsibility": "Application navigation, loading, errors, and permission states.",
+      "features": [
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "dashboard-home"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    },
+    {
+      "id": "mobile-shell",
+      "surface": "mobile",
+      "responsibility": "Compact operator workflows with safe-area layout and refresh behavior.",
+      "features": [
+        "pull-to-refresh",
+        "mobile-shell",
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "mobile-home"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    },
+    {
+      "id": "admin-shell",
+      "surface": "admin",
+      "responsibility": "Application navigation, loading, errors, and permission states.",
+      "features": [
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "admin-home"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    },
+    {
+      "id": "all-forms-shell",
+      "surface": "all-forms",
+      "responsibility": "Hidden full-system maintenance access.",
+      "features": [
+        "all-forms",
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "all-forms"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    }
+  ]
+}

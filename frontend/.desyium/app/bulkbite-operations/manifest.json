@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "responsibility": "Describe how the backend-first intent becomes website, dashboard, mobile, admin, SEO, and block composition artifacts.",
+  "sourceIntent": ".desyium/intents/bulkbite-operations.json",
+  "sourcePage": ".desyium/pages/bulkbite-operations.json",
+  "backend": ".desyium/frappe/bulkbite-operations/backend.json",
+  "dependencyDirection": [
+    "pages",
+    "blocks",
+    "patterns",
+    "components",
+    "adapters",
+    "external-libraries"
+  ],
+  "routes": [
+    {
+      "id": "dashboard-home",
+      "surface": "dashboard",
+      "path": "/app",
+      "page": "bulkbite-operations-home",
+      "visibility": "authenticated",
+      "shell": "dashboard-shell"
+    },
+    {
+      "id": "mobile-home",
+      "surface": "mobile",
+      "path": "/app/mobile",
+      "page": "bulkbite-operations-home",
+      "visibility": "authenticated",
+      "shell": "mobile-shell"
+    },
+    {
+      "id": "admin-home",
+      "surface": "admin",
+      "path": "/app/admin",
+      "page": "bulkbite-operations-home",
+      "visibility": "hidden-admin",
+      "shell": "admin-shell"
+    },
+    {
+      "id": "all-forms",
+      "surface": "all-forms",
+      "path": "/app/admin/forms",
+      "page": "bulkbite-operations-forms",
+      "visibility": "hidden-admin",
+      "shell": "all-forms-shell"
+    }
+  ],
+  "shells": [
+    {
+      "id": "dashboard-shell",
+      "surface": "dashboard",
+      "responsibility": "Application navigation, loading, errors, and permission states.",
+      "features": [
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "dashboard-home"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    },
+    {
+      "id": "mobile-shell",
+      "surface": "mobile",
+      "responsibility": "Compact operator workflows with safe-area layout and refresh behavior.",
+      "features": [
+        "pull-to-refresh",
+        "mobile-shell",
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "mobile-home"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    },
+    {
+      "id": "admin-shell",
+      "surface": "admin",
+      "responsibility": "Application navigation, loading, errors, and permission states.",
+      "features": [
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "admin-home"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    },
+    {
+      "id": "all-forms-shell",
+      "surface": "all-forms",
+      "responsibility": "Hidden full-system maintenance access.",
+      "features": [
+        "all-forms",
+        "roles",
+        "admin",
+        "auth"
+      ],
+      "routeIds": [
+        "all-forms"
+      ],
+      "standardStates": [
+        "loading",
+        "error",
+        "empty",
+        "permission-denied",
+        "stale-data"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "bulkbite-operations",
+      "purpose": "Run BulkBite as a rolling customer-led meal cycle through planning, buying, receipts, production, reports, and stock truth",
+      "blocks": [
+        {
+          "type": "review-today",
+          "controls": [
+            "Primary filter"
+          ],
+          "outputs": [
+            "Key metrics",
+            "Next required action"
+          ],
+          "formWorkflow": null
+        },
+        {
+          "type": "complete-workflow",
+          "controls": [
+            "Required fields",
+            "Submit action"
+          ],
+          "outputs": [
+            "Result state",
+            "Validation feedback"
+          ],
+          "formWorkflow": null
+        },
+        {
+          "type": "manage-exceptions",
+          "controls": [
+            "Decision action",
+            "Note"
+          ],
+          "outputs": [
+            "Exception list",
+            "Audit trail"
+          ],
+          "formWorkflow": null
+        },
+        {
+          "type": "maintain-system",
+          "controls": [
+            "DocType selector"
+          ],
+          "outputs": [
+            "All forms access",
+            "Permission state"
+          ],
+          "formWorkflow": null
+        },
+        {
+          "type": "ai-upload-review",
+          "controls": [
+            "File",
+            "Extraction schema",
+            "Review fields",
+            "Approve or reject"
+          ],
+          "outputs": [
+            "Upload status",
+            "Extracted proposal",
+            "Confidence notes",
+            "Validation errors",
+            "Submitted record"
+          ],
+          "formWorkflow": "ai-upload-review"
+        },
+        {
+          "type": "structured-importer",
+          "controls": [
+            "Template",
+            "File",
+            "Validate",
+            "Commit approved rows"
+          ],
+          "outputs": [
+            "Header status",
+            "Import preview",
+            "Error rows",
+            "Created count",
+            "Skipped count"
+          ],
+          "formWorkflow": "structured-importer"
+        }
+      ]
+    }
+  ],
+  "forms": {
+    "required": true,
+    "source": ".desyium/forms/bulkbite-operations/contract.json",
+    "workflows": [
+      {
+        "id": "ai-upload-review",
+        "block": "ai-upload-review",
+        "backendRule": "AI creates proposals only; Frappe services own approval and final writes.",
+        "frontendRule": "Expose only four-ish workflow controls and standardized outputs; keep full maintenance in hidden admin/all-forms."
+      },
+      {
+        "id": "structured-importer",
+        "block": "structured-importer",
+        "backendRule": "Validation and commits are deterministic Frappe services.",
+        "frontendRule": "Expose only four-ish workflow controls and standardized outputs; keep full maintenance in hidden admin/all-forms."
+      }
+    ],
+    "hiddenMaintenance": [
+      "template fields",
+      "raw extracted JSON",
+      "row payloads",
+      "audit decisions",
+      "all DocType fields"
+    ],
+    "invariant": "The frontend is a workflow surface, not a copy of the backend schema."
+  },
+  "motion": {
+    "required": true,
+    "source": ".desyium/motion/bulkbite-operations/contract.json",
+    "defaultPolicy": {
+      "enabled": true,
+      "intensity": "quiet",
+      "runtime": "css-first",
+      "escalationRule": "Use GSAP only for sequenced page or spatial choreography; ordinary card hover stays CSS-owned.",
+      "sourceLessons": [
+        "Poloway card affordance",
+        "BulkBite operational card hover"
+      ]
+    },
+    "targets": [
+      {
+        "id": "major-card",
+        "selector": "[data-dysium-motion='major-card']",
+        "trigger": "hover-or-focus-within",
+        "effect": "lift-shadow-border",
+        "timing": {
+          "durationMs": 140,
+          "easing": "cubic-bezier(.2,0,0,1)",
+          "liftPx": -2,
+          "childLiftPx": -1
+        }
+      },
+      {
+        "id": "card-child",
+        "selector": "[data-dysium-motion-child]",
+        "trigger": "parent-hover-or-focus-within",
+        "effect": "synchronized-subtle-lift",
+        "timing": {
+          "durationMs": 140,
+          "easing": "cubic-bezier(.2,0,0,1)",
+          "liftPx": -1
+        }
+      }
+    ],
+    "accessibility": {
+      "reducedMotion": "Disable transform travel and keep color, outline, and shadow state changes readable.",
+      "keyboard": "Focus-within receives the same state as hover.",
+      "coarsePointer": "Keep transition but avoid relying on hover to reveal required information."
+    },
+    "performance": {
+      "properties": [
+        "transform",
+        "box-shadow",
+        "border-color",
+        "background-color"
+      ],
+      "layoutRule": "Never animate width, height, top, left, margin, padding, or grid placement for card hover.",
+      "dependencyPolicy": "No runtime dependency is installed for default microanimations."
+    }
+  },
+  "seo": {
+    "required": false,
+    "routes": [],
+    "metadata": {
+      "titleSource": "page purpose and system name",
+      "descriptionSource": "primary audience, primary action, and backend-visible outcome",
+      "canonicalSource": "route path"
+    },
+    "validationPrompts": [
+      "Every public route has a title, description, canonical path, and visible purpose.",
+      "SEO copy describes the concrete workflow outcome rather than decorative brand language.",
+      "Private, admin, and all-forms routes are excluded from public metadata unless explicitly allowed."
+    ],
+    "outputPlan": {
+      "ssr": "not-requested",
+      "static": "not-requested"
+    }
+  },
+  "mobile": {
+    "required": true,
+    "pullToRefresh": "standardized-shell-behavior",
+    "sourceRuntime": "assets/mobile/runtime"
+  },
+  "admin": {
+    "hiddenAllForms": true,
+    "hiddenRoutes": [
+      "/app/admin",
+      "/app/admin/forms"
+    ],
+    "invariant": "Full backend maintenance is available without competing with lean workflow blocks."
+  },
+  "completionGates": [
+    "Backend DocType fields and service contracts exist.",
+    "Backend tests replace generated NotImplementedError placeholders.",
+    "Page blocks expose lean controls and standardized outputs.",
+    "SSR/SEO and mobile shell proof runs only when those surfaces are present."
+  ]
+}

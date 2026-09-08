@@ -1,0 +1,51 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "source_file",
+      "label": "Source File",
+      "fieldtype": "Attach",
+      "reqd": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Uploaded\nExtracted\nNeeds Review\nApproved\nRejected\nSubmitted",
+      "reqd": 1
+    },
+    {
+      "fieldname": "schema_id",
+      "label": "Schema ID",
+      "fieldtype": "Data",
+      "reqd": 0
+    },
+    {
+      "fieldname": "proposal_json",
+      "label": "Proposal JSON",
+      "fieldtype": "JSON",
+      "reqd": 0
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "module": "Bulkbite",
+  "name": "BulkBite Operations Upload Batch",
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "export": 1,
+      "report": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

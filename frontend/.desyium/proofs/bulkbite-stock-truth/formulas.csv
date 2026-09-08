@@ -1,0 +1,5 @@
+name,expression,inputs,output,proofStatus
+closing-stock,closing-stock=opening-stock+approved-receipts-approved-production-usage+approved-count-adjustments,opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events,closing-stock,draft
+reconciliation-variance,reconciliation-variance=physical-count-closing-stock,opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events,closing-stock,draft
+export-total,export-total=sum(approved-stock-events),opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events,closing-stock,draft
+manager-exceptions,manager-exceptions=variance-threshold-breaches,opening-stock;approved-receipts;approved-production-usage;physical-count;price-history;approved-stock-events,closing-stock,draft

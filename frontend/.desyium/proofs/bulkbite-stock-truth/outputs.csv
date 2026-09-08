@@ -1,0 +1,5 @@
+name,label,destination,expected,notes
+closing-stock,closing-stock,frontend-visible-output-or-backend-record,TODO,Define who needs to see this output and why.
+reconciliation-variance,reconciliation-variance,frontend-visible-output-or-backend-record,TODO,Define who needs to see this output and why.
+export-total,export-total,frontend-visible-output-or-backend-record,TODO,Define who needs to see this output and why.
+manager-exceptions,manager-exceptions,frontend-visible-output-or-backend-record,TODO,Define who needs to see this output and why.

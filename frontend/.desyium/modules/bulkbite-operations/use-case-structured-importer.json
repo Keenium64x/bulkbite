@@ -1,0 +1,44 @@
+{
+  "id": "use-case-structured-importer",
+  "name": "Structured Importer Use Case",
+  "type": "use-case",
+  "purpose": "Upload a spreadsheet, validate required columns, review row-level issues, and commit deterministic records.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.useCases.structured-importer"
+  ],
+  "dependencies": [
+    "domain"
+  ],
+  "usedBy": [
+    "block-structured-importer"
+  ],
+  "invariants": [
+    "A use case names the actor, job, inputs, outputs, decisions, and failure states before UI composition.",
+    "Backend capability may be larger than the controls shown in the block."
+  ],
+  "tests": [
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation"
+  ],
+  "contract": {
+    "id": "structured-importer",
+    "actor": "Operator",
+    "job": "Upload a spreadsheet, validate required columns, review row-level issues, and commit deterministic records.",
+    "controls": [
+      "Template",
+      "File",
+      "Validate",
+      "Commit approved rows"
+    ],
+    "outputs": [
+      "Header status",
+      "Import preview",
+      "Error rows",
+      "Created count",
+      "Skipped count"
+    ]
+  }
+}

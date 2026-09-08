@@ -1,0 +1,38 @@
+{
+  "id": "use-case-maintain-system",
+  "name": "Maintain System Use Case",
+  "type": "use-case",
+  "purpose": "Access complete backend maintenance screens without cluttering normal workflows.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.useCases.maintain-system"
+  ],
+  "dependencies": [
+    "domain"
+  ],
+  "usedBy": [
+    "block-maintain-system"
+  ],
+  "invariants": [
+    "A use case names the actor, job, inputs, outputs, decisions, and failure states before UI composition.",
+    "Backend capability may be larger than the controls shown in the block."
+  ],
+  "tests": [
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation"
+  ],
+  "contract": {
+    "id": "maintain-system",
+    "actor": "Admin",
+    "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+    "controls": [
+      "DocType selector"
+    ],
+    "outputs": [
+      "All forms access",
+      "Permission state"
+    ]
+  }
+}

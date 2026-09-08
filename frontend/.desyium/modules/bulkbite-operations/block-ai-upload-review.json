@@ -1,0 +1,85 @@
+{
+  "id": "block-ai-upload-review",
+  "name": "undefined Block",
+  "type": "block",
+  "purpose": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.blocks.ai-upload-review"
+  ],
+  "dependencies": [
+    "use-case-ai-upload-review",
+    "patterns",
+    "components"
+  ],
+  "usedBy": [
+    "page-bulkbite-operations-home"
+  ],
+  "invariants": [
+    "Blocks expose lean controls and standardized outputs.",
+    "Blocks import Dysium System* exports and never provider internals.",
+    "Hidden admin and all-forms access must not clutter normal workflow blocks."
+  ],
+  "tests": [
+    "generated route compiles",
+    "lean block controls render",
+    "loading/error/empty states exist"
+  ],
+  "contract": {
+    "id": "ai-upload-review",
+    "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+    "disclosure": "workflow",
+    "surfaces": [
+      "dashboard",
+      "mobile",
+      "admin"
+    ],
+    "controls": [
+      "File",
+      "Extraction schema",
+      "Review fields",
+      "Approve or reject"
+    ],
+    "outputs": [
+      "Upload status",
+      "Extracted proposal",
+      "Confidence notes",
+      "Validation errors",
+      "Submitted record"
+    ],
+    "incomingHandoff": "Operator has an unstructured document and needs a safe draft.",
+    "outgoingHandoff": "Approved data is submitted through backend validation or returned for correction.",
+    "formWorkflow": "ai-upload-review",
+    "validationBehavior": {
+      "mode": "proposal-review-validation",
+      "clientChecks": [
+        "file selected",
+        "schema selected",
+        "approval decision present"
+      ],
+      "serverChecks": [
+        "schema-bound AI output",
+        "review corrections",
+        "permission",
+        "deterministic submit"
+      ],
+      "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+    },
+    "roleVisibility": {
+      "primaryRole": "Operator",
+      "adminRoles": [
+        "System Manager"
+      ],
+      "hiddenFrom": [
+        "Guest"
+      ],
+      "allFormsAdmin": true,
+      "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+    },
+    "customHandlers": {
+      "extract": "create_ai_upload_proposal",
+      "validate": "validate_reviewed_proposal",
+      "submit": "submit_approved_upload"
+    }
+  }
+}

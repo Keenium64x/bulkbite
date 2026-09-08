@@ -1,0 +1,52 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "template",
+      "label": "Template",
+      "fieldtype": "Link",
+      "options": "BulkBite Operations Import Template",
+      "reqd": 1
+    },
+    {
+      "fieldname": "source_file",
+      "label": "Source File",
+      "fieldtype": "Attach",
+      "reqd": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Uploaded\nValidated\nReady\nCommitted\nFailed",
+      "reqd": 1
+    },
+    {
+      "fieldname": "summary_json",
+      "label": "Summary JSON",
+      "fieldtype": "JSON",
+      "reqd": 0
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "module": "Bulkbite",
+  "name": "BulkBite Operations Import Batch",
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "export": 1,
+      "report": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

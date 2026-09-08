@@ -1,0 +1,51 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "reference_doctype",
+      "label": "Reference DocType",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reference_name",
+      "label": "Reference Name",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "decision",
+      "label": "Decision",
+      "fieldtype": "Select",
+      "options": "Approve\nReject\nNeeds Correction",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reason",
+      "label": "Reason",
+      "fieldtype": "Small Text",
+      "reqd": 0
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "module": "Bulkbite",
+  "name": "BulkBite Operations Review Decision",
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "export": 1,
+      "report": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

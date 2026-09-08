@@ -142,6 +142,14 @@
     ],
     "constructionAuthority": null
   },
+  "audienceConsequence": {
+    "actor": "Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile",
+    "need": "Run BulkBite as a rolling customer-led meal cycle through planning, buying, receipts, production, reports, and stock truth",
+    "risk": "This page fails when Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile cannot identify the next relevant action from the ordered blocks.",
+    "consequence": "The Open and complete the next required operational task action must stay reachable, legible, and justified by the preceding content.",
+    "validationPrompt": "Can Signed-in BulkBite staff deciding what to update, buy, receive, cook, measure, report, and reconcile understand the page purpose, locate the main action, and recover if a block fails or is skipped?",
+    "fallback": "If motion, rich surfaces, or optional blocks fail, render the review-today -> complete-workflow -> manage-exceptions -> maintain-system -> ai-upload-review -> structured-importer sequence as readable semantic sections."
+  },
   "hierarchy": [
     "page purpose",
     "ordered block types",
@@ -166,26 +174,25 @@
     },
     "surfaceDistribution": {
       "focalBlocks": [
-        "dashboard-overview"
+        "review-today"
       ],
       "quietBlocks": [
-        "operational-list",
-        "record-detail",
-        "operational-list",
-        "state-boundary"
+        "manage-exceptions",
+        "maintain-system",
+        "ai-upload-review",
+        "structured-importer"
       ],
       "rule": "Spend the strongest contrast and richest surface treatment on the focal block; ambient treatments dissolve into their owning field and adjacent surfaces without arbitrary straight seams."
     },
     "focalHierarchy": {
-      "primary": "dashboard-overview",
+      "primary": "review-today",
       "progression": [
-        "dashboard-overview",
-        "system-form",
-        "operational-list",
-        "system-form",
-        "record-detail",
-        "operational-list",
-        "state-boundary"
+        "review-today",
+        "complete-workflow",
+        "manage-exceptions",
+        "maintain-system",
+        "ai-upload-review",
+        "structured-importer"
       ],
       "rule": "Each block must have one focal job and must hand attention to the next block without competing with the page promise."
     }
@@ -216,8 +223,7 @@
       3,
       4,
       5,
-      6,
-      7
+      6
     ],
     "signatureRule": "Select at most one or two semantic signature mechanisms; Three.js, pinning, FLIP, and card effects require a brand or narrative reason.",
     "availableReadyExperiences": [
@@ -257,33 +263,30 @@
     "contracts": [
       {
         "id": "connection-1-2",
-        "fromBlockOrder": 1,
-        "fromBlock": "dashboard-overview",
-        "toBlockOrder": 2,
-        "toBlock": "system-form",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
+        "mode": "edge-continuity",
+        "treatment": "connected-gradient",
+        "fieldScope": "connected-pair",
+        "fromBlock": "review-today",
+        "toBlock": "complete-workflow",
         "relationship": {
-          "id": "dashboard-overview-to-system-form",
+          "id": "review-today-to-complete-workflow",
           "sourceTrace": {
-            "fromBlock": "dashboard-overview",
-            "fromJob": "Summarize current operational state, priorities, and routes into deeper work.",
-            "fromOutgoingState": "The user understands current state and chooses the next task.",
-            "toBlock": "system-form",
-            "toJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
-            "toIncomingState": "The user intends to create or change structured data."
+            "fromBlock": "review-today",
+            "fromJob": "See current bulkbite operations state.",
+            "fromOutgoingState": "Finish the active workflow with minimal input.",
+            "toBlock": "complete-workflow",
+            "toJob": "Finish the active workflow with minimal input.",
+            "toIncomingState": "See current bulkbite operations state."
           },
-          "narrativeHandoff": "dashboard-overview completes its stated audience change, then system-form receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: The user understands current state and chooses the next task.",
-          "incomingResponsibility": "Receive the audience state described by: The user intends to create or change structured data.",
+          "narrativeHandoff": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: Finish the active workflow with minimal input.",
+          "incomingResponsibility": "Receive the audience state described by: See current bulkbite operations state.",
           "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
+            "family": "gradient",
+            "boundary": "flush",
+            "fieldScope": "connected-pair",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
             "sourceOffsetY": 0,
             "depth": 360,
             "substrate": "stable-opaque-material"
@@ -293,27 +296,13 @@
             "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
           }
         },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='1']",
-          "responsibility": "Release the completed audience state described by: The user understands current state and chooses the next task."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='2']",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "dashboard-overview",
-          "incoming": "system-form",
-          "outgoingSelector": "[data-block=\"dashboard-overview\"]",
-          "incomingSelector": "[data-block=\"system-form\"]"
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
         },
         "coordinateSpace": {
           "kind": "boundary-space",
@@ -326,44 +315,81 @@
             "yUnit": "boundary-px"
           },
           "radius": {
-            "x": 48,
+            "x": 58,
             "xUnit": "boundary-percent",
-            "y": 320,
+            "y": 360,
             "yUnit": "px"
           }
         },
         "edgeBands": {
           "outgoing": {
-            "value": 192,
+            "value": 280,
             "unit": "px",
             "sample": "end"
           },
           "incoming": {
-            "value": 192,
+            "value": 320,
             "unit": "px",
             "sample": "start"
           }
         },
+        "sharedLayers": [
+          {
+            "id": "material",
+            "kind": "material",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "color": "var(--desyium-block-connection, var(--theme-surface))"
+          },
+          {
+            "id": "gradient",
+            "kind": "gradient",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "geometry": "linear",
+            "angle": 180,
+            "colors": [
+              "transparent",
+              "var(--desyium-connection-accent, transparent)",
+              "transparent"
+            ],
+            "stops": [
+              0,
+              52,
+              100
+            ]
+          }
+        ],
         "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
+          "from": "stable-opaque-material",
+          "to": "stable-opaque-material",
+          "boundary": "continuous",
+          "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
           "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
         },
         "responsive": {
           "intermediate": {
@@ -408,51 +434,78 @@
           "renderer": "css",
           "preserve": "geometry-edge-color-pattern-phase"
         },
+        "fromBlockOrder": 1,
+        "toBlockOrder": 2,
+        "owner": "shared-edges",
+        "dedicatedBlockOrder": null,
+        "outgoingEdge": {
+          "semanticOwner": "[data-page-block-order='1']",
+          "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input."
+        },
+        "incomingEdge": {
+          "semanticOwner": "[data-page-block-order='2']",
+          "responsibility": "Receive the audience state described by: See current bulkbite operations state."
+        },
+        "sharedField": {
+          "kind": "gradient",
+          "id": "connection-1-2-field",
+          "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+        },
+        "continuityRule": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+        "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+        "reducedMotionForm": "Keep the final matched field and remove only movement.",
+        "owners": {
+          "outgoing": "review-today",
+          "incoming": "complete-workflow",
+          "outgoingSelector": "[data-block=\"review-today\"]",
+          "incomingSelector": "[data-block=\"complete-workflow\"]"
+        },
+        "overlap": {
+          "enabled": false,
+          "depth": 0,
+          "unit": "px",
+          "owner": "shared-edges",
+          "contentSafeArea": "required"
+        },
+        "stacking": {
+          "outgoing": 0,
+          "shared": 1,
+          "incoming": 0,
+          "content": 2
+        },
         "proof": {
           "adjacencyTolerance": 1,
           "coordinateTolerance": 0.5,
           "colorTolerance": 1
         },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
+        "schemaVersion": 2
       },
       {
         "id": "connection-2-3",
-        "fromBlockOrder": 2,
-        "fromBlock": "system-form",
-        "toBlockOrder": 3,
-        "toBlock": "operational-list",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
+        "mode": "edge-continuity",
+        "treatment": "connected-gradient",
+        "fieldScope": "connected-pair",
+        "fromBlock": "complete-workflow",
+        "toBlock": "manage-exceptions",
         "relationship": {
-          "id": "system-form-to-operational-list",
+          "id": "complete-workflow-to-manage-exceptions",
           "sourceTrace": {
-            "fromBlock": "system-form",
-            "fromJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
-            "fromOutgoingState": "Valid data is saved or the user understands what blocks completion.",
-            "toBlock": "operational-list",
-            "toJob": "Find, compare, select, and act on a collection of records.",
-            "toIncomingState": "The user needs to locate or manage one or more records."
+            "fromBlock": "complete-workflow",
+            "fromJob": "Finish the active workflow with minimal input.",
+            "fromOutgoingState": "Resolve blocked or unusual records.",
+            "toBlock": "manage-exceptions",
+            "toJob": "Resolve blocked or unusual records.",
+            "toIncomingState": "Finish the active workflow with minimal input."
           },
-          "narrativeHandoff": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion.",
-          "incomingResponsibility": "Receive the audience state described by: The user needs to locate or manage one or more records.",
+          "narrativeHandoff": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: Resolve blocked or unusual records.",
+          "incomingResponsibility": "Receive the audience state described by: Finish the active workflow with minimal input.",
           "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
+            "family": "gradient",
+            "boundary": "flush",
+            "fieldScope": "connected-pair",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
             "sourceOffsetY": 0,
             "depth": 360,
             "substrate": "stable-opaque-material"
@@ -462,27 +515,13 @@
             "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
           }
         },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='2']",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='3']",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "system-form",
-          "incoming": "operational-list",
-          "outgoingSelector": "[data-block=\"system-form\"]",
-          "incomingSelector": "[data-block=\"operational-list\"]"
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
         },
         "coordinateSpace": {
           "kind": "boundary-space",
@@ -495,44 +534,81 @@
             "yUnit": "boundary-px"
           },
           "radius": {
-            "x": 48,
+            "x": 58,
             "xUnit": "boundary-percent",
-            "y": 320,
+            "y": 360,
             "yUnit": "px"
           }
         },
         "edgeBands": {
           "outgoing": {
-            "value": 192,
+            "value": 280,
             "unit": "px",
             "sample": "end"
           },
           "incoming": {
-            "value": 192,
+            "value": 320,
             "unit": "px",
             "sample": "start"
           }
         },
+        "sharedLayers": [
+          {
+            "id": "material",
+            "kind": "material",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "color": "var(--desyium-block-connection, var(--theme-surface))"
+          },
+          {
+            "id": "gradient",
+            "kind": "gradient",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "geometry": "linear",
+            "angle": 180,
+            "colors": [
+              "transparent",
+              "var(--desyium-connection-accent, transparent)",
+              "transparent"
+            ],
+            "stops": [
+              0,
+              52,
+              100
+            ]
+          }
+        ],
         "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
+          "from": "stable-opaque-material",
+          "to": "stable-opaque-material",
+          "boundary": "continuous",
+          "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
           "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
         },
         "responsive": {
           "intermediate": {
@@ -577,51 +653,78 @@
           "renderer": "css",
           "preserve": "geometry-edge-color-pattern-phase"
         },
+        "fromBlockOrder": 2,
+        "toBlockOrder": 3,
+        "owner": "shared-edges",
+        "dedicatedBlockOrder": null,
+        "outgoingEdge": {
+          "semanticOwner": "[data-page-block-order='2']",
+          "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records."
+        },
+        "incomingEdge": {
+          "semanticOwner": "[data-page-block-order='3']",
+          "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input."
+        },
+        "sharedField": {
+          "kind": "gradient",
+          "id": "connection-2-3-field",
+          "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+        },
+        "continuityRule": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+        "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+        "reducedMotionForm": "Keep the final matched field and remove only movement.",
+        "owners": {
+          "outgoing": "complete-workflow",
+          "incoming": "manage-exceptions",
+          "outgoingSelector": "[data-block=\"complete-workflow\"]",
+          "incomingSelector": "[data-block=\"manage-exceptions\"]"
+        },
+        "overlap": {
+          "enabled": false,
+          "depth": 0,
+          "unit": "px",
+          "owner": "shared-edges",
+          "contentSafeArea": "required"
+        },
+        "stacking": {
+          "outgoing": 0,
+          "shared": 1,
+          "incoming": 0,
+          "content": 2
+        },
         "proof": {
           "adjacencyTolerance": 1,
           "coordinateTolerance": 0.5,
           "colorTolerance": 1
         },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
+        "schemaVersion": 2
       },
       {
         "id": "connection-3-4",
-        "fromBlockOrder": 3,
-        "fromBlock": "operational-list",
-        "toBlockOrder": 4,
-        "toBlock": "system-form",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
+        "mode": "edge-continuity",
+        "treatment": "connected-gradient",
+        "fieldScope": "connected-pair",
+        "fromBlock": "manage-exceptions",
+        "toBlock": "maintain-system",
         "relationship": {
-          "id": "operational-list-to-system-form",
+          "id": "manage-exceptions-to-maintain-system",
           "sourceTrace": {
-            "fromBlock": "operational-list",
-            "fromJob": "Find, compare, select, and act on a collection of records.",
-            "fromOutgoingState": "The user opens, selects, or completes a record action.",
-            "toBlock": "system-form",
-            "toJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
-            "toIncomingState": "The user intends to create or change structured data."
+            "fromBlock": "manage-exceptions",
+            "fromJob": "Resolve blocked or unusual records.",
+            "fromOutgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "toBlock": "maintain-system",
+            "toJob": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "toIncomingState": "Resolve blocked or unusual records."
           },
-          "narrativeHandoff": "operational-list completes its stated audience change, then system-form receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
-          "incomingResponsibility": "Receive the audience state described by: The user intends to create or change structured data.",
+          "narrativeHandoff": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
+          "incomingResponsibility": "Receive the audience state described by: Resolve blocked or unusual records.",
           "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
+            "family": "gradient",
+            "boundary": "flush",
+            "fieldScope": "connected-pair",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
             "sourceOffsetY": 0,
             "depth": 360,
             "substrate": "stable-opaque-material"
@@ -631,27 +734,13 @@
             "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
           }
         },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='3']",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='4']",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "operational-list",
-          "incoming": "system-form",
-          "outgoingSelector": "[data-block=\"operational-list\"]",
-          "incomingSelector": "[data-block=\"system-form\"]"
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
         },
         "coordinateSpace": {
           "kind": "boundary-space",
@@ -664,44 +753,81 @@
             "yUnit": "boundary-px"
           },
           "radius": {
-            "x": 48,
+            "x": 58,
             "xUnit": "boundary-percent",
-            "y": 320,
+            "y": 360,
             "yUnit": "px"
           }
         },
         "edgeBands": {
           "outgoing": {
-            "value": 192,
+            "value": 280,
             "unit": "px",
             "sample": "end"
           },
           "incoming": {
-            "value": 192,
+            "value": 320,
             "unit": "px",
             "sample": "start"
           }
         },
+        "sharedLayers": [
+          {
+            "id": "material",
+            "kind": "material",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "color": "var(--desyium-block-connection, var(--theme-surface))"
+          },
+          {
+            "id": "gradient",
+            "kind": "gradient",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "geometry": "linear",
+            "angle": 180,
+            "colors": [
+              "transparent",
+              "var(--desyium-connection-accent, transparent)",
+              "transparent"
+            ],
+            "stops": [
+              0,
+              52,
+              100
+            ]
+          }
+        ],
         "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
+          "from": "stable-opaque-material",
+          "to": "stable-opaque-material",
+          "boundary": "continuous",
+          "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
           "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
         },
         "responsive": {
           "intermediate": {
@@ -746,51 +872,78 @@
           "renderer": "css",
           "preserve": "geometry-edge-color-pattern-phase"
         },
+        "fromBlockOrder": 3,
+        "toBlockOrder": 4,
+        "owner": "shared-edges",
+        "dedicatedBlockOrder": null,
+        "outgoingEdge": {
+          "semanticOwner": "[data-page-block-order='3']",
+          "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
+        },
+        "incomingEdge": {
+          "semanticOwner": "[data-page-block-order='4']",
+          "responsibility": "Receive the audience state described by: Resolve blocked or unusual records."
+        },
+        "sharedField": {
+          "kind": "gradient",
+          "id": "connection-3-4-field",
+          "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+        },
+        "continuityRule": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+        "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+        "reducedMotionForm": "Keep the final matched field and remove only movement.",
+        "owners": {
+          "outgoing": "manage-exceptions",
+          "incoming": "maintain-system",
+          "outgoingSelector": "[data-block=\"manage-exceptions\"]",
+          "incomingSelector": "[data-block=\"maintain-system\"]"
+        },
+        "overlap": {
+          "enabled": false,
+          "depth": 0,
+          "unit": "px",
+          "owner": "shared-edges",
+          "contentSafeArea": "required"
+        },
+        "stacking": {
+          "outgoing": 0,
+          "shared": 1,
+          "incoming": 0,
+          "content": 2
+        },
         "proof": {
           "adjacencyTolerance": 1,
           "coordinateTolerance": 0.5,
           "colorTolerance": 1
         },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
+        "schemaVersion": 2
       },
       {
         "id": "connection-4-5",
-        "fromBlockOrder": 4,
-        "fromBlock": "system-form",
-        "toBlockOrder": 5,
-        "toBlock": "record-detail",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
+        "mode": "edge-continuity",
+        "treatment": "connected-gradient",
+        "fieldScope": "connected-pair",
+        "fromBlock": "maintain-system",
+        "toBlock": "ai-upload-review",
         "relationship": {
-          "id": "system-form-to-record-detail",
+          "id": "maintain-system-to-ai-upload-review",
           "sourceTrace": {
-            "fromBlock": "system-form",
-            "fromJob": "Create or edit a structured record with validation, recovery, and clear completion state.",
-            "fromOutgoingState": "Valid data is saved or the user understands what blocks completion.",
-            "toBlock": "record-detail",
-            "toJob": "Present one record's identity, current state, related information, and available actions.",
-            "toIncomingState": "The user selected a record and needs its current truth."
+            "fromBlock": "maintain-system",
+            "fromJob": "Access complete backend maintenance screens without cluttering normal workflows.",
+            "fromOutgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "toBlock": "ai-upload-review",
+            "toJob": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "toIncomingState": "Access complete backend maintenance screens without cluttering normal workflows."
           },
-          "narrativeHandoff": "system-form completes its stated audience change, then record-detail receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion.",
-          "incomingResponsibility": "Receive the audience state described by: The user selected a record and needs its current truth.",
+          "narrativeHandoff": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "incomingResponsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
           "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
+            "family": "gradient",
+            "boundary": "flush",
+            "fieldScope": "connected-pair",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
             "sourceOffsetY": 0,
             "depth": 360,
             "substrate": "stable-opaque-material"
@@ -800,27 +953,13 @@
             "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
           }
         },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='4']",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='5']",
-          "responsibility": "Receive the audience state described by: The user selected a record and needs its current truth."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "system-form",
-          "incoming": "record-detail",
-          "outgoingSelector": "[data-block=\"system-form\"]",
-          "incomingSelector": "[data-block=\"record-detail\"]"
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
         },
         "coordinateSpace": {
           "kind": "boundary-space",
@@ -833,44 +972,81 @@
             "yUnit": "boundary-px"
           },
           "radius": {
-            "x": 48,
+            "x": 58,
             "xUnit": "boundary-percent",
-            "y": 320,
+            "y": 360,
             "yUnit": "px"
           }
         },
         "edgeBands": {
           "outgoing": {
-            "value": 192,
+            "value": 280,
             "unit": "px",
             "sample": "end"
           },
           "incoming": {
-            "value": 192,
+            "value": 320,
             "unit": "px",
             "sample": "start"
           }
         },
+        "sharedLayers": [
+          {
+            "id": "material",
+            "kind": "material",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "color": "var(--desyium-block-connection, var(--theme-surface))"
+          },
+          {
+            "id": "gradient",
+            "kind": "gradient",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "geometry": "linear",
+            "angle": 180,
+            "colors": [
+              "transparent",
+              "var(--desyium-connection-accent, transparent)",
+              "transparent"
+            ],
+            "stops": [
+              0,
+              52,
+              100
+            ]
+          }
+        ],
         "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
+          "from": "stable-opaque-material",
+          "to": "stable-opaque-material",
+          "boundary": "continuous",
+          "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
           "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
         },
         "responsive": {
           "intermediate": {
@@ -915,51 +1091,78 @@
           "renderer": "css",
           "preserve": "geometry-edge-color-pattern-phase"
         },
+        "fromBlockOrder": 4,
+        "toBlockOrder": 5,
+        "owner": "shared-edges",
+        "dedicatedBlockOrder": null,
+        "outgoingEdge": {
+          "semanticOwner": "[data-page-block-order='4']",
+          "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
+        },
+        "incomingEdge": {
+          "semanticOwner": "[data-page-block-order='5']",
+          "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
+        },
+        "sharedField": {
+          "kind": "gradient",
+          "id": "connection-4-5-field",
+          "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
+        },
+        "continuityRule": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+        "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+        "reducedMotionForm": "Keep the final matched field and remove only movement.",
+        "owners": {
+          "outgoing": "maintain-system",
+          "incoming": "ai-upload-review",
+          "outgoingSelector": "[data-block=\"maintain-system\"]",
+          "incomingSelector": "[data-block=\"ai-upload-review\"]"
+        },
+        "overlap": {
+          "enabled": false,
+          "depth": 0,
+          "unit": "px",
+          "owner": "shared-edges",
+          "contentSafeArea": "required"
+        },
+        "stacking": {
+          "outgoing": 0,
+          "shared": 1,
+          "incoming": 0,
+          "content": 2
+        },
         "proof": {
           "adjacencyTolerance": 1,
           "coordinateTolerance": 0.5,
           "colorTolerance": 1
         },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
+        "schemaVersion": 2
       },
       {
         "id": "connection-5-6",
-        "fromBlockOrder": 5,
-        "fromBlock": "record-detail",
-        "toBlockOrder": 6,
-        "toBlock": "operational-list",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
+        "mode": "edge-continuity",
+        "treatment": "connected-gradient",
+        "fieldScope": "connected-pair",
+        "fromBlock": "ai-upload-review",
+        "toBlock": "structured-importer",
         "relationship": {
-          "id": "record-detail-to-operational-list",
+          "id": "ai-upload-review-to-structured-importer",
           "sourceTrace": {
-            "fromBlock": "record-detail",
-            "fromJob": "Present one record's identity, current state, related information, and available actions.",
-            "fromOutgoingState": "The user understands the record and performs an appropriate action or returns.",
-            "toBlock": "operational-list",
-            "toJob": "Find, compare, select, and act on a collection of records.",
-            "toIncomingState": "The user needs to locate or manage one or more records."
+            "fromBlock": "ai-upload-review",
+            "fromJob": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+            "fromOutgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "toBlock": "structured-importer",
+            "toJob": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+            "toIncomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
           },
-          "narrativeHandoff": "record-detail completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns.",
-          "incomingResponsibility": "Receive the audience state described by: The user needs to locate or manage one or more records.",
+          "narrativeHandoff": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition.",
+          "outgoingResponsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+          "incomingResponsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
           "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
+            "family": "gradient",
+            "boundary": "flush",
+            "fieldScope": "connected-pair",
+            "energyDirection": "carry-through-pair",
+            "sourceOwner": "connected-pair",
             "sourceOffsetY": 0,
             "depth": 360,
             "substrate": "stable-opaque-material"
@@ -969,65 +1172,170 @@
             "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
           }
         },
+        "boundary": {
+          "kind": "flush",
+          "sampleOffset": 0.5,
+          "colorTolerance": 1,
+          "alphaTolerance": 0.005,
+          "geometryTolerance": 0.5,
+          "phaseTolerance": 0.01
+        },
+        "coordinateSpace": {
+          "kind": "boundary-space",
+          "anchor": "boundary",
+          "axis": "vertical",
+          "origin": {
+            "x": 50,
+            "xUnit": "boundary-percent",
+            "y": 0,
+            "yUnit": "boundary-px"
+          },
+          "radius": {
+            "x": 58,
+            "xUnit": "boundary-percent",
+            "y": 360,
+            "yUnit": "px"
+          }
+        },
+        "edgeBands": {
+          "outgoing": {
+            "value": 280,
+            "unit": "px",
+            "sample": "end"
+          },
+          "incoming": {
+            "value": 320,
+            "unit": "px",
+            "sample": "start"
+          }
+        },
+        "sharedLayers": [
+          {
+            "id": "material",
+            "kind": "material",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "color": "var(--desyium-block-connection, var(--theme-surface))"
+          },
+          {
+            "id": "gradient",
+            "kind": "gradient",
+            "renderer": "css",
+            "continuity": "same-field",
+            "phase": "shared",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "normal",
+            "outgoingVisibility": [
+              1,
+              1
+            ],
+            "incomingVisibility": [
+              1,
+              1
+            ],
+            "geometry": "linear",
+            "angle": 180,
+            "colors": [
+              "transparent",
+              "var(--desyium-connection-accent, transparent)",
+              "transparent"
+            ],
+            "stops": [
+              0,
+              52,
+              100
+            ]
+          }
+        ],
+        "materialHandoff": {
+          "from": "stable-opaque-material",
+          "to": "stable-opaque-material",
+          "boundary": "continuous",
+          "edgeColor": "var(--desyium-block-connection, var(--theme-surface))",
+          "tolerance": 1
+        },
+        "responsive": {
+          "intermediate": {
+            "maxWidth": 1024,
+            "edgeBands": {
+              "outgoing": {
+                "value": 160,
+                "unit": "px"
+              },
+              "incoming": {
+                "value": 160,
+                "unit": "px"
+              }
+            }
+          },
+          "mobile": {
+            "maxWidth": 640,
+            "edgeBands": {
+              "outgoing": {
+                "value": 120,
+                "unit": "px"
+              },
+              "incoming": {
+                "value": 120,
+                "unit": "px"
+              }
+            },
+            "coordinateSpace": {
+              "origin": {
+                "x": 50,
+                "xUnit": "boundary-percent",
+                "y": 0,
+                "yUnit": "boundary-px"
+              }
+            }
+          }
+        },
+        "reducedMotion": {
+          "motion": "static-final-state"
+        },
+        "fallback": {
+          "renderer": "css",
+          "preserve": "geometry-edge-color-pattern-phase"
+        },
+        "fromBlockOrder": 5,
+        "toBlockOrder": 6,
+        "owner": "shared-edges",
+        "dedicatedBlockOrder": null,
         "outgoingEdge": {
           "semanticOwner": "[data-page-block-order='5']",
-          "responsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns."
+          "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit."
         },
         "incomingEdge": {
           "semanticOwner": "[data-page-block-order='6']",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
+          "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
         },
         "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
+          "kind": "gradient",
+          "id": "connection-5-6-field",
+          "rule": "Use stable-opaque-material, carry-through-pair, and 360px of falloff depth across the complete connected pair."
         },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
+        "continuityRule": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition. Keep both blocks adjacent and render the visual handoff through one full-pair field.",
+        "mobileForm": "Recalculate gradient stops and origins for the recomposed block heights; do not depend on desktop coordinates.",
+        "reducedMotionForm": "Keep the final matched field and remove only movement.",
         "owners": {
-          "outgoing": "record-detail",
-          "incoming": "operational-list",
-          "outgoingSelector": "[data-block=\"record-detail\"]",
-          "incomingSelector": "[data-block=\"operational-list\"]"
+          "outgoing": "ai-upload-review",
+          "incoming": "structured-importer",
+          "outgoingSelector": "[data-block=\"ai-upload-review\"]",
+          "incomingSelector": "[data-block=\"structured-importer\"]"
         },
-        "coordinateSpace": {
-          "kind": "boundary-space",
-          "anchor": "boundary",
-          "axis": "vertical",
-          "origin": {
-            "x": 50,
-            "xUnit": "boundary-percent",
-            "y": 0,
-            "yUnit": "boundary-px"
-          },
-          "radius": {
-            "x": 48,
-            "xUnit": "boundary-percent",
-            "y": 320,
-            "yUnit": "px"
-          }
-        },
-        "edgeBands": {
-          "outgoing": {
-            "value": 192,
-            "unit": "px",
-            "sample": "end"
-          },
-          "incoming": {
-            "value": 192,
-            "unit": "px",
-            "sample": "start"
-          }
-        },
-        "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
-          "tolerance": 1
-        },
-        "sharedLayers": [],
         "overlap": {
           "enabled": false,
           "depth": 0,
@@ -1041,233 +1349,12 @@
           "incoming": 0,
           "content": 2
         },
-        "responsive": {
-          "intermediate": {
-            "maxWidth": 1024,
-            "edgeBands": {
-              "outgoing": {
-                "value": 160,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 160,
-                "unit": "px"
-              }
-            }
-          },
-          "mobile": {
-            "maxWidth": 640,
-            "edgeBands": {
-              "outgoing": {
-                "value": 120,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 120,
-                "unit": "px"
-              }
-            },
-            "coordinateSpace": {
-              "origin": {
-                "x": 50,
-                "xUnit": "boundary-percent",
-                "y": 0,
-                "yUnit": "boundary-px"
-              }
-            }
-          }
-        },
-        "reducedMotion": {
-          "motion": "static-final-state"
-        },
-        "fallback": {
-          "renderer": "css",
-          "preserve": "geometry-edge-color-pattern-phase"
-        },
         "proof": {
           "adjacencyTolerance": 1,
           "coordinateTolerance": 0.5,
           "colorTolerance": 1
         },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
-      },
-      {
-        "id": "connection-6-7",
-        "fromBlockOrder": 6,
-        "fromBlock": "operational-list",
-        "toBlockOrder": 7,
-        "toBlock": "state-boundary",
-        "mode": "quiet-boundary",
-        "owner": "adjacent-block-edges",
-        "dedicatedBlockOrder": null,
-        "treatment": "quiet-boundary",
-        "relationship": {
-          "id": "operational-list-to-state-boundary",
-          "sourceTrace": {
-            "fromBlock": "operational-list",
-            "fromJob": "Find, compare, select, and act on a collection of records.",
-            "fromOutgoingState": "The user opens, selects, or completes a record action.",
-            "toBlock": "state-boundary",
-            "toJob": "Explain and recover from empty, loading, error, offline, or permission states.",
-            "toIncomingState": "The user cannot yet access normal content or complete the expected task."
-          },
-          "narrativeHandoff": "operational-list completes its stated audience change, then state-boundary receives that result as its starting condition.",
-          "outgoingResponsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
-          "incomingResponsibility": "Receive the audience state described by: The user cannot yet access normal content or complete the expected task.",
-          "fieldDecision": {
-            "family": "material",
-            "boundary": "quiet",
-            "fieldScope": "edge-bands",
-            "energyDirection": "settle-at-boundary",
-            "sourceOwner": "none",
-            "sourceOffsetY": 0,
-            "depth": 360,
-            "substrate": "stable-opaque-material"
-          },
-          "motionDecision": {
-            "continuity": "preserve-final-field",
-            "reducedMotion": "Keep the resolved material, light, and geometry. Remove travel and interpolation only."
-          }
-        },
-        "outgoingEdge": {
-          "semanticOwner": "[data-page-block-order='6']",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
-        },
-        "incomingEdge": {
-          "semanticOwner": "[data-page-block-order='7']",
-          "responsibility": "Receive the audience state described by: The user cannot yet access normal content or complete the expected task."
-        },
-        "sharedField": {
-          "kind": "none",
-          "id": null,
-          "rule": "No connector object or shared primitive field is required."
-        },
-        "continuityRule": "Use rhythm and a deliberate surface relationship. Do not insert a transition block merely to decorate the boundary.",
-        "mobileForm": "Preserve the same quiet separation with the mobile spacing scale.",
-        "reducedMotionForm": "The boundary is already static.",
-        "owners": {
-          "outgoing": "operational-list",
-          "incoming": "state-boundary",
-          "outgoingSelector": "[data-block=\"operational-list\"]",
-          "incomingSelector": "[data-block=\"state-boundary\"]"
-        },
-        "coordinateSpace": {
-          "kind": "boundary-space",
-          "anchor": "boundary",
-          "axis": "vertical",
-          "origin": {
-            "x": 50,
-            "xUnit": "boundary-percent",
-            "y": 0,
-            "yUnit": "boundary-px"
-          },
-          "radius": {
-            "x": 48,
-            "xUnit": "boundary-percent",
-            "y": 320,
-            "yUnit": "px"
-          }
-        },
-        "edgeBands": {
-          "outgoing": {
-            "value": 192,
-            "unit": "px",
-            "sample": "end"
-          },
-          "incoming": {
-            "value": 192,
-            "unit": "px",
-            "sample": "start"
-          }
-        },
-        "materialHandoff": {
-          "from": null,
-          "to": null,
-          "boundary": "separate",
-          "edgeColor": "var(--desyium-block-connection, transparent)",
-          "tolerance": 1
-        },
-        "sharedLayers": [],
-        "overlap": {
-          "enabled": false,
-          "depth": 0,
-          "unit": "px",
-          "owner": "shared-edges",
-          "contentSafeArea": "required"
-        },
-        "stacking": {
-          "outgoing": 0,
-          "shared": 1,
-          "incoming": 0,
-          "content": 2
-        },
-        "responsive": {
-          "intermediate": {
-            "maxWidth": 1024,
-            "edgeBands": {
-              "outgoing": {
-                "value": 160,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 160,
-                "unit": "px"
-              }
-            }
-          },
-          "mobile": {
-            "maxWidth": 640,
-            "edgeBands": {
-              "outgoing": {
-                "value": 120,
-                "unit": "px"
-              },
-              "incoming": {
-                "value": 120,
-                "unit": "px"
-              }
-            },
-            "coordinateSpace": {
-              "origin": {
-                "x": 50,
-                "xUnit": "boundary-percent",
-                "y": 0,
-                "yUnit": "boundary-px"
-              }
-            }
-          }
-        },
-        "reducedMotion": {
-          "motion": "static-final-state"
-        },
-        "fallback": {
-          "renderer": "css",
-          "preserve": "geometry-edge-color-pattern-phase"
-        },
-        "proof": {
-          "adjacencyTolerance": 1,
-          "coordinateTolerance": 0.5,
-          "colorTolerance": 1
-        },
-        "schemaVersion": 2,
-        "boundary": {
-          "kind": "flush",
-          "sampleOffset": 0.5,
-          "colorTolerance": 1,
-          "alphaTolerance": 0.005,
-          "geometryTolerance": 0.5,
-          "phaseTolerance": 0.01
-        },
-        "fieldScope": "connected-pair"
+        "schemaVersion": 2
       }
     ]
   },
@@ -1280,71 +1367,65 @@
   "blocks": [
     {
       "order": 1,
-      "type": "dashboard-overview",
-      "job": "Summarize current operational state, priorities, and routes into deeper work.",
-      "incomingState": "The user has entered the product and needs to know what matters now.",
-      "outgoingState": "The user understands current state and chooses the next task.",
+      "type": "review-today",
+      "job": "See current bulkbite operations state.",
+      "incomingState": "User enters BulkBite Operations.",
+      "outgoingState": "Finish the active workflow with minimal input.",
       "contentContract": [
-        "page identity",
-        "priority status",
-        "key measures",
-        "exceptions or alerts",
-        "recent/relevant work",
-        "task routes"
+        "control: Primary filter",
+        "output: Key metrics",
+        "output: Next required action"
       ],
-      "primaryAction": "Open the highest-priority task or area.",
-      "secondaryAction": "Inspect a metric, alert, or recent record.",
+      "primaryAction": "Primary filter",
+      "secondaryAction": "Inspect supporting detail",
       "componentJobs": [
-        "stat",
-        "chart",
-        "card",
-        "alert",
         "button",
+        "stat",
         "link"
       ],
       "primitiveRoles": [
         "structure"
       ],
       "connectionProfile": {
-        "blockId": "dashboard-overview",
+        "blockId": "review-today",
         "descriptionTrace": {
-          "job": "Summarize current operational state, priorities, and routes into deeper work.",
-          "incomingState": "The user has entered the product and needs to know what matters now.",
-          "outgoingState": "The user understands current state and chooses the next task.",
+          "job": "See current bulkbite operations state.",
+          "incomingState": "User enters BulkBite Operations.",
+          "outgoingState": "Finish the active workflow with minimal input.",
           "primitiveRoles": [
             "structure"
           ]
         },
         "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user has entered the product and needs to know what matters now.",
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: User enters BulkBite Operations.",
           "acceptsFields": [
-            "material",
+            "gradient",
             "structure",
             "line",
             "pattern",
-            "gradient",
+            "material",
             "illumination",
             "layered"
           ]
         },
         "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user understands current state and chooses the next task.",
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input.",
           "preferredFields": [
-            "material",
+            "gradient",
             "structure",
             "line",
             "pattern"
           ],
           "sourcePreference": "none"
         },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
       },
-      "responsiveBehaviour": "Use 12 columns large, 8 intermediate, and prioritized mobile stacking; do not shrink dense charts blindly.",
-      "successMeasure": "Users identify current priorities and begin work quickly.",
-      "handoffTo": "system-form",
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "handoffTo": "complete-workflow",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
@@ -1402,88 +1483,82 @@
         "end": {
           "connectionId": "connection-1-2",
           "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "dashboard-overview completes its stated audience change, then system-form receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user understands current state and chooses the next task."
+          "treatment": "connected-gradient",
+          "connectionIntent": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Release the completed audience state described by: Finish the active workflow with minimal input."
         }
       }
     },
     {
       "order": 2,
-      "type": "system-form",
-      "job": "Create or edit a structured record with validation, recovery, and clear completion state.",
-      "incomingState": "The user intends to create or change structured data.",
-      "outgoingState": "Valid data is saved or the user understands what blocks completion.",
+      "type": "complete-workflow",
+      "job": "Finish the active workflow with minimal input.",
+      "incomingState": "See current bulkbite operations state.",
+      "outgoingState": "Resolve blocked or unusual records.",
       "contentContract": [
-        "form purpose",
-        "field groups",
-        "labels/help",
-        "validation",
-        "save/cancel",
-        "unsaved state",
-        "success/error state"
+        "control: Required fields",
+        "control: Submit action",
+        "output: Result state",
+        "output: Validation feedback"
       ],
-      "primaryAction": "Save or submit the record.",
-      "secondaryAction": "Cancel, save draft, or reset where safe.",
+      "primaryAction": "Required fields",
+      "secondaryAction": "Inspect supporting detail",
       "componentJobs": [
-        "form-control",
-        "text-input",
-        "textarea",
-        "select",
-        "combobox",
-        "checkbox",
-        "radio-group",
-        "switch",
-        "date-picker",
-        "time-picker",
-        "file-uploader",
         "button",
-        "alert"
+        "stat",
+        "link"
       ],
-      "primitiveRoles": [],
+      "primitiveRoles": [
+        "structure"
+      ],
       "connectionProfile": {
-        "blockId": "system-form",
+        "blockId": "complete-workflow",
         "descriptionTrace": {
-          "job": "Create or edit a structured record with validation, recovery, and clear completion state.",
-          "incomingState": "The user intends to create or change structured data.",
-          "outgoingState": "Valid data is saved or the user understands what blocks completion.",
-          "primitiveRoles": []
+          "job": "Finish the active workflow with minimal input.",
+          "incomingState": "See current bulkbite operations state.",
+          "outgoingState": "Resolve blocked or unusual records.",
+          "primitiveRoles": [
+            "structure"
+          ]
         },
         "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data.",
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: See current bulkbite operations state.",
           "acceptsFields": [
-            "material",
-            "structure",
             "gradient",
-            "illumination",
-            "layered",
+            "structure",
             "line",
-            "pattern"
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
           ]
         },
         "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion.",
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records.",
           "preferredFields": [
-            "material",
-            "structure"
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
           ],
           "sourcePreference": "none"
         },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
       },
-      "responsiveBehaviour": "Use readable field widths in 12/8-column layouts and a semantic single-column mobile flow.",
-      "successMeasure": "Users complete valid records with minimal avoidable error.",
-      "handoffTo": "operational-list",
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "handoffTo": "manage-exceptions",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages"
+          "blocks-pages",
+          "primitives-surfaces"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -1530,94 +1605,92 @@
         "start": {
           "connectionId": "connection-1-2",
           "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "dashboard-overview completes its stated audience change, then system-form receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data."
+          "treatment": "connected-gradient",
+          "connectionIntent": "review-today completes its stated audience change, then complete-workflow receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Receive the audience state described by: See current bulkbite operations state."
         },
         "end": {
           "connectionId": "connection-2-3",
           "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
+          "treatment": "connected-gradient",
+          "connectionIntent": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Release the completed audience state described by: Resolve blocked or unusual records."
         }
       }
     },
     {
       "order": 3,
-      "type": "operational-list",
-      "job": "Find, compare, select, and act on a collection of records.",
-      "incomingState": "The user needs to locate or manage one or more records.",
-      "outgoingState": "The user opens, selects, or completes a record action.",
+      "type": "manage-exceptions",
+      "job": "Resolve blocked or unusual records.",
+      "incomingState": "Finish the active workflow with minimal input.",
+      "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
       "contentContract": [
-        "collection identity",
-        "search",
-        "filters",
-        "sort",
-        "record fields",
-        "selection",
-        "row/bulk actions",
-        "empty/loading/error states"
+        "control: Decision action",
+        "control: Note",
+        "output: Exception list",
+        "output: Audit trail"
       ],
-      "primaryAction": "Open or act on a record.",
-      "secondaryAction": "Search, filter, sort, select, or create.",
+      "primaryAction": "Decision action",
+      "secondaryAction": "Inspect supporting detail",
       "componentJobs": [
-        "data-table",
-        "text-input",
-        "select",
-        "checkbox",
-        "dropdown-menu",
-        "pagination",
         "button",
-        "skeleton"
+        "stat",
+        "link"
       ],
-      "primitiveRoles": [],
+      "primitiveRoles": [
+        "structure"
+      ],
       "connectionProfile": {
-        "blockId": "operational-list",
+        "blockId": "manage-exceptions",
         "descriptionTrace": {
-          "job": "Find, compare, select, and act on a collection of records.",
-          "incomingState": "The user needs to locate or manage one or more records.",
-          "outgoingState": "The user opens, selects, or completes a record action.",
-          "primitiveRoles": []
+          "job": "Resolve blocked or unusual records.",
+          "incomingState": "Finish the active workflow with minimal input.",
+          "outgoingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+          "primitiveRoles": [
+            "structure"
+          ]
         },
         "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records.",
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input.",
           "acceptsFields": [
-            "material",
-            "structure",
             "gradient",
-            "illumination",
-            "layered",
+            "structure",
             "line",
-            "pattern"
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
           ]
         },
         "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
           "preferredFields": [
-            "material",
-            "structure"
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
           ],
           "sourcePreference": "none"
         },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
       },
-      "responsiveBehaviour": "Preserve task-critical fields; use responsive row layouts or controlled horizontal scroll rather than unreadable compression.",
-      "successMeasure": "Users find and act on the intended records efficiently.",
-      "handoffTo": "system-form",
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "handoffTo": "maintain-system",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages"
+          "blocks-pages",
+          "primitives-surfaces"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -1664,98 +1737,91 @@
         "start": {
           "connectionId": "connection-2-3",
           "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
+          "treatment": "connected-gradient",
+          "connectionIntent": "complete-workflow completes its stated audience change, then manage-exceptions receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Receive the audience state described by: Finish the active workflow with minimal input."
         },
         "end": {
           "connectionId": "connection-3-4",
           "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "operational-list completes its stated audience change, then system-form receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
+          "treatment": "connected-gradient",
+          "connectionIntent": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Release the completed audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
         }
       }
     },
     {
       "order": 4,
-      "type": "system-form",
-      "job": "Create or edit a structured record with validation, recovery, and clear completion state.",
-      "incomingState": "The user intends to create or change structured data.",
-      "outgoingState": "Valid data is saved or the user understands what blocks completion.",
+      "type": "maintain-system",
+      "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "incomingState": "Resolve blocked or unusual records.",
+      "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
       "contentContract": [
-        "form purpose",
-        "field groups",
-        "labels/help",
-        "validation",
-        "save/cancel",
-        "unsaved state",
-        "success/error state"
+        "control: DocType selector",
+        "output: All forms access",
+        "output: Permission state"
       ],
-      "primaryAction": "Save or submit the record.",
-      "secondaryAction": "Cancel, save draft, or reset where safe.",
+      "primaryAction": "DocType selector",
+      "secondaryAction": "Return to normal workflow",
       "componentJobs": [
-        "form-control",
-        "text-input",
-        "textarea",
-        "select",
-        "combobox",
-        "checkbox",
-        "radio-group",
-        "switch",
-        "date-picker",
-        "time-picker",
-        "file-uploader",
         "button",
-        "alert"
+        "stat",
+        "link"
       ],
-      "primitiveRoles": [],
+      "primitiveRoles": [
+        "structure"
+      ],
       "connectionProfile": {
-        "blockId": "system-form",
+        "blockId": "maintain-system",
         "descriptionTrace": {
-          "job": "Create or edit a structured record with validation, recovery, and clear completion state.",
-          "incomingState": "The user intends to create or change structured data.",
-          "outgoingState": "Valid data is saved or the user understands what blocks completion.",
-          "primitiveRoles": []
+          "job": "Access complete backend maintenance screens without cluttering normal workflows.",
+          "incomingState": "Resolve blocked or unusual records.",
+          "outgoingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "primitiveRoles": [
+            "structure"
+          ]
         },
         "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data.",
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Resolve blocked or unusual records.",
           "acceptsFields": [
-            "material",
-            "structure",
             "gradient",
-            "illumination",
-            "layered",
+            "structure",
             "line",
-            "pattern"
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
           ]
         },
         "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion.",
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
           "preferredFields": [
-            "material",
-            "structure"
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
           ],
           "sourcePreference": "none"
         },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
       },
-      "responsiveBehaviour": "Use readable field widths in 12/8-column layouts and a semantic single-column mobile flow.",
-      "successMeasure": "Users complete valid records with minimal avoidable error.",
-      "handoffTo": "record-detail",
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "handoffTo": "ai-upload-review",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages"
+          "blocks-pages",
+          "primitives-surfaces"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -1802,92 +1868,97 @@
         "start": {
           "connectionId": "connection-3-4",
           "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "operational-list completes its stated audience change, then system-form receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user intends to create or change structured data."
+          "treatment": "connected-gradient",
+          "connectionIntent": "manage-exceptions completes its stated audience change, then maintain-system receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Receive the audience state described by: Resolve blocked or unusual records."
         },
         "end": {
           "connectionId": "connection-4-5",
           "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then record-detail receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: Valid data is saved or the user understands what blocks completion."
+          "treatment": "connected-gradient",
+          "connectionIntent": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Release the completed audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
         }
       }
     },
     {
       "order": 5,
-      "type": "record-detail",
-      "job": "Present one record's identity, current state, related information, and available actions.",
-      "incomingState": "The user selected a record and needs its current truth.",
-      "outgoingState": "The user understands the record and performs an appropriate action or returns.",
+      "type": "ai-upload-review",
+      "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+      "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
       "contentContract": [
-        "record identity",
-        "status",
-        "primary fields",
-        "related data",
-        "history when relevant",
-        "actions",
-        "loading/error/permission state"
+        "control: File",
+        "control: Extraction schema",
+        "control: Review fields",
+        "control: Approve or reject",
+        "output: Upload status",
+        "output: Extracted proposal",
+        "output: Confidence notes",
+        "output: Validation errors",
+        "output: Submitted record"
       ],
-      "primaryAction": "Perform the record's main context-sensitive action.",
-      "secondaryAction": "Edit, navigate related records, or return.",
+      "primaryAction": "File",
+      "secondaryAction": "Inspect supporting detail",
       "componentJobs": [
-        "badge",
-        "tabs",
-        "card",
-        "data-table",
         "button",
-        "dropdown-menu",
-        "alert"
+        "stat",
+        "link"
       ],
-      "primitiveRoles": [],
+      "primitiveRoles": [
+        "structure"
+      ],
       "connectionProfile": {
-        "blockId": "record-detail",
+        "blockId": "ai-upload-review",
         "descriptionTrace": {
-          "job": "Present one record's identity, current state, related information, and available actions.",
-          "incomingState": "The user selected a record and needs its current truth.",
-          "outgoingState": "The user understands the record and performs an appropriate action or returns.",
-          "primitiveRoles": []
+          "job": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "incomingState": "Access complete backend maintenance screens without cluttering normal workflows.",
+          "outgoingState": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+          "primitiveRoles": [
+            "structure"
+          ]
         },
         "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user selected a record and needs its current truth.",
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows.",
           "acceptsFields": [
-            "material",
-            "structure",
             "gradient",
-            "illumination",
-            "layered",
+            "structure",
             "line",
-            "pattern"
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
           ]
         },
         "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns.",
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
           "preferredFields": [
-            "material",
-            "structure"
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
           ],
           "sourcePreference": "none"
         },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
       },
-      "responsiveBehaviour": "Use 12/8-column detail regions and preserve identity-status-action order on mobile.",
-      "successMeasure": "Users can identify the record state and next valid action.",
-      "handoffTo": "operational-list",
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "handoffTo": "structured-importer",
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages"
+          "blocks-pages",
+          "primitives-surfaces"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -1934,94 +2005,97 @@
         "start": {
           "connectionId": "connection-4-5",
           "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "system-form completes its stated audience change, then record-detail receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user selected a record and needs its current truth."
+          "treatment": "connected-gradient",
+          "connectionIntent": "maintain-system completes its stated audience change, then ai-upload-review receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Receive the audience state described by: Access complete backend maintenance screens without cluttering normal workflows."
         },
         "end": {
           "connectionId": "connection-5-6",
           "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "record-detail completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user understands the record and performs an appropriate action or returns."
+          "treatment": "connected-gradient",
+          "connectionIntent": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Release the completed audience state described by: Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit."
         }
       }
     },
     {
       "order": 6,
-      "type": "operational-list",
-      "job": "Find, compare, select, and act on a collection of records.",
-      "incomingState": "The user needs to locate or manage one or more records.",
-      "outgoingState": "The user opens, selects, or completes a record action.",
+      "type": "structured-importer",
+      "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+      "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+      "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
       "contentContract": [
-        "collection identity",
-        "search",
-        "filters",
-        "sort",
-        "record fields",
-        "selection",
-        "row/bulk actions",
-        "empty/loading/error states"
+        "control: Template",
+        "control: File",
+        "control: Validate",
+        "control: Commit approved rows",
+        "output: Header status",
+        "output: Import preview",
+        "output: Error rows",
+        "output: Created count",
+        "output: Skipped count"
       ],
-      "primaryAction": "Open or act on a record.",
-      "secondaryAction": "Search, filter, sort, select, or create.",
+      "primaryAction": "Template",
+      "secondaryAction": "Inspect supporting detail",
       "componentJobs": [
-        "data-table",
-        "text-input",
-        "select",
-        "checkbox",
-        "dropdown-menu",
-        "pagination",
         "button",
-        "skeleton"
+        "stat",
+        "link"
       ],
-      "primitiveRoles": [],
+      "primitiveRoles": [
+        "structure"
+      ],
       "connectionProfile": {
-        "blockId": "operational-list",
+        "blockId": "structured-importer",
         "descriptionTrace": {
-          "job": "Find, compare, select, and act on a collection of records.",
-          "incomingState": "The user needs to locate or manage one or more records.",
-          "outgoingState": "The user opens, selects, or completes a record action.",
-          "primitiveRoles": []
+          "job": "Expose a lean import workflow while the backend owns templates, header checks, row validation, and commit.",
+          "incomingState": "Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
+          "outgoingState": "Workflow reaches a complete state or hidden maintenance handoff.",
+          "primitiveRoles": [
+            "structure"
+          ]
         },
         "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records.",
+          "intent": "receive",
+          "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic.",
           "acceptsFields": [
-            "material",
-            "structure",
             "gradient",
-            "illumination",
-            "layered",
+            "structure",
             "line",
-            "pattern"
+            "pattern",
+            "material",
+            "illumination",
+            "layered"
           ]
         },
         "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action.",
+          "intent": "develop",
+          "responsibility": "Release the completed audience state described by: Workflow reaches a complete state or hidden maintenance handoff.",
           "preferredFields": [
-            "material",
-            "structure"
+            "gradient",
+            "structure",
+            "line",
+            "pattern"
           ],
           "sourcePreference": "none"
         },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
+        "intensity": "supporting",
+        "boundaryBias": "continuous"
       },
-      "responsiveBehaviour": "Preserve task-critical fields; use responsive row layouts or controlled horizontal scroll rather than unreadable compression.",
-      "successMeasure": "Users find and act on the intended records efficiently.",
-      "handoffTo": "state-boundary",
+      "responsiveBehaviour": "Keep controls compact, outputs scannable, and preserve mobile workflow order.",
+      "successMeasure": "The workflow can be completed without reading the full backend schema.",
+      "handoffTo": null,
       "principleTrace": {
         "authorities": [
           "tokens-theme",
-          "blocks-pages"
+          "blocks-pages",
+          "primitives-surfaces"
         ],
         "responsibility": "goal-before-appearance",
         "hierarchy": "hierarchy-before-decoration",
@@ -2068,139 +2142,12 @@
         "start": {
           "connectionId": "connection-5-6",
           "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "record-detail completes its stated audience change, then operational-list receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user needs to locate or manage one or more records."
-        },
-        "end": {
-          "connectionId": "connection-6-7",
-          "role": "outgoing-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "operational-list completes its stated audience change, then state-boundary receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Release the completed audience state described by: The user opens, selects, or completes a record action."
-        }
-      }
-    },
-    {
-      "order": 7,
-      "type": "state-boundary",
-      "job": "Explain and recover from empty, loading, error, offline, or permission states.",
-      "incomingState": "The user cannot yet access normal content or complete the expected task.",
-      "outgoingState": "The user understands the state and can wait, retry, create, navigate, or request access.",
-      "contentContract": [
-        "state identity",
-        "plain-language explanation",
-        "recovery or next action",
-        "support/reference detail when useful"
-      ],
-      "primaryAction": "Recover, create, retry, or request access.",
-      "secondaryAction": "Navigate back or contact support.",
-      "componentJobs": [
-        "skeleton",
-        "progress",
-        "alert",
-        "button",
-        "link"
-      ],
-      "primitiveRoles": [],
-      "connectionProfile": {
-        "blockId": "state-boundary",
-        "descriptionTrace": {
-          "job": "Explain and recover from empty, loading, error, offline, or permission states.",
-          "incomingState": "The user cannot yet access normal content or complete the expected task.",
-          "outgoingState": "The user understands the state and can wait, retry, create, navigate, or request access.",
-          "primitiveRoles": []
-        },
-        "entry": {
-          "intent": "orient",
-          "responsibility": "Receive the audience state described by: The user cannot yet access normal content or complete the expected task.",
-          "acceptsFields": [
-            "material",
-            "structure",
-            "gradient",
-            "illumination",
-            "layered",
-            "line",
-            "pattern"
-          ]
-        },
-        "exit": {
-          "intent": "resolve",
-          "responsibility": "Release the completed audience state described by: The user understands the state and can wait, retry, create, navigate, or request access.",
-          "preferredFields": [
-            "material",
-            "structure"
-          ],
-          "sourcePreference": "none"
-        },
-        "intensity": "quiet",
-        "boundaryBias": "quiet"
-      },
-      "responsiveBehaviour": "Keep explanation and recovery action together at every width.",
-      "successMeasure": "Users know what happened and what they can do next.",
-      "handoffTo": null,
-      "principleTrace": {
-        "authorities": [
-          "tokens-theme",
-          "blocks-pages"
-        ],
-        "responsibility": "goal-before-appearance",
-        "hierarchy": "hierarchy-before-decoration",
-        "spacing": "internal-padding-defines-object; external-gap-defines-relationship",
-        "layout": "page-grid-establishes-territories; local-relationships-select-grid-flex-stack-overlay-or-flow",
-        "expression": "familiar-behavior-distinctive-brand-treatment",
-        "motion": "purposeful-motion-with-reduced-motion-equivalent"
-      },
-      "layoutContract": {
-        "strategy": "flow",
-        "pageAlignment": "grid",
-        "internalComposition": "normal semantic flow with local flex/grid chosen by content relationship",
-        "gap": "var(--spacing-m)",
-        "padding": "var(--spacing-xl-2xl) var(--desyium-content-inset)",
-        "containment": "full-width semantic surface owns a calculated content inset; content remains in flow without accidental overlap",
-        "headingFit": "Headings use bounded measure, balanced wrapping, overflow-wrap, and a fluid maximum that fits their assigned territory."
-      },
-      "surfaceContract": {
-        "placement": "none",
-        "semanticOwner": "[data-page-block-order='7']",
-        "recipeId": null,
-        "scope": "none",
-        "edgeTreatment": "none",
-        "boundaryReason": null,
-        "contentSeparation": "Content inset and primitive scope are independent. Content padding cannot define an ambient primitive's bounds.",
-        "rule": "Mount the surface at the semantic block root. Ambient primitives fill and blend through that field; media slots contain media only."
-      },
-      "actionContract": {
-        "primaryPreset": "primary-action",
-        "secondaryPreset": "secondary-action",
-        "geometry": "Consume theme button height, inline padding, gap, and button radius; never force a global large size.",
-        "states": "Rest, hover, active, focus-visible, disabled, and reduced-motion forms are required."
-      },
-      "motionContract": {
-        "mode": "experience",
-        "experienceId": "entrance-hierarchy",
-        "justification": null,
-        "targets": [
-          "[data-experience-item]"
-        ],
-        "reducedMotion": "Render every item in its final visible state without translation."
-      },
-      "edgeContract": {
-        "start": {
-          "connectionId": "connection-6-7",
-          "role": "incoming-edge",
-          "treatment": "quiet-boundary",
-          "connectionIntent": "operational-list completes its stated audience change, then state-boundary receives that result as its starting condition.",
-          "fieldFamily": "material",
-          "energyDirection": "settle-at-boundary",
-          "sourceOwner": "none",
-          "responsibility": "Receive the audience state described by: The user cannot yet access normal content or complete the expected task."
+          "treatment": "connected-gradient",
+          "connectionIntent": "ai-upload-review completes its stated audience change, then structured-importer receives that result as its starting condition.",
+          "fieldFamily": "gradient",
+          "energyDirection": "carry-through-pair",
+          "sourceOwner": "connected-pair",
+          "responsibility": "Receive the audience state described by: Expose a lean upload and review workflow while AI remains proposal-only and backend submission stays deterministic."
         },
         "end": {
           "connectionId": null,
@@ -2213,49 +2160,6 @@
   ],
   "componentJobs": [
     {
-      "id": "stat",
-      "job": "Present one quantitative proof point with label and qualification.",
-      "owner": "project",
-      "implementation": "stat",
-      "publicExports": [
-        "SystemStat"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "chart",
-      "job": "Explain a data relationship through an appropriate visual encoding.",
-      "owner": "specialist",
-      "implementation": "chart",
-      "publicExports": [
-        "SystemChart"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "card",
-      "job": "Contain one coherent content unit when a boundary adds meaning.",
-      "owner": "shadcn-vue",
-      "implementation": "card",
-      "publicExports": [
-        "SystemCard",
-        "SystemCardHeader",
-        "SystemCardTitle",
-        "SystemCardDescription",
-        "SystemCardContent",
-        "SystemCardFooter"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "alert",
-      "job": "Communicate important contextual status or guidance.",
-      "owner": "shadcn-vue",
-      "implementation": null,
-      "publicExports": [],
-      "status": "gap"
-    },
-    {
       "id": "button",
       "job": "Trigger a discrete action.",
       "owner": "shadcn-vue",
@@ -2266,187 +2170,22 @@
       "status": "ready"
     },
     {
+      "id": "stat",
+      "job": "Present one quantitative proof point with label and qualification.",
+      "owner": "project",
+      "implementation": "stat",
+      "publicExports": [
+        "SystemStat"
+      ],
+      "status": "ready"
+    },
+    {
       "id": "link",
       "job": "Navigate to another resource or location.",
       "owner": "project",
       "implementation": "link",
       "publicExports": [
         "SystemLink"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "form-control",
-      "job": "Provide a labeled field shell with description, validation, and message handoff.",
-      "owner": "frappe-ui",
-      "implementation": "form-control",
-      "publicExports": [
-        "SystemFormControl"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "text-input",
-      "job": "Capture a short single-line text value.",
-      "owner": "frappe-ui",
-      "implementation": "text-input",
-      "publicExports": [
-        "SystemTextInput"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "textarea",
-      "job": "Capture multiline prose or notes.",
-      "owner": "frappe-ui",
-      "implementation": "textarea",
-      "publicExports": [
-        "SystemTextarea"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "select",
-      "job": "Choose one value from a known manageable set.",
-      "owner": "frappe-ui",
-      "implementation": "select",
-      "publicExports": [
-        "SystemSelect"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "combobox",
-      "job": "Search and choose one value from a large or remote set.",
-      "owner": "frappe-ui",
-      "implementation": "combobox",
-      "publicExports": [
-        "SystemCombobox"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "checkbox",
-      "job": "Toggle one independent binary choice or select multiple independent options.",
-      "owner": "frappe-ui",
-      "implementation": "checkbox",
-      "publicExports": [
-        "SystemCheckbox"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "radio-group",
-      "job": "Choose exactly one option from a visible small set.",
-      "owner": "frappe-ui",
-      "implementation": null,
-      "publicExports": [],
-      "status": "gap"
-    },
-    {
-      "id": "switch",
-      "job": "Toggle an immediately applied setting.",
-      "owner": "frappe-ui",
-      "implementation": "switch",
-      "publicExports": [
-        "SystemSwitch"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "date-picker",
-      "job": "Choose one date using typed input and calendar assistance.",
-      "owner": "frappe-ui",
-      "implementation": "date-picker",
-      "publicExports": [
-        "SystemDatePicker"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "time-picker",
-      "job": "Choose a time with locale and precision appropriate to the task.",
-      "owner": "frappe-ui",
-      "implementation": "time-picker",
-      "publicExports": [
-        "SystemTimePicker"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "file-uploader",
-      "job": "Select, upload, validate, and remove files.",
-      "owner": "frappe-ui",
-      "implementation": "file-uploader",
-      "publicExports": [
-        "SystemFileUploader"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "data-table",
-      "job": "Compare and act on structured records across columns.",
-      "owner": "frappe-ui",
-      "implementation": "list-view",
-      "publicExports": [
-        "SystemListView"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "dropdown-menu",
-      "job": "Expose a compact set of commands from a trigger.",
-      "owner": "shadcn-vue",
-      "implementation": null,
-      "publicExports": [],
-      "status": "gap"
-    },
-    {
-      "id": "pagination",
-      "job": "Move through a bounded sequence of result pages.",
-      "owner": "shadcn-vue",
-      "implementation": null,
-      "publicExports": [],
-      "status": "gap"
-    },
-    {
-      "id": "skeleton",
-      "job": "Reserve content shape during predictable loading.",
-      "owner": "shadcn-vue",
-      "implementation": null,
-      "publicExports": [],
-      "status": "gap"
-    },
-    {
-      "id": "badge",
-      "job": "Show compact status, category, or metadata.",
-      "owner": "shadcn-vue",
-      "implementation": "badge",
-      "publicExports": [
-        "SystemBadge"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "tabs",
-      "job": "Switch among peer views without leaving the current context.",
-      "owner": "shadcn-vue",
-      "implementation": "tabs",
-      "publicExports": [
-        "SystemTabs",
-        "SystemTabsList",
-        "SystemTabsTrigger",
-        "SystemTabsContent"
-      ],
-      "status": "ready"
-    },
-    {
-      "id": "progress",
-      "job": "Show determinate or indeterminate operation progress.",
-      "owner": "shadcn-vue",
-      "implementation": "progress",
-      "publicExports": [
-        "SystemProgress"
       ],
       "status": "ready"
     }
@@ -2498,56 +2237,14 @@
   "selectedRecipe": null,
   "selections": {
     "components": [
-      "badge",
       "button",
-      "card",
-      "chart",
-      "checkbox",
-      "combobox",
-      "date-picker",
-      "file-uploader",
-      "form-control",
       "link",
-      "list-view",
-      "progress",
-      "select",
-      "stat",
-      "switch",
-      "tabs",
-      "text-input",
-      "textarea",
-      "time-picker"
+      "stat"
     ],
     "primitives": [],
     "experiences": [
       "entrance-hierarchy"
     ]
   },
-  "gaps": [
-    {
-      "kind": "component-job",
-      "id": "alert",
-      "next": "Run desyium info component-job alert; extend the registry before page implementation."
-    },
-    {
-      "kind": "component-job",
-      "id": "radio-group",
-      "next": "Run desyium info component-job radio-group; extend the registry before page implementation."
-    },
-    {
-      "kind": "component-job",
-      "id": "dropdown-menu",
-      "next": "Run desyium info component-job dropdown-menu; extend the registry before page implementation."
-    },
-    {
-      "kind": "component-job",
-      "id": "pagination",
-      "next": "Run desyium info component-job pagination; extend the registry before page implementation."
-    },
-    {
-      "kind": "component-job",
-      "id": "skeleton",
-      "next": "Run desyium info component-job skeleton; extend the registry before page implementation."
-    }
-  ]
+  "gaps": []
 }

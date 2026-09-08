@@ -1,0 +1,29 @@
+{
+  "id": "shell-dashboard",
+  "name": "Dashboard Shell",
+  "type": "shell",
+  "purpose": "Application navigation, loading, errors, and permission states.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.platform.shells.dashboard-shell"
+  ],
+  "dependencies": [
+    "domain",
+    "use-case-review-today",
+    "use-case-complete-workflow",
+    "use-case-manage-exceptions",
+    "use-case-maintain-system",
+    "use-case-ai-upload-review",
+    "use-case-structured-importer"
+  ],
+  "usedBy": [
+    "surface-dashboard"
+  ],
+  "invariants": [
+    "Shell behavior belongs in Dysium platform contracts, not page-local plumbing.",
+    "Loading, error, permission, stale-data, and refresh behavior must be standardized here."
+  ],
+  "tests": [
+    "mobile pull-to-refresh lifecycle check"
+  ]
+}

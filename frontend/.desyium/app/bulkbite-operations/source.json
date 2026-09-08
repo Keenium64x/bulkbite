@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "appComposition": ".desyium/app/bulkbite-operations/manifest.json",
+  "root": "src/dysium-app/bulkbite-operations",
+  "router": "src/dysium-app/bulkbite-operations/router.js",
+  "seo": "src/dysium-app/bulkbite-operations/seo.js",
+  "styles": "src/dysium-app/bulkbite-operations/styles.css",
+  "files": [
+    "./src/dysium-app/bulkbite-operations/router.js",
+    "./src/dysium-app/bulkbite-operations/seo.js",
+    "./src/dysium-app/bulkbite-operations/styles.css",
+    "./src/dysium-app/bulkbite-operations/shells/DashboardShell.vue",
+    "./src/dysium-app/bulkbite-operations/shells/MobileShell.vue",
+    "./src/dysium-app/bulkbite-operations/shells/AdminShell.vue",
+    "./src/dysium-app/bulkbite-operations/shells/AllFormsShell.vue",
+    "./src/dysium-app/bulkbite-operations/views/DashboardHomeView.vue",
+    "./src/dysium-app/bulkbite-operations/views/MobileHomeView.vue",
+    "./src/dysium-app/bulkbite-operations/views/AdminHomeView.vue",
+    "./src/dysium-app/bulkbite-operations/views/AllFormsView.vue"
+  ],
+  "next": [
+    "Mount router.js in the host app or merge its routes into the existing router.",
+    "Replace generated block contract placeholders with real Dysium block components after backend services are implemented.",
+    "Keep generated files owned by dysium app emit; customize through backend, block, page, and app contracts."
+  ]
+}

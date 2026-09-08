@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "systemId": "bulkbite-operations",
+  "responsibility": "Attach opt-in specialist services to the Dysium backend-first compiler without making them global runtime dependencies.",
+  "integrations": [
+    {
+      "id": "ai-upload-form",
+      "name": "AI upload form",
+      "family": "form-intelligence",
+      "job": "Accept uploads through a lean form, extract suggestions through an AI or parser backend, and require review before deterministic posting.",
+      "surfaces": [
+        "dashboard",
+        "mobile",
+        "admin"
+      ],
+      "requires": [
+        "frappe-backend",
+        "file-upload",
+        "review-state",
+        "typed-schema"
+      ],
+      "frontendDependencies": [],
+      "backendDependencies": [
+        "pydantic"
+      ],
+      "environment": [
+        "DOCUMENT_AI_MODEL"
+      ],
+      "backendServices": [
+        "upload_ai_form_file",
+        "propose_ai_form_extraction",
+        "approve_ai_form_proposal",
+        "reject_ai_form_proposal"
+      ],
+      "frontendFiles": [
+        "uploadForm.js"
+      ],
+      "securityContract": [
+        "Uploads are stored through Frappe-controlled file permissions.",
+        "AI extraction returns a proposal and does not write business records directly.",
+        "A human review or explicit workflow approval is required before posting.",
+        "The visible form exposes only upload, review, correction, and submit controls."
+      ],
+      "proof": [
+        "upload permission check",
+        "proposal schema validation",
+        "review state enforced",
+        "posting path is deterministic"
+      ]
+    },
+    {
+      "id": "structured-importer",
+      "name": "Structured importer",
+      "family": "importer",
+      "job": "Import CSV or workbook data through explicit header validation, typed row normalization, preview, and deterministic apply steps.",
+      "surfaces": [
+        "dashboard",
+        "admin",
+        "all-forms"
+      ],
+      "requires": [
+        "frappe-backend",
+        "header-validation",
+        "preview",
+        "deterministic-apply"
+      ],
+      "frontendDependencies": [],
+      "backendDependencies": [
+        "openpyxl",
+        "pydantic"
+      ],
+      "environment": [],
+      "backendServices": [
+        "validate_import_headers",
+        "preview_structured_import",
+        "apply_structured_import"
+      ],
+      "frontendFiles": [
+        "importer.js"
+      ],
+      "securityContract": [
+        "Required workbook or CSV headers are validated before records are changed.",
+        "Import preview and apply are separate service calls.",
+        "Relative dates stay relative unless the workbook supplies calendar dates.",
+        "Imported rows produce auditable counts, errors, and skipped-record reasons."
+      ],
+      "proof": [
+        "missing header rejection",
+        "preview has no writes",
+        "apply is idempotent",
+        "row errors are visible"
+      ]
+    }
+  ],
+  "dependencyPolicy": "Install frontend/backend packages only when this integration is selected or inferred by intent.",
+  "generatedAt": "2026-09-08T04:01:28.521Z"
+}

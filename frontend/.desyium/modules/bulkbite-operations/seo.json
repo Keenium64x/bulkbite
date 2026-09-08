@@ -1,0 +1,23 @@
+{
+  "id": "seo",
+  "name": "SEO And SSR",
+  "type": "platform",
+  "purpose": "Own public-route metadata, canonical route contracts, and SSR expectations where public surfaces exist.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/seo"
+  ],
+  "dependencies": [
+    "domain",
+    "shell-dashboard",
+    "shell-mobile",
+    "shell-admin",
+    "shell-all-forms"
+  ],
+  "usedBy": [],
+  "invariants": [
+    "SEO and SSR are public route contracts, not repeated page-local afterthoughts.",
+    "Private dashboard and admin routes must not leak protected backend data into public metadata."
+  ],
+  "tests": []
+}

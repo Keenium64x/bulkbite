@@ -1,0 +1,1564 @@
+{
+  "id": "domain",
+  "name": "Domain Plane",
+  "type": "domain",
+  "purpose": "Own data truth, business rules, permissions, events, calculations, and tests before UI composition.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/frappe",
+    "frappe app DocTypes and services"
+  ],
+  "dependencies": [],
+  "usedBy": [
+    "use-case-review-today",
+    "use-case-complete-workflow",
+    "use-case-manage-exceptions",
+    "use-case-maintain-system",
+    "use-case-ai-upload-review",
+    "use-case-structured-importer"
+  ],
+  "invariants": [
+    "Frontend pages must not decide business validity.",
+    "All state transitions belong in Frappe services or DocType controllers.",
+    "Protected history and audit events are explicit backend concerns."
+  ],
+  "tests": [
+    "permission boundaries",
+    "command idempotency",
+    "state transitions",
+    "derived totals and calculations",
+    "AI extraction is proposal-only",
+    "review approval gates deterministic submit",
+    "schema validation rejects malformed AI output",
+    "required headers are validated",
+    "row preview does not commit records",
+    "commit returns created skipped and error counts"
+  ],
+  "contract": {
+    "docTypes": [
+      {
+        "name": "BulkBite Operations Setting",
+        "purpose": "Project-level configuration and defaults.",
+        "exposure": "hidden-admin",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "is_enabled",
+            "label": "Is Enabled",
+            "fieldtype": "Check",
+            "reqd": 0
+          },
+          {
+            "fieldname": "default_status",
+            "label": "Default Status",
+            "fieldtype": "Data",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Event",
+        "purpose": "Append-only business or audit event.",
+        "exposure": "hidden-admin",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "event_type",
+            "label": "Event Type",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "subject",
+            "label": "Subject",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "payload",
+            "label": "Payload",
+            "fieldtype": "JSON",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Item",
+        "purpose": "Business record owned by the domain plane.",
+        "exposure": "workflow",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "title",
+            "label": "Title",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "status",
+            "label": "Status",
+            "fieldtype": "Select",
+            "options": "Draft\nActive\nPaused\nClosed",
+            "reqd": 0
+          },
+          {
+            "fieldname": "owner_user",
+            "label": "Owner User",
+            "fieldtype": "Link",
+            "options": "User",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Task",
+        "purpose": "Business record owned by the domain plane.",
+        "exposure": "workflow",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "title",
+            "label": "Title",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "status",
+            "label": "Status",
+            "fieldtype": "Select",
+            "options": "Draft\nActive\nPaused\nClosed",
+            "reqd": 0
+          },
+          {
+            "fieldname": "owner_user",
+            "label": "Owner User",
+            "fieldtype": "Link",
+            "options": "User",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Batch",
+        "purpose": "Business record owned by the domain plane.",
+        "exposure": "workflow",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "title",
+            "label": "Title",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "status",
+            "label": "Status",
+            "fieldtype": "Select",
+            "options": "Draft\nActive\nPaused\nClosed",
+            "reqd": 0
+          },
+          {
+            "fieldname": "owner_user",
+            "label": "Owner User",
+            "fieldtype": "Link",
+            "options": "User",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Audit",
+        "purpose": "Business record owned by the domain plane.",
+        "exposure": "hidden-admin",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "reference_doctype",
+            "label": "Reference DocType",
+            "fieldtype": "Data",
+            "reqd": 0
+          },
+          {
+            "fieldname": "reference_name",
+            "label": "Reference Name",
+            "fieldtype": "Data",
+            "reqd": 0
+          },
+          {
+            "fieldname": "decision",
+            "label": "Decision",
+            "fieldtype": "Data",
+            "reqd": 0
+          },
+          {
+            "fieldname": "reason",
+            "label": "Reason",
+            "fieldtype": "Small Text",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Role Assignment",
+        "purpose": "Business record owned by the domain plane.",
+        "exposure": "workflow",
+        "source": "intent-inference",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "title",
+            "label": "Title",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "status",
+            "label": "Status",
+            "fieldtype": "Select",
+            "options": "Draft\nActive\nPaused\nClosed",
+            "reqd": 0
+          },
+          {
+            "fieldname": "owner_user",
+            "label": "Owner User",
+            "fieldtype": "Link",
+            "options": "User",
+            "reqd": 0
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "testsRequired": [
+          "permission boundaries",
+          "command idempotency",
+          "state transitions",
+          "derived totals and calculations"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Upload Batch",
+        "purpose": "Backend-owned upload, extraction, review, and submission state.",
+        "exposure": "workflow",
+        "layout": "task-first-record-form",
+        "fieldOrder": [
+          "source_file",
+          "status",
+          "schema_id",
+          "proposal_json"
+        ],
+        "actions": [
+          {
+            "id": "save-draft",
+            "job": "Preserve a record before business-state commit."
+          },
+          {
+            "id": "submit",
+            "job": "Submit through backend validation and workflow logic."
+          }
+        ],
+        "visibility": {
+          "allFormsAdmin": true,
+          "normalWorkflow": true
+        },
+        "source": "dysium-form-system",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "source_file",
+            "label": "Source File",
+            "fieldtype": "Attach",
+            "reqd": 1
+          },
+          {
+            "fieldname": "status",
+            "label": "Status",
+            "fieldtype": "Select",
+            "options": "Uploaded\nExtracted\nNeeds Review\nApproved\nRejected\nSubmitted",
+            "reqd": 1
+          },
+          {
+            "fieldname": "schema_id",
+            "label": "Schema ID",
+            "fieldtype": "Data"
+          },
+          {
+            "fieldname": "proposal_json",
+            "label": "Proposal JSON",
+            "fieldtype": "JSON"
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "testsRequired": [
+          "AI extraction is proposal-only",
+          "review approval gates deterministic submit",
+          "schema validation rejects malformed AI output",
+          "required headers are validated",
+          "row preview does not commit records",
+          "commit returns created skipped and error counts"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Extracted Draft",
+        "purpose": "Backend-owned upload, extraction, review, and submission state.",
+        "exposure": "workflow",
+        "layout": "task-first-record-form",
+        "fieldOrder": [
+          "upload_batch",
+          "field_values",
+          "confidence_notes",
+          "validation_errors"
+        ],
+        "actions": [
+          {
+            "id": "save-draft",
+            "job": "Preserve a record before business-state commit."
+          },
+          {
+            "id": "submit",
+            "job": "Submit through backend validation and workflow logic."
+          }
+        ],
+        "visibility": {
+          "allFormsAdmin": true,
+          "normalWorkflow": true
+        },
+        "source": "dysium-form-system",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "upload_batch",
+            "label": "Upload Batch",
+            "fieldtype": "Link",
+            "options": "Dynamic Link",
+            "reqd": 1
+          },
+          {
+            "fieldname": "field_values",
+            "label": "Field Values",
+            "fieldtype": "JSON",
+            "reqd": 1
+          },
+          {
+            "fieldname": "confidence_notes",
+            "label": "Confidence Notes",
+            "fieldtype": "Small Text"
+          },
+          {
+            "fieldname": "validation_errors",
+            "label": "Validation Errors",
+            "fieldtype": "JSON"
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "testsRequired": [
+          "AI extraction is proposal-only",
+          "review approval gates deterministic submit",
+          "schema validation rejects malformed AI output",
+          "required headers are validated",
+          "row preview does not commit records",
+          "commit returns created skipped and error counts"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Review Decision",
+        "purpose": "Backend-owned upload, extraction, review, and submission state.",
+        "exposure": "hidden-admin",
+        "layout": "all-forms-admin-table",
+        "fieldOrder": [
+          "reference_doctype",
+          "reference_name",
+          "decision",
+          "reason"
+        ],
+        "actions": [
+          {
+            "id": "save-draft",
+            "job": "Preserve a record before business-state commit."
+          },
+          {
+            "id": "submit",
+            "job": "Submit through backend validation and workflow logic."
+          }
+        ],
+        "visibility": {
+          "allFormsAdmin": true,
+          "normalWorkflow": false
+        },
+        "source": "dysium-form-system",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "reference_doctype",
+            "label": "Reference DocType",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "reference_name",
+            "label": "Reference Name",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "decision",
+            "label": "Decision",
+            "fieldtype": "Select",
+            "options": "Approve\nReject\nNeeds Correction",
+            "reqd": 1
+          },
+          {
+            "fieldname": "reason",
+            "label": "Reason",
+            "fieldtype": "Small Text"
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "testsRequired": [
+          "AI extraction is proposal-only",
+          "review approval gates deterministic submit",
+          "schema validation rejects malformed AI output",
+          "required headers are validated",
+          "row preview does not commit records",
+          "commit returns created skipped and error counts"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Import Template",
+        "purpose": "Backend-owned import state and row proof.",
+        "exposure": "hidden-admin",
+        "layout": "all-forms-admin-table",
+        "fieldOrder": [
+          "template_name",
+          "target_doctype",
+          "required_headers",
+          "is_active"
+        ],
+        "actions": [
+          {
+            "id": "save-draft",
+            "job": "Preserve a record before business-state commit."
+          },
+          {
+            "id": "submit",
+            "job": "Submit through backend validation and workflow logic."
+          }
+        ],
+        "visibility": {
+          "allFormsAdmin": true,
+          "normalWorkflow": false
+        },
+        "source": "dysium-form-system",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "template_name",
+            "label": "Template Name",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "target_doctype",
+            "label": "Target DocType",
+            "fieldtype": "Data",
+            "reqd": 1
+          },
+          {
+            "fieldname": "required_headers",
+            "label": "Required Headers",
+            "fieldtype": "JSON",
+            "reqd": 1
+          },
+          {
+            "fieldname": "is_active",
+            "label": "Is Active",
+            "fieldtype": "Check"
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "testsRequired": [
+          "AI extraction is proposal-only",
+          "review approval gates deterministic submit",
+          "schema validation rejects malformed AI output",
+          "required headers are validated",
+          "row preview does not commit records",
+          "commit returns created skipped and error counts"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Import Batch",
+        "purpose": "Backend-owned import state and row proof.",
+        "exposure": "workflow",
+        "layout": "task-first-record-form",
+        "fieldOrder": [
+          "template",
+          "source_file",
+          "status",
+          "summary_json"
+        ],
+        "actions": [
+          {
+            "id": "save-draft",
+            "job": "Preserve a record before business-state commit."
+          },
+          {
+            "id": "submit",
+            "job": "Submit through backend validation and workflow logic."
+          }
+        ],
+        "visibility": {
+          "allFormsAdmin": true,
+          "normalWorkflow": true
+        },
+        "source": "dysium-form-system",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "template",
+            "label": "Template",
+            "fieldtype": "Link",
+            "options": "BulkBite Operations Import Template",
+            "reqd": 1
+          },
+          {
+            "fieldname": "source_file",
+            "label": "Source File",
+            "fieldtype": "Attach",
+            "reqd": 1
+          },
+          {
+            "fieldname": "status",
+            "label": "Status",
+            "fieldtype": "Select",
+            "options": "Uploaded\nValidated\nReady\nCommitted\nFailed",
+            "reqd": 1
+          },
+          {
+            "fieldname": "summary_json",
+            "label": "Summary JSON",
+            "fieldtype": "JSON"
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "testsRequired": [
+          "AI extraction is proposal-only",
+          "review approval gates deterministic submit",
+          "schema validation rejects malformed AI output",
+          "required headers are validated",
+          "row preview does not commit records",
+          "commit returns created skipped and error counts"
+        ]
+      },
+      {
+        "name": "BulkBite Operations Import Row",
+        "purpose": "Backend-owned import state and row proof.",
+        "exposure": "hidden-admin",
+        "layout": "all-forms-admin-table",
+        "fieldOrder": [
+          "import_batch",
+          "row_number",
+          "row_payload",
+          "row_status",
+          "error_message"
+        ],
+        "actions": [
+          {
+            "id": "save-draft",
+            "job": "Preserve a record before business-state commit."
+          },
+          {
+            "id": "submit",
+            "job": "Submit through backend validation and workflow logic."
+          }
+        ],
+        "visibility": {
+          "allFormsAdmin": true,
+          "normalWorkflow": false
+        },
+        "source": "dysium-form-system",
+        "controllerRequired": true,
+        "permissionsRequired": true,
+        "fields": [
+          {
+            "fieldname": "import_batch",
+            "label": "Import Batch",
+            "fieldtype": "Link",
+            "options": "BulkBite Operations Import Batch",
+            "reqd": 1
+          },
+          {
+            "fieldname": "row_number",
+            "label": "Row Number",
+            "fieldtype": "Int",
+            "reqd": 1
+          },
+          {
+            "fieldname": "row_payload",
+            "label": "Row Payload",
+            "fieldtype": "JSON",
+            "reqd": 1
+          },
+          {
+            "fieldname": "row_status",
+            "label": "Row Status",
+            "fieldtype": "Select",
+            "options": "Valid\nWarning\nError\nCommitted",
+            "reqd": 1
+          },
+          {
+            "fieldname": "error_message",
+            "label": "Error Message",
+            "fieldtype": "Small Text"
+          }
+        ],
+        "permissions": [
+          {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 0,
+            "export": 1,
+            "report": 1
+          }
+        ],
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "testsRequired": [
+          "AI extraction is proposal-only",
+          "review approval gates deterministic submit",
+          "schema validation rejects malformed AI output",
+          "required headers are validated",
+          "row preview does not commit records",
+          "commit returns created skipped and error counts"
+        ]
+      }
+    ],
+    "services": [
+      {
+        "name": "BulkBite Operations query service",
+        "purpose": "Backend API/service boundary consumed by use-case contracts.",
+        "endpoint": "bulkbite_operations_query_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "input": [
+          "validated kwargs from a Dysium use-case contract"
+        ],
+        "output": [
+          "typed response payload for lean blocks",
+          "standardized error state"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "review-today",
+          "complete-workflow",
+          "manage-exceptions",
+          "maintain-system"
+        ]
+      },
+      {
+        "name": "BulkBite Operations command service",
+        "purpose": "Backend API/service boundary consumed by use-case contracts.",
+        "endpoint": "bulkbite_operations_command_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": true,
+        "input": [
+          "validated kwargs from a Dysium use-case contract"
+        ],
+        "output": [
+          "typed response payload for lean blocks",
+          "standardized error state"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "review-today",
+          "complete-workflow",
+          "manage-exceptions",
+          "maintain-system"
+        ]
+      },
+      {
+        "name": "BulkBite Operations permission service",
+        "purpose": "Centralize role and permission decisions for generated blocks and Frappe endpoints.",
+        "endpoint": "bulkbite_operations_permission_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "input": [
+          "validated kwargs from a Dysium use-case contract"
+        ],
+        "output": [
+          "typed response payload for lean blocks",
+          "standardized error state"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "review-today",
+          "complete-workflow",
+          "manage-exceptions",
+          "maintain-system"
+        ]
+      },
+      {
+        "name": "mobile refresh service",
+        "purpose": "Return the smallest stale-data payload required by the mobile shell.",
+        "endpoint": "mobile_refresh_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "input": [
+          "validated kwargs from a Dysium use-case contract"
+        ],
+        "output": [
+          "typed response payload for lean blocks",
+          "standardized error state"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": []
+      },
+      {
+        "name": "audit event service",
+        "purpose": "Backend API/service boundary consumed by use-case contracts.",
+        "endpoint": "audit_event_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "input": [
+          "validated kwargs from a Dysium use-case contract"
+        ],
+        "output": [
+          "typed response payload for lean blocks",
+          "standardized error state"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": []
+      },
+      {
+        "name": "BulkBite Operations upload intake service",
+        "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+        "endpoint": "bulkbite_operations_upload_intake_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "attached file",
+          "schema id",
+          "review corrections",
+          "approval decision"
+        ],
+        "output": [
+          "proposal payload",
+          "validation errors",
+          "review status",
+          "submitted record"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "ai-upload-review"
+        ]
+      },
+      {
+        "name": "BulkBite Operations AI extraction proposal service",
+        "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+        "endpoint": "bulkbite_operations_ai_extraction_proposal_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "attached file",
+          "schema id",
+          "review corrections",
+          "approval decision"
+        ],
+        "output": [
+          "proposal payload",
+          "validation errors",
+          "review status",
+          "submitted record"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "ai-upload-review"
+        ]
+      },
+      {
+        "name": "BulkBite Operations review decision service",
+        "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+        "endpoint": "bulkbite_operations_review_decision_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": true,
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "attached file",
+          "schema id",
+          "review corrections",
+          "approval decision"
+        ],
+        "output": [
+          "proposal payload",
+          "validation errors",
+          "review status",
+          "submitted record"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "ai-upload-review"
+        ]
+      },
+      {
+        "name": "BulkBite Operations deterministic submit service",
+        "purpose": "Create upload proposals, keep AI output reviewable, and submit only after deterministic backend validation.",
+        "endpoint": "bulkbite_operations_deterministic_submit_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": true,
+        "customHandlers": {
+          "extract": "create_ai_upload_proposal",
+          "validate": "validate_reviewed_proposal",
+          "submit": "submit_approved_upload"
+        },
+        "validationBehavior": {
+          "mode": "proposal-review-validation",
+          "clientChecks": [
+            "file selected",
+            "schema selected",
+            "approval decision present"
+          ],
+          "serverChecks": [
+            "schema-bound AI output",
+            "review corrections",
+            "permission",
+            "deterministic submit"
+          ],
+          "blockedState": "AI proposals remain drafts until a reviewer approves and backend validation passes."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "attached file",
+          "schema id",
+          "review corrections",
+          "approval decision"
+        ],
+        "output": [
+          "proposal payload",
+          "validation errors",
+          "review status",
+          "submitted record"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "ai-upload-review"
+        ]
+      },
+      {
+        "name": "BulkBite Operations import template service",
+        "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+        "endpoint": "bulkbite_operations_import_template_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "template id",
+          "attached workbook",
+          "validated row decisions"
+        ],
+        "output": [
+          "header status",
+          "row preview",
+          "error rows",
+          "commit counts"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "structured-importer"
+        ]
+      },
+      {
+        "name": "BulkBite Operations workbook validation service",
+        "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+        "endpoint": "bulkbite_operations_workbook_validation_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": true,
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "template id",
+          "attached workbook",
+          "validated row decisions"
+        ],
+        "output": [
+          "header status",
+          "row preview",
+          "error rows",
+          "commit counts"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "structured-importer"
+        ]
+      },
+      {
+        "name": "BulkBite Operations import preview service",
+        "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+        "endpoint": "bulkbite_operations_import_preview_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": false,
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "template id",
+          "attached workbook",
+          "validated row decisions"
+        ],
+        "output": [
+          "header status",
+          "row preview",
+          "error rows",
+          "commit counts"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "structured-importer"
+        ]
+      },
+      {
+        "name": "BulkBite Operations import commit service",
+        "purpose": "Validate, preview, and commit imported rows from backend-owned templates.",
+        "endpoint": "bulkbite_operations_import_commit_service",
+        "whitelisted": true,
+        "ownsValidation": true,
+        "ownsStateTransition": true,
+        "customHandlers": {
+          "validate": "validate_import_workbook",
+          "preview": "preview_import_rows",
+          "submit": "commit_validated_import_rows"
+        },
+        "validationBehavior": {
+          "mode": "deterministic-row-validation",
+          "clientChecks": [
+            "file selected",
+            "template selected"
+          ],
+          "serverChecks": [
+            "required headers",
+            "row schema",
+            "duplicate policy",
+            "commit permission"
+          ],
+          "blockedState": "Rows remain preview-only until validation passes and the operator commits."
+        },
+        "roleVisibility": {
+          "primaryRole": "Operator",
+          "adminRoles": [
+            "System Manager"
+          ],
+          "hiddenFrom": [
+            "Guest",
+            "Customer"
+          ],
+          "allFormsAdmin": true,
+          "rule": "Workflow users see only task controls and standardized outputs; System Manager keeps full DocType access in hidden all-forms admin."
+        },
+        "input": [
+          "template id",
+          "attached workbook",
+          "validated row decisions"
+        ],
+        "output": [
+          "header status",
+          "row preview",
+          "error rows",
+          "commit counts"
+        ],
+        "permissions": [
+          "System Manager"
+        ],
+        "usedBy": [
+          "structured-importer"
+        ]
+      }
+    ]
+  }
+}

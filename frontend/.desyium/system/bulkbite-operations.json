@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-operations",
+  "generatedAt": "2026-09-08T04:01:28.523Z",
+  "command": "system compile",
+  "summary": {
+    "id": "bulkbite-operations",
+    "name": "BulkBite Operations",
+    "kind": "operations",
+    "priority": "backend-first",
+    "surfaces": [
+      "dashboard",
+      "mobile",
+      "admin",
+      "all-forms"
+    ],
+    "features": [
+      "mobile-shell",
+      "pull-to-refresh",
+      "roles",
+      "audit",
+      "all-forms",
+      "admin",
+      "auth",
+      "ai-upload-review",
+      "structured-importer"
+    ],
+    "domainDocTypes": [
+      "BulkBite Operations Setting",
+      "BulkBite Operations Event",
+      "BulkBite Operations Item",
+      "BulkBite Operations Task",
+      "BulkBite Operations Batch",
+      "BulkBite Operations Audit",
+      "BulkBite Operations Role Assignment",
+      "BulkBite Operations Upload Batch",
+      "BulkBite Operations Extracted Draft",
+      "BulkBite Operations Review Decision",
+      "BulkBite Operations Import Template",
+      "BulkBite Operations Import Batch",
+      "BulkBite Operations Import Row"
+    ],
+    "useCases": [
+      {
+        "id": "review-today",
+        "actor": "Operator",
+        "job": "See current bulkbite operations state."
+      },
+      {
+        "id": "complete-workflow",
+        "actor": "Operator",
+        "job": "Finish the active workflow with minimal input."
+      },
+      {
+        "id": "manage-exceptions",
+        "actor": "Manager",
+        "job": "Resolve blocked or unusual records."
+      },
+      {
+        "id": "maintain-system",
+        "actor": "Admin",
+        "job": "Access complete backend maintenance screens without cluttering normal workflows."
+      },
+      {
+        "id": "ai-upload-review",
+        "actor": "Operator",
+        "job": "Upload a document, receive a schema-bound AI proposal, correct it, and submit through backend-owned validation."
+      },
+      {
+        "id": "structured-importer",
+        "actor": "Operator",
+        "job": "Upload a spreadsheet, validate required columns, review row-level issues, and commit deterministic records."
+      }
+    ],
+    "blocks": [
+      {
+        "id": "review-today",
+        "disclosure": "lean-default",
+        "controls": 1,
+        "outputs": 2
+      },
+      {
+        "id": "complete-workflow",
+        "disclosure": "lean-default",
+        "controls": 2,
+        "outputs": 2
+      },
+      {
+        "id": "manage-exceptions",
+        "disclosure": "lean-default",
+        "controls": 2,
+        "outputs": 2
+      },
+      {
+        "id": "maintain-system",
+        "disclosure": "hidden-admin",
+        "controls": 1,
+        "outputs": 2
+      },
+      {
+        "id": "ai-upload-review",
+        "disclosure": "workflow",
+        "controls": 4,
+        "outputs": 5
+      },
+      {
+        "id": "structured-importer",
+        "disclosure": "workflow",
+        "controls": 4,
+        "outputs": 5
+      }
+    ],
+    "shells": [
+      {
+        "id": "dashboard-shell",
+        "features": [
+          "roles",
+          "admin",
+          "auth"
+        ]
+      },
+      {
+        "id": "mobile-shell",
+        "features": [
+          "pull-to-refresh",
+          "mobile-shell",
+          "roles",
+          "admin",
+          "auth"
+        ]
+      },
+      {
+        "id": "admin-shell",
+        "features": [
+          "roles",
+          "admin",
+          "auth"
+        ]
+      },
+      {
+        "id": "all-forms-shell",
+        "features": [
+          "all-forms",
+          "roles",
+          "admin",
+          "auth"
+        ]
+      }
+    ],
+    "validation": {
+      "backendUnitTests": [
+        "permission boundaries",
+        "command idempotency",
+        "state transitions",
+        "derived totals and calculations",
+        "AI extraction is proposal-only",
+        "review approval gates deterministic submit",
+        "schema validation rejects malformed AI output",
+        "required headers are validated",
+        "row preview does not commit records",
+        "commit returns created skipped and error counts"
+      ],
+      "contractChecks": [
+        "intent contract validation",
+        "module owner lookup",
+        "page/block dependency direction",
+        "form-system contract validation"
+      ],
+      "frontendProof": [
+        "generated route compiles",
+        "lean block controls render",
+        "loading/error/empty states exist"
+      ],
+      "platformProof": [
+        "mobile pull-to-refresh lifecycle check"
+      ]
+    },
+    "nextCommands": [
+      "desyium intent check bulkbite-operations",
+      "desyium intent blocks bulkbite-operations",
+      "desyium context build bulkbite-operations --intent bulkbite-operations"
+    ]
+  },
+  "stations": [
+    {
+      "id": "intent",
+      "status": "complete",
+      "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/intents/bulkbite-operations.json"
+    },
+    {
+      "id": "module-contracts",
+      "status": "complete",
+      "count": 19,
+      "root": ".desyium/modules/bulkbite-operations"
+    },
+    {
+      "id": "frappe-backend",
+      "status": "complete",
+      "backend": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/frappe/bulkbite-operations/backend.json",
+      "testPlan": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/frappe/bulkbite-operations/test-plan.py"
+    },
+    {
+      "id": "form-system",
+      "status": "complete",
+      "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/forms/bulkbite-operations/contract.json",
+      "workflows": [
+        "ai-upload-review",
+        "structured-importer"
+      ]
+    },
+    {
+      "id": "motion-system",
+      "status": "complete",
+      "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/motion/bulkbite-operations/contract.json",
+      "intensity": "quiet",
+      "runtime": "css-first"
+    },
+    {
+      "id": "blocks",
+      "status": "complete",
+      "count": 7,
+      "steps": [
+        {
+          "station": "block-types",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/bulkbite-operations-block-types.json"
+        },
+        {
+          "station": "block:review-today",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/review-today.json",
+          "source": "/home/keenan/BulkBite/apps/bulkbite/frontend/src/blocks/review-today/ReviewToday.vue"
+        },
+        {
+          "station": "block:complete-workflow",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/complete-workflow.json",
+          "source": "/home/keenan/BulkBite/apps/bulkbite/frontend/src/blocks/complete-workflow/CompleteWorkflow.vue"
+        },
+        {
+          "station": "block:manage-exceptions",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/manage-exceptions.json",
+          "source": "/home/keenan/BulkBite/apps/bulkbite/frontend/src/blocks/manage-exceptions/ManageExceptions.vue"
+        },
+        {
+          "station": "block:maintain-system",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/maintain-system.json",
+          "source": "/home/keenan/BulkBite/apps/bulkbite/frontend/src/blocks/maintain-system/MaintainSystem.vue"
+        },
+        {
+          "station": "block:ai-upload-review",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/ai-upload-review.json",
+          "source": "/home/keenan/BulkBite/apps/bulkbite/frontend/src/blocks/ai-upload-review/AiUploadReview.vue"
+        },
+        {
+          "station": "block:structured-importer",
+          "status": "created",
+          "path": "/home/keenan/BulkBite/apps/bulkbite/frontend/.desyium/registry/blocks/structured-importer.json",
+          "source": "/home/keenan/BulkBite/apps/bulkbite/frontend/src/blocks/structured-importer/StructuredImporter.vue"
+        }
+      ]
+    },
+    {
+      "id": "page",
+      "status": "complete",
+      "path": ".desyium/pages/bulkbite-operations.json",
+      "blocks": [
+        "review-today",
+        "complete-workflow",
+        "manage-exceptions",
+        "maintain-system",
+        "ai-upload-review",
+        "structured-importer"
+      ]
+    },
+    {
+      "id": "app-composition",
+      "status": "complete",
+      "path": ".desyium/app/bulkbite-operations/manifest.json",
+      "routes": 4,
+      "shells": 4
+    },
+    {
+      "id": "specialist-integrations",
+      "status": "complete",
+      "path": ".desyium/integrations/bulkbite-operations/plan.json",
+      "count": 2
+    }
+  ],
+  "next": [
+    "desyium context build bulkbite-operations --intent bulkbite-operations --page bulkbite-operations",
+    "Read .desyium/app/bulkbite-operations/manifest.json before generating routes or Vue shell code.",
+    "Implement Frappe DocTypes and services from the backend blueprint.",
+    "Replace generated backend test placeholders with real Frappe tests.",
+    "Replace placeholder block sources with lean workflow UI that consumes System* exports.",
+    "Run desyium check and the relevant backend/frontend tests for the changed layer."
+  ]
+}

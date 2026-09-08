@@ -1,0 +1,39 @@
+{
+  "id": "use-case-complete-workflow",
+  "name": "Complete Workflow Use Case",
+  "type": "use-case",
+  "purpose": "Finish the active workflow with minimal input.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.useCases.complete-workflow"
+  ],
+  "dependencies": [
+    "domain"
+  ],
+  "usedBy": [
+    "block-complete-workflow"
+  ],
+  "invariants": [
+    "A use case names the actor, job, inputs, outputs, decisions, and failure states before UI composition.",
+    "Backend capability may be larger than the controls shown in the block."
+  ],
+  "tests": [
+    "intent contract validation",
+    "module owner lookup",
+    "page/block dependency direction",
+    "form-system contract validation"
+  ],
+  "contract": {
+    "id": "complete-workflow",
+    "actor": "Operator",
+    "job": "Finish the active workflow with minimal input.",
+    "controls": [
+      "Required fields",
+      "Submit action"
+    ],
+    "outputs": [
+      "Result state",
+      "Validation feedback"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "title",
+      "label": "Title",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nActive\nPaused\nClosed",
+      "reqd": 0
+    },
+    {
+      "fieldname": "owner_user",
+      "label": "Owner User",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 0
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "module": "Bulkbite",
+  "name": "BulkBite Operations Role Assignment",
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0,
+      "export": 1,
+      "report": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

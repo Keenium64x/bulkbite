@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "id": "bulkbite-stock-truth",
+  "prompt": "Keep BulkBite stock truth in Frappe: intake receipts and production measurements as drafts, require manager review before posting stock events, calculate closing stock and reconciliation variance, keep price history for buying decisions, and expose accountant export summaries without putting ledger rules in Vue.",
+  "responsibility": "Describe business logic as inputs, outputs, trigger, decision, backend handoff, proof, and frontend visibility before implementation.",
+  "trigger": "manager approves receipt, production usage, count adjustment, or export period",
+  "inputs": [
+    {
+      "id": "receipt-draft",
+      "label": "receipt draft",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "production-measurement",
+      "label": "production measurement",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "physical-count",
+      "label": "physical count",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "approved-recipe",
+      "label": "approved recipe",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "stock-item",
+      "label": "stock item",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "employee-assignment",
+      "label": "employee assignment",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "price-history",
+      "label": "price history",
+      "source": "doctype-field-or-user-action"
+    },
+    {
+      "id": "export-period",
+      "label": "export period",
+      "source": "doctype-field-or-user-action"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "stock-event",
+      "label": "stock event",
+      "visibility": "backend-owned"
+    },
+    {
+      "id": "closing-stock",
+      "label": "closing stock",
+      "visibility": "frontend-visible"
+    },
+    {
+      "id": "reconciliation-variance",
+      "label": "reconciliation variance",
+      "visibility": "frontend-visible"
+    },
+    {
+      "id": "buying-recommendation",
+      "label": "buying recommendation",
+      "visibility": "frontend-visible"
+    },
+    {
+      "id": "accountant-export-summary",
+      "label": "accountant export summary",
+      "visibility": "frontend-visible"
+    },
+    {
+      "id": "exception-queue",
+      "label": "exception queue",
+      "visibility": "frontend-visible"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "draft-cannot-post-without-approval",
+      "rule": "draft cannot post without approval",
+      "owner": "backend-service"
+    },
+    {
+      "id": "negative-stock-requires-manager-exception",
+      "rule": "negative stock requires manager exception",
+      "owner": "backend-service"
+    },
+    {
+      "id": "count-variance-above-threshold-enters-review",
+      "rule": "count variance above threshold enters review",
+      "owner": "backend-service"
+    },
+    {
+      "id": "export-includes-approved-immutable-stock-events-only",
+      "rule": "export includes approved immutable stock events only",
+      "owner": "backend-service"
+    }
+  ],
+  "backend": {
+    "doctypes": [
+      "Stock Item",
+      "Receipt Draft",
+      "Production Usage",
+      "Physical Count",
+      "Stock Event",
+      "Buying Plan",
+      "Employee Assignment",
+      "Accountant Export"
+    ],
+    "services": [
+      "approve_receipt",
+      "post_production_usage",
+      "reconcile_stock_count",
+      "calculate_buying_plan",
+      "export_accountant_stock_events"
+    ],
+    "handoff": "Frappe DocType controllers and whitelisted services own validation, state changes, calculations, and audit events."
+  },
+  "frontend": {
+    "visibleOutputs": [
+      "closing stock",
+      "reconciliation variance",
+      "buying recommendation",
+      "accountant export summary",
+      "exception queue"
+    ],
+    "hiddenDetails": [
+      "ledger posting rules",
+      "permission checks",
+      "raw file parsing",
+      "stock event immutability",
+      "approval workflow internals"
+    ],
+    "rule": "Only essential outputs and actions are exposed; backend logic remains hidden from normal workflow UI."
+  },
+  "proof": {
+    "workbookId": "bulkbite-stock-truth",
+    "required": true,
+    "handoff": "Create or review the proof workbook before coding calculations or optimization behavior."
+  }
+}

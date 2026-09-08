@@ -1,0 +1,60 @@
+{
+  "id": "block-complete-workflow",
+  "name": "Complete Workflow Block",
+  "type": "block",
+  "purpose": "Finish the active workflow with minimal input.",
+  "owner": [
+    ".desyium/intents/bulkbite-operations.json",
+    ".desyium/intents/bulkbite-operations.json#planes.experience.blocks.complete-workflow"
+  ],
+  "dependencies": [
+    "use-case-complete-workflow",
+    "patterns",
+    "components"
+  ],
+  "usedBy": [
+    "page-bulkbite-operations-home"
+  ],
+  "invariants": [
+    "Blocks expose lean controls and standardized outputs.",
+    "Blocks import Dysium System* exports and never provider internals.",
+    "Hidden admin and all-forms access must not clutter normal workflow blocks."
+  ],
+  "tests": [
+    "generated route compiles",
+    "lean block controls render",
+    "loading/error/empty states exist"
+  ],
+  "contract": {
+    "id": "complete-workflow",
+    "name": "Complete Workflow",
+    "job": "Finish the active workflow with minimal input.",
+    "actor": "Operator",
+    "components": [
+      "SystemButton",
+      "SystemFieldGroup",
+      "SystemMetric",
+      "SystemRecordList"
+    ],
+    "patterns": [
+      "FieldGroup",
+      "MetricRow",
+      "RecordList",
+      "StatusFeedback"
+    ],
+    "controls": [
+      "Required fields",
+      "Submit action"
+    ],
+    "outputs": [
+      "Result state",
+      "Validation feedback"
+    ],
+    "surfaces": [
+      "dashboard",
+      "mobile",
+      "admin"
+    ],
+    "disclosure": "lean-default"
+  }
+}
