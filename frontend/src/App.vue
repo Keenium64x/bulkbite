@@ -3,6 +3,10 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
 	SystemAccountantExport,
+	SystemAccordion,
+	SystemAccordionContent,
+	SystemAccordionItem,
+	SystemAccordionTrigger,
 	SystemAuxiliaryRecords,
 	SystemBulkbiteAppShell,
 	SystemBuyingPlan,
@@ -41,9 +45,9 @@ const sections = [
 	{ id: "planning", label: "Planning", group: "theoretical" },
 	{ id: "forecasting", label: "Forecasting", group: "theoretical" },
 	{ id: "buying", label: "Buying", group: "theoretical" },
-	{ id: "finance", label: "Finance", group: "theoretical" },
-	{ id: "export", label: "Reports", group: "theoretical" },
-	{ id: "import", label: "Import", group: "theoretical" },
+	{ id: "finance", label: "Finance", group: "supporting" },
+	{ id: "export", label: "Reports", group: "supporting" },
+	{ id: "import", label: "Import", group: "supporting" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
 ];
 const auxiliarySections = ["employees", "documents", "history", "operations", "containers"];
@@ -361,13 +365,29 @@ watch(
 				@map-scan="mapScan"
 				@open-workflow="navigate"
 			/>
-			<SystemPriceHistory
-				mode="catalogue"
-				:snapshot="snapshot"
-				:inventory="inventory"
-				@changed="loadAll"
-			/>
-			<SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
+			<SystemAccordion type="multiple" :default-value="['reconciliation']" class="stock-support-sections">
+				<SystemAccordionItem value="reconciliation" class="stock-support-section">
+					<SystemAccordionTrigger class="stock-support-section__trigger">
+						<div><span>Physical count</span><strong>Stock reconciliation</strong></div>
+					</SystemAccordionTrigger>
+					<SystemAccordionContent class="stock-support-section__content">
+						<SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
+					</SystemAccordionContent>
+				</SystemAccordionItem>
+				<SystemAccordionItem value="prices" class="stock-support-section">
+					<SystemAccordionTrigger class="stock-support-section__trigger">
+						<div><span>Cost evidence</span><strong>Price history</strong></div>
+					</SystemAccordionTrigger>
+					<SystemAccordionContent class="stock-support-section__content">
+						<SystemPriceHistory
+							mode="catalogue"
+							:snapshot="snapshot"
+							:inventory="inventory"
+							@changed="loadAll"
+						/>
+					</SystemAccordionContent>
+				</SystemAccordionItem>
+			</SystemAccordion>
 		</template>
 		<SystemStockOverview
 			v-else-if="activeSection === 'operations'"
@@ -389,3 +409,45 @@ watch(
 		/>
 	</SystemBulkbiteAppShell>
 </template>
+
+<style scoped>
+.stock-support-sections {
+	display: grid;
+	gap: var(--spacing-s);
+}
+
+.stock-support-section {
+	overflow: hidden;
+	border: var(--border-width-1) solid var(--theme-border);
+	border-radius: var(--component-radius-block);
+	background: var(--theme-surface);
+}
+
+.stock-support-section__trigger {
+	width: 100%;
+	padding: var(--spacing-m);
+	text-align: left;
+	text-decoration: none !important;
+}
+
+.stock-support-section__trigger > div {
+	display: grid;
+	gap: var(--spacing-3xs);
+}
+
+.stock-support-section__trigger span {
+	color: var(--theme-text-muted);
+	font-size: var(--font-size--2);
+	font-weight: var(--font-weight-600);
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.stock-support-section__trigger strong {
+	font-size: var(--font-size-1);
+}
+
+.stock-support-section__content {
+	padding: 0 var(--spacing-m) var(--spacing-m);
+}
+</style>

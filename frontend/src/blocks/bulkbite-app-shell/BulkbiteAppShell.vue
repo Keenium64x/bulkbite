@@ -14,8 +14,6 @@ import {
   PanelLeftOpen,
   ReceiptText,
   Settings,
-  Truck,
-  UsersRound,
   UserRound,
   WalletCards,
   Warehouse,
@@ -64,13 +62,11 @@ const props = defineProps({
       { label: "Receipt", icon: ReceiptText, href: "/bulkbite?work=receipts", target: { mode: "workflow", id: "receipts" } },
       { label: "Production", icon: CookingPot, href: "/bulkbite?work=production", target: { mode: "workflow", id: "production" } },
       { label: "Stock", icon: Warehouse, href: "/bulkbite?work=stock", target: { mode: "workflow", id: "stock" } },
-      { label: "Finances", icon: WalletCards, href: "/bulkbite?work=finance", target: { mode: "workflow", id: "finance" } },
     ] },
-    { label: "Manage", links: [
-      { label: "Items", icon: Package, href: "/bulkbite/setup/BulkBite%20Item", target: { mode: "list", doctype: "BulkBite Item" } },
-      { label: "Recipes", icon: CookingPot, href: "/bulkbite/setup/BulkBite%20Recipe", target: { mode: "list", doctype: "BulkBite Recipe" } },
-      { label: "Suppliers", icon: Truck, href: "/bulkbite/setup/BulkBite%20Supplier", target: { mode: "list", doctype: "BulkBite Supplier" } },
-      { label: "Teams", icon: UsersRound, href: "/bulkbite/setup/BulkBite%20Team%20Template", target: { mode: "list", doctype: "BulkBite Team Template" } },
+    { label: "More", links: [
+      { label: "Finance", icon: WalletCards, href: "/bulkbite?work=finance", target: { mode: "workflow", id: "finance" } },
+      { label: "Reports", icon: ReceiptText, href: "/bulkbite?work=export", target: { mode: "workflow", id: "export" } },
+      { label: "Import", icon: Package, href: "/bulkbite?work=import", target: { mode: "workflow", id: "import" } },
     ] },
   ] },
   activeSection: { type: String, required: true },
@@ -95,7 +91,7 @@ const theoreticalExpanded = ref(false)
 let flipExperience = null
 let mobileShellQuery = null
 let unregisterNativeBackConsumer = null
-const primarySections = computed(() => props.sections.filter(section => section.group !== "theoretical"))
+const primarySections = computed(() => props.sections.filter(section => !section.group))
 const theoreticalSections = computed(() => props.sections.filter(section => section.group === "theoretical"))
 const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
 const theoreticalLinksVisible = computed(() => theoreticalExpanded.value)
@@ -323,7 +319,7 @@ useNativePullToRefresh(refreshCurrentWorkflow)
         <nav class="app-shell__nav" aria-label="Main stock flow">
           <div ref="navGroupsRoot" class="app-shell__nav-inner app-shell__nav-groups" data-nav-groups>
             <section class="app-shell__nav-category app-shell__nav-category--actual" aria-labelledby="actual-nav-label" data-flip-id="actual-category">
-              <p id="actual-nav-label" class="app-shell__category-label">Actual</p>
+              <p id="actual-nav-label" class="app-shell__category-label">Daily</p>
               <SystemCard class="app-shell__category-card">
                 <div class="app-shell__category-controls">
                   <SystemOperationalButton v-for="section in primarySections" :key="section.id" :data-flip-id="`actual-${section.id}`" class="app-shell__nav-button" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" variant="subtle" size="lg" @click="$emit('navigate', section.id)">
@@ -334,7 +330,7 @@ useNativePullToRefresh(refreshCurrentWorkflow)
             </section>
 
             <section v-if="theoreticalSections.length" class="app-shell__nav-category app-shell__nav-category--theoretical" aria-labelledby="theoretical-nav-label" data-flip-id="theoretical-category">
-              <p id="theoretical-nav-label" class="app-shell__category-label">Theoretical</p>
+              <p id="theoretical-nav-label" class="app-shell__category-label">Planning</p>
               <SystemCard class="app-shell__category-card">
                 <div class="app-shell__category-controls">
                   <SystemOperationalButton class="app-shell__nav-button app-shell__expand-button" :class="{ 'is-active': theoreticalActive }" :aria-expanded="theoreticalLinksVisible" aria-controls="theoretical-workflows" variant="subtle" size="lg" data-flip-id="theoretical-toggle" @click="toggleTheoretical">

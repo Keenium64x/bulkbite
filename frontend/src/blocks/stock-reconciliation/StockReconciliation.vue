@@ -20,11 +20,10 @@ async function approve() { busy.value = true; error.value = ""; try { draft.valu
 
 <template>
   <section data-block="stock-reconciliation" class="workflow-block">
-    <header class="workflow-header"><div><p class="eyebrow">Stock count</p><h1>Match the system to physical stock</h1><p>Enter what is actually present, review every difference, then let a manager approve the correction.</p></div></header>
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Physical count</p><h2>Enter the counted stock</h2><p>Record when and how this count was completed.</p></div></div><SystemDatePicker v-model="postingDate" label="Count date" format="YYYY-MM-DD" :disabled="Boolean(draft)" :clearable="false" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" :disabled="Boolean(draft)" placeholder="Who counted, where, and any unusual conditions" /></label></section>
+    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Count details</p><h2>Match the system to physical stock</h2><p>Enter what is present, review the differences, then approve the correction.</p></div></div><SystemDatePicker v-model="postingDate" label="Posting date" format="YYYY-MM-DD" :disabled="Boolean(draft)" :clearable="false" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" :disabled="Boolean(draft)" placeholder="Who counted, where, and any unusual conditions" /></label></section>
     <section class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>Counted stock</h2></div><SystemBadge>{{ changedCounts.length }} differences</SystemBadge></div>
+      <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>Physical counts and differences</h2></div><SystemBadge>{{ changedCounts.length }} differences</SystemBadge></div>
       <div class="measurement-list">
         <article v-for="item in counts" :key="item.item_code" class="measurement-row measurement-row--count" :class="{ 'is-different': Number(item.counted_qty) !== Number(item.actual_qty) }">
           <div><strong>{{ item.item_name }}</strong><small>System says {{ Number(item.actual_qty).toFixed(2) }} {{ item.stock_uom }}</small></div>
