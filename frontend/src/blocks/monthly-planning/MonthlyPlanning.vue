@@ -127,7 +127,13 @@ const weeklyKg = computed(() =>
 	),
 );
 const upcomingWeekNumber = computed(() =>
-	Number(props.plan?.next_production?.row?.cycle_week || props.plan?.next_production?.row?.week_number || 1),
+	Number(
+		props.plan?.next_production?.calendar?.row?.cycle_week ||
+			props.plan?.next_production?.calendar?.row?.week_number ||
+			props.plan?.next_production?.row?.cycle_week ||
+			props.plan?.next_production?.row?.week_number ||
+			1,
+	),
 );
 const upcomingPlanRow = computed(() =>
 	form.plan_rows.find((row) => Number(row.week_number) === upcomingWeekNumber.value) || form.plan_rows[0] || null,

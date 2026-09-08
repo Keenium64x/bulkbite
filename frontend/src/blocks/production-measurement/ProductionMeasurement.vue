@@ -95,6 +95,12 @@ const station = computed(
 	() => props.plan?.next_production || { state: "complete", row: null, run: null },
 );
 const selectedRow = computed(() => station.value.row);
+const selectedCapacityRun = computed(
+	() =>
+		props.plan?.capacity_plan?.runs?.find(
+			(row) => Number(row.week_number) === Number(selectedRow.value?.week_number),
+		) || null,
+);
 const selectedCapacityWindow = computed(
 	() =>
 		props.plan?.capacity_plan?.windows?.find(
@@ -275,8 +281,9 @@ async function hydrateStation(value) {
 		run.value?.team_template || props.plan?.capacity_plan?.default_team_template || "";
 	scheduledElapsedHours.value = Number(
 		run.value?.scheduled_elapsed_hours ||
+			selectedCapacityRun.value?.scheduled_elapsed_hours ||
 			selectedCapacityWindow.value?.scheduled_elapsed_hours ||
-			0,
+			8,
 	);
 	actualElapsedHours.value = Number(
 		run.value?.actual_elapsed_hours || 0,
