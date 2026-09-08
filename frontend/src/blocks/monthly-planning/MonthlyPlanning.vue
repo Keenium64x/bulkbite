@@ -61,6 +61,7 @@ const form = reactive({
 	extra_output_enabled: false,
 });
 const scenarioForecast = ref([]);
+const weeklyCapacityResult = ref(null);
 let scenarioTimer;
 let hydrating = false;
 const planTypes = computed(() => props.snapshot?.options?.customer_plan_types || []);
@@ -152,6 +153,22 @@ const weeklyExtraOutput = computed(() =>
 );
 const weeklyTargetOutput = computed(() => roundQuantity(weeklyKg.value + weeklyExtraOutput.value));
 const weeklyCapacity = computed(() => {
+	if (weeklyCapacityResult.value) {
+		const result = weeklyCapacityResult.value;
+		return {
+			rawTeamHours: Number(result.raw_team_hours || 0),
+			effectiveHours: Number(result.effective_hours || 0),
+			requiredLabourHours: Number(result.required_labour_hours || 0),
+			minimumElapsedHours: Number(result.minimum_elapsed_hours || 0),
+			capacityKg: Number(result.capacity_qty || 0),
+			differenceKg: Number(result.capacity_difference_qty || 0),
+			efficiencyPercent: Number(result.team_efficiency_percent || 0),
+			taktMinutesPerKg: Number(result.takt_minutes_per_kg || 0),
+			ready: Boolean(result.ready),
+			consequence: result.consequence,
+			storage: result.storage,
+		};
+	}
 	const sessions = upcomingRuns.value.map((row) => {
 		const hours = Math.min(Math.max(Number(row.scheduled_elapsed_hours || 0), 0), 8);
 		const people = Math.max(Math.floor(Number(row.planned_people || 0)), 0);
@@ -186,6 +203,7 @@ const weeklyCapacity = computed(() => {
 		taktMinutesPerKg: weeklyTargetOutput.value ? effectiveHours * 60 / weeklyTargetOutput.value : 0,
 		ready,
 		consequence,
+		storage: { status: "Not configured", configured: false, required_qty: weeklyExtraOutput.value },
 	};
 });
 const capacitySummary = computed(() => {
@@ -530,6 +548,7 @@ async function reconcileQueuedPlan(attempt = 0) {
 
 function queueScenarioCalculation() {
 	if (!form.customer_mix.length) return;
+	weeklyCapacityResult.value = null;
 	window.clearTimeout(scenarioTimer);
 	scenarioTimer = window.setTimeout(calculateScenario, 250);
 }
@@ -561,8 +580,22 @@ async function calculateScenario() {
 			labour_minutes_per_kg: Number(
 				props.plan?.workforce?.planning_labour_minutes_per_kg || 0,
 			),
+			weekly_capacity:
+				props.mode === "planning"
+					? {
+						required_customer_qty: weeklyKg.value,
+						extra_output_qty: weeklyExtraOutput.value,
+						labour_minutes_per_kg: planningMinutesPerKg.value,
+						sessions: upcomingRuns.value.map((row) => ({
+							day_of_week: row.day_of_week,
+							scheduled_elapsed_hours: Number(row.scheduled_elapsed_hours || 0),
+							planned_people: Number(row.planned_people || 0),
+						})),
+					}
+					: null,
 		});
 		scenarioForecast.value = result.forecast || [];
+		weeklyCapacityResult.value = result.weekly_capacity || null;
 		syncBalancedRunOutputs(scenarioForecast.value);
 	} catch (exception) {
 		error.value = exception.message;
@@ -807,7 +840,7 @@ function number(value) {
 					<div><strong>{{ number(weeklyCapacity.taktMinutesPerKg) }} min/kg</strong><span>available takt</span></div>
 				</div>
 				<p class="weekly-position__consequence"><strong>Next consequence</strong><span>{{ weeklyCapacity.consequence }}</span></p>
-				<p class="weekly-position__storage"><strong>Freezer capacity</strong><span>Not configured yet. Extra output is flagged for a storage check, but no capacity is assumed.</span></p>
+				<p class="weekly-position__storage"><strong>Freezer capacity</strong><span>{{ weeklyCapacity.storage?.configured ? `${weeklyCapacity.storage.status}: ${number(weeklyCapacity.storage.required_qty)} kg needs storage.` : 'Not configured yet. Extra output is flagged for a storage check, but no capacity is assumed.' }}</span></p>
 			</article>
 			<div class="extra-output-control"><SystemCheckboxShadcn v-model="form.extra_output_enabled" label="Plan extra output for this week" /><SystemFormControl v-if="form.extra_output_enabled && upcomingPlanRow" v-model="upcomingPlanRow.extra_output_qty" type="number" min="0" step="0.1" label="Extra output (kg)" /><div v-else class="calculated-field"><span>Required weekly output</span><strong>{{ number(weeklyKg) }} kg</strong></div></div>
 			<div class="weekly-run-list">

@@ -272,6 +272,78 @@ def calculate_hour_capacity(required_output_qty, labour_minutes_per_unit, availa
 	}
 
 
+def calculate_weekly_capacity(required_customer_qty, extra_output_qty, labour_minutes_per_kg, sessions, storage_capacity_qty=None):
+	"""Decide whether the upcoming weekly sessions can make the requested food."""
+	required_customer_qty = max(flt(required_customer_qty), 0)
+	extra_output_qty = max(flt(extra_output_qty), 0)
+	target_output_qty = required_customer_qty + extra_output_qty
+	labour_minutes_per_kg = max(flt(labour_minutes_per_kg), 0)
+	normalized_sessions = []
+	for supplied in sessions or []:
+		hours = min(max(flt(supplied.get("scheduled_elapsed_hours")), 0), 8)
+		people = max(int(supplied.get("planned_people") or 0), 0)
+		effective_people = 1 + math.log2(people) * 0.85 if people else 0
+		normalized_sessions.append({
+			"day_of_week": supplied.get("day_of_week"),
+			"scheduled_elapsed_hours": round(hours, 2),
+			"planned_people": people,
+			"effective_people": round(effective_people, 3),
+			"effective_hours": round(hours * effective_people, 3),
+		})
+	raw_team_hours = sum(row["scheduled_elapsed_hours"] * row["planned_people"] for row in normalized_sessions)
+	effective_hours = sum(row["effective_hours"] for row in normalized_sessions)
+	scheduled_elapsed_hours = sum(row["scheduled_elapsed_hours"] for row in normalized_sessions)
+	average_effective_people = effective_hours / scheduled_elapsed_hours if scheduled_elapsed_hours else 0
+	required_labour_hours = target_output_qty * labour_minutes_per_kg / 60
+	minimum_elapsed_hours = required_labour_hours / average_effective_people if average_effective_people else 0
+	capacity_qty = effective_hours * 60 / labour_minutes_per_kg if labour_minutes_per_kg else 0
+	capacity_difference_qty = capacity_qty - target_output_qty
+	ready = bool(labour_minutes_per_kg and normalized_sessions and capacity_difference_qty >= -0.0005)
+	all_at_shift_limit = bool(normalized_sessions and all(row["scheduled_elapsed_hours"] >= 8 for row in normalized_sessions))
+	if not labour_minutes_per_kg:
+		consequence = "Post a timed production run so BulkBite can establish a demonstrated labour rate."
+	elif not normalized_sessions:
+		consequence = "Add a cooking session for the upcoming meal."
+	elif not ready and all_at_shift_limit:
+		consequence = "Add another cooking session. The current team is already at the eight-hour shift limit."
+	elif not ready:
+		consequence = "Increase this session's time or crew, or add another run before production."
+	elif extra_output_qty > 0:
+		consequence = "Capacity is ready. Confirm freezer space before keeping the extra food."
+	else:
+		consequence = "The upcoming customer requirement fits inside the planned cooking sessions."
+	configured_storage = storage_capacity_qty not in (None, "")
+	storage_capacity = max(flt(storage_capacity_qty), 0) if configured_storage else 0
+	storage_required = extra_output_qty
+	storage_status = "Not configured" if not configured_storage else "Ready" if storage_required <= storage_capacity else "Insufficient"
+	return {
+		"required_customer_qty": round(required_customer_qty, 3),
+		"extra_output_qty": round(extra_output_qty, 3),
+		"target_output_qty": round(target_output_qty, 3),
+		"labour_minutes_per_kg": round(labour_minutes_per_kg, 2),
+		"calculation_basis": "Demonstrated production rate" if labour_minutes_per_kg else "Rate not measured",
+		"sessions": normalized_sessions,
+		"raw_team_hours": round(raw_team_hours, 2),
+		"effective_hours": round(effective_hours, 2),
+		"required_labour_hours": round(required_labour_hours, 2),
+		"minimum_elapsed_hours": round(minimum_elapsed_hours, 2),
+		"capacity_qty": round(capacity_qty, 3),
+		"capacity_difference_qty": round(capacity_difference_qty, 3),
+		"team_efficiency_percent": round(effective_hours / raw_team_hours * 100, 1) if raw_team_hours else 0,
+		"takt_minutes_per_kg": round(effective_hours * 60 / target_output_qty, 2) if target_output_qty else 0,
+		"status": "Ready" if ready else "Under capacity",
+		"ready": ready,
+		"additional_run_required": bool(labour_minutes_per_kg and not ready and all_at_shift_limit),
+		"consequence": consequence,
+		"storage": {
+			"status": storage_status,
+			"configured": configured_storage,
+			"capacity_qty": round(storage_capacity, 3),
+			"required_qty": round(storage_required, 3),
+		},
+	}
+
+
 def calculate_capacity_balance(opening_team_hours, available_team_hours, required_team_hours):
 	"""Carry spare capacity or backlog through one ordered production period."""
 	opening_balance = round(flt(opening_team_hours), 2)

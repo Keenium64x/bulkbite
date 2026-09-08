@@ -38,6 +38,7 @@ from bulkbite.costing import calculate_operating_costs, enrich_spend_report
 from bulkbite.workforce import (
 	calculate_assignment_pay,
 	calculate_capacity_forecast,
+	calculate_weekly_capacity,
 	calculate_run_performance,
 	get_employee_capacity_snapshot,
 	get_employee_production_history,
@@ -2007,7 +2008,7 @@ def calculate_capacity_scenario(payload=None):
 	"""Calculate one unsaved production-capacity scenario without changing the active direction."""
 	_require_roles("BulkBite Manager")
 	data = _as_dict(payload)
-	return {
+	result = {
 		"forecast": calculate_capacity_forecast(
 			_as_list(data.get("current_mix")),
 			_as_list(data.get("target_mix")),
@@ -2018,6 +2019,17 @@ def calculate_capacity_scenario(payload=None):
 			_as_list(data.get("required_output_by_week")),
 		)
 	}
+	weekly = data.get("weekly_capacity")
+	if weekly:
+		weekly = _as_dict(weekly)
+		result["weekly_capacity"] = calculate_weekly_capacity(
+			weekly.get("required_customer_qty"),
+			weekly.get("extra_output_qty"),
+			weekly.get("labour_minutes_per_kg"),
+			_as_list(weekly.get("sessions")),
+			weekly.get("storage_capacity_qty"),
+		)
+	return result
 
 
 @frappe.whitelist(methods=["POST"])
