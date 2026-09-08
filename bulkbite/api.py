@@ -1617,7 +1617,7 @@ def get_production_history_snapshot(plan_name=None):
 	run_names = frappe.get_all(
 		"BulkBite Production Run",
 		filters=run_filters,
-		fields=["name", "production_date", "production_plan_row", "plan_week_number", "cycle_number", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "finished_container_count", "average_container_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_status", "material_cost_variance", "notes"],
+		fields=["name", "production_date", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "finished_container_count", "average_container_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_status", "material_cost_variance", "notes"],
 		order_by="production_date desc, creation desc",
 		limit=200,
 	)
@@ -1666,6 +1666,7 @@ def get_production_history_snapshot(plan_name=None):
 		for allocation_type in ["Current Customers", "Future Customers", "Future Customer Fulfilment", "Internal Consumption", "Waste or Spoilage"]
 	}
 	remaining = round_operational_quantity(max(customer_required - actual, 0))
+	skipped_weeks = _skipped_production_weeks(plan_rows, run_names, plan.period_start) if plan else []
 	return {
 		"plan": plan_name,
 		"summary": {
@@ -1680,6 +1681,7 @@ def get_production_history_snapshot(plan_name=None):
 			"allocations": allocated_by_type,
 		},
 		"runs": runs,
+		"skipped_weeks": skipped_weeks,
 		"containers": get_container_position_snapshot(),
 	}
 
@@ -1879,7 +1881,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
 		order_by="production_date, creation",
 	)
-	next_production = _next_production_station(rows, runs)
+	next_production = _next_production_station(rows, runs, plan.period_start)
 	start_cycle_week = int((next_production.get("row") or {}).get("cycle_week") or (next_production.get("row") or {}).get("week_number") or 1)
 	buying_rows, buying_requirements = build_plan_snapshot(plan, location, cover_with_finished_stock=True, start_cycle_week=start_cycle_week)
 	buying = build_buying_plan(plan, buying_requirements, next_production=next_production)
@@ -1933,7 +1935,7 @@ def get_buying_recommendation(plan_name=None, location="Ingredients", horizon_we
 		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation"],
 		order_by="production_date, creation",
 	)
-	next_production = _next_production_station(direction_rows, runs)
+	next_production = _next_production_station(direction_rows, runs, plan.period_start)
 	start_cycle_week = int((next_production.get("row") or {}).get("cycle_week") or (next_production.get("row") or {}).get("week_number") or 1)
 	rows, requirements = build_plan_snapshot(plan, location, weeks, cover_with_finished_stock=True, start_cycle_week=start_cycle_week)
 	buying = build_buying_plan(plan, requirements, horizon_weeks=weeks, next_production=next_production)
@@ -2183,12 +2185,75 @@ def create_run_from_plan(plan_name, plan_row_name, production_date, source_locat
 	)
 
 
-def _next_production_station(rows, runs):
-	"""Resume a draft and keep a meal active until its cycle target is physically made."""
+def _production_calendar_slot(rows, period_start, as_of_date=None, offset=0):
+	"""Map the next scheduled production date to one repeating meal and cycle."""
 	ordered_rows = sorted(rows, key=lambda value: value.get("week_number") or 0)
 	if not ordered_rows:
-		return {"state": "empty", "row": None, "run": None, "cycle_number": 1}
-	row_by_number = {int(row["week_number"]): row for row in ordered_rows}
+		return {"row": None, "cycle_number": 1, "slot_index": 0, "planned_date": None}
+	start = getdate(period_start or nowdate())
+	today = getdate(as_of_date or nowdate())
+	days_since_start = max((today - start).days, 0)
+	upcoming_slot = (days_since_start + 6) // 7
+	slot_index = max(upcoming_slot + int(offset or 0), 0)
+	row = dict(ordered_rows[slot_index % len(ordered_rows)])
+	row["week_number"] = int(row.get("cycle_week") or row.get("week_number") or 1)
+	row["cycle_week"] = row["week_number"]
+	row["planned_date"] = add_days(start, slot_index * 7)
+	return {
+		"row": row,
+		"cycle_number": slot_index // len(ordered_rows) + 1,
+		"slot_index": slot_index,
+		"planned_date": row["planned_date"],
+	}
+
+
+def _skipped_production_weeks(rows, runs, period_start, as_of_date=None):
+	"""Return elapsed calendar slots that have no posted planned-production evidence."""
+	ordered_rows = sorted(rows, key=lambda value: value.get("week_number") or 0)
+	if not ordered_rows:
+		return []
+	start = getdate(period_start or nowdate())
+	today = getdate(as_of_date or nowdate())
+	posted_output = {}
+	for run in runs or []:
+		if not run.docstatus or (run.direction_action or "Advance Direction") == "Off Plan":
+			continue
+		key = (int(run.cycle_number or 1), int(run.plan_week_number or 0))
+		posted_output[key] = posted_output.get(key, 0) + flt(run.actual_output_qty)
+	skipped = []
+	slot_index = 0
+	while True:
+		planned_date = add_days(start, slot_index * 7)
+		if planned_date >= today:
+			break
+		row = ordered_rows[slot_index % len(ordered_rows)]
+		cycle_number = slot_index // len(ordered_rows) + 1
+		meal_number = int(row.get("cycle_week") or row.get("week_number") or 1)
+		actual_output = round_operational_quantity(posted_output.get((cycle_number, meal_number), 0))
+		required_output = round_operational_quantity(row.get("customer_required_output_qty") or row.get("planned_output_qty"))
+		if actual_output + 0.0005 < required_output:
+			skipped.append({
+				"cycle_number": cycle_number,
+				"meal_number": meal_number,
+				"planned_date": planned_date,
+				"finished_item": row.get("finished_item"),
+				"finished_item_name": row.get("finished_item_name") or row.get("finished_item"),
+				"required_output_qty": required_output,
+				"actual_output_qty": actual_output,
+				"missing_output_qty": round_operational_quantity(required_output - actual_output),
+				"status": "Skipped" if actual_output <= 0 else "Short",
+			})
+		slot_index += 1
+	return skipped
+
+
+def _next_production_station(rows, runs, period_start=None, as_of_date=None):
+	"""Resume a draft, then select the next calendar meal and preserve partial output."""
+	ordered_rows = sorted(rows, key=lambda value: value.get("week_number") or 0)
+	if not ordered_rows:
+		return {"state": "empty", "row": None, "run": None, "cycle_number": 1, "skipped_weeks": []}
+	calendar = _production_calendar_slot(rows, period_start, as_of_date)
+	row_by_number = {int(row.get("cycle_week") or row["week_number"]): row for row in ordered_rows}
 	row_by_name = {row["name"]: row for row in ordered_rows}
 	drafts = sorted(
 		(row for row in runs if not row.docstatus),
@@ -2204,35 +2269,30 @@ def _next_production_station(rows, runs):
 				"row": row,
 				"run": _serialize_run(frappe.get_doc("BulkBite Production Run", draft.name)),
 				"cycle_number": int(draft.cycle_number or 1),
+				"calendar": calendar,
+				"behind_calendar": (
+					int(draft.cycle_number or 1), int(draft.plan_week_number or 0)
+				) < (int(calendar["cycle_number"]), int(calendar["row"]["week_number"])),
+				"skipped_weeks": _skipped_production_weeks(rows, runs, period_start, as_of_date),
 			}
-	posted = sorted(
-		(row for row in runs if row.docstatus and (row.direction_action or "Advance Direction") != "Off Plan"),
-		key=lambda value: (int(value.cycle_number or 1), int(value.plan_week_number or 0), value.production_date, value.creation),
-	)
-	if not posted:
-		return {"state": "ready", "row": ordered_rows[0], "run": None, "cycle_number": 1}
-	latest = posted[-1]
-	latest_week = int(latest.plan_week_number or 0)
-	if not latest_week and latest.production_plan_row in row_by_name:
-		latest_week = int(row_by_name[latest.production_plan_row]["week_number"])
-	latest_week = latest_week or 1
-	if (latest.direction_action or "Advance Direction") == "Repeat Meal":
-		return {"state": "ready", "row": row_by_number[latest_week], "run": None, "cycle_number": int(latest.cycle_number or 1)}
+	meal_number = int(calendar["row"]["week_number"])
+	cycle_number = int(calendar["cycle_number"])
+	posted = [row for row in runs if row.docstatus and (row.direction_action or "Advance Direction") != "Off Plan"]
 	cycle_output = sum(
 		flt(run.actual_output_qty)
 		for run in posted
-		if int(run.cycle_number or 1) == int(latest.cycle_number or 1)
-		and int(run.plan_week_number or 0) == latest_week
+		if int(run.cycle_number or 1) == cycle_number
+		and int(run.plan_week_number or 0) == meal_number
 	)
-	target_output = flt(row_by_number[latest_week].get("planned_output_qty"))
+	target_output = flt(calendar["row"].get("planned_output_qty"))
+	skipped_weeks = _skipped_production_weeks(rows, runs, period_start, as_of_date)
 	if cycle_output + 0.0005 < target_output:
-		row = dict(row_by_number[latest_week])
+		row = dict(calendar["row"])
 		row["remaining_output_qty"] = round_operational_quantity(target_output - cycle_output)
 		row["completed_output_qty"] = round_operational_quantity(cycle_output)
-		return {"state": "remaining", "row": row, "run": None, "cycle_number": int(latest.cycle_number or 1)}
-	next_week = latest_week + 1 if latest_week < len(ordered_rows) else 1
-	next_cycle = int(latest.cycle_number or 1) + (1 if next_week == 1 else 0)
-	return {"state": "ready", "row": row_by_number[next_week], "run": None, "cycle_number": next_cycle}
+		return {"state": "remaining" if cycle_output else "ready", "row": row, "run": None, "cycle_number": cycle_number, "calendar": calendar, "behind_calendar": False, "skipped_weeks": skipped_weeks}
+	next_calendar = _production_calendar_slot(rows, period_start, as_of_date, offset=1)
+	return {"state": "ready", "row": next_calendar["row"], "run": None, "cycle_number": next_calendar["cycle_number"], "calendar": next_calendar, "behind_calendar": False, "skipped_weeks": skipped_weeks}
 
 
 @frappe.whitelist(methods=["POST"])

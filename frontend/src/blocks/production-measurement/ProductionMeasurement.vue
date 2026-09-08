@@ -775,6 +775,7 @@ function openRecipeRecords(create = false) {
 			</section>
 			<section v-if="history" class="data-section">
 				<div class="section-heading"><div><p class="eyebrow">Run evidence</p><h2>Theory against actual</h2></div><SystemBadge>{{ history.runs.length }} posted runs</SystemBadge></div>
+				<div v-if="history.skipped_weeks?.length" class="skipped-week-list"><article v-for="item in history.skipped_weeks" :key="`${item.cycle_number}-${item.meal_number}`"><div><SystemBadge theme="red">{{ item.status }}</SystemBadge><strong>{{ item.finished_item_name }}</strong><small>{{ item.planned_date }} · cycle {{ item.cycle_number }}, meal {{ item.meal_number }}</small></div><span>{{ quantity(item.missing_output_qty) }} kg missing</span></article></div>
 				<div class="history-run-list"><article v-for="item in history.runs" :key="item.name"><div class="history-run-heading"><div><strong>{{ item.finished_item }}</strong><small>{{ item.production_date }} · {{ item.name }}</small></div><SystemBadge :theme="item.customer_coverage_status === 'Short' ? 'red' : 'green'">{{ item.customer_coverage_status }}</SystemBadge></div><div class="metric-board"><div><strong>{{ quantity(item.planned_output_qty) }} kg</strong><span>planned</span></div><div><strong>{{ quantity(item.actual_output_qty) }} kg</strong><span>made</span></div><div><strong>{{ quantity(item.theory_customer_qty) }} kg</strong><span>customer theory</span></div><div><strong>{{ quantity(item.unallocated_output_qty) }} kg</strong><span>unallocated</span></div><div><strong>{{ item.finished_container_count }}</strong><span>containers filled</span></div><div><strong>{{ quantity(item.actual_labour_minutes_per_kg) }} min/kg</strong><span>actual labour rate</span></div></div><div v-if="item.allocations.length" class="allocation-strip"><span v-for="allocationRow in item.allocations" :key="allocationRow.name">{{ allocationRow.allocation_type }}: {{ quantity(allocationRow.quantity) }} {{ allocationRow.uom }}</span></div></article></div>
 			</section>
 			<section v-if="history" class="data-section"><div class="section-heading"><div><p class="eyebrow">Reusable containers</p><h2>Container position</h2></div></div><div class="metric-board"><div><strong>{{ history.containers.states.Clean || 0 }}</strong><span>clean</span></div><div><strong>{{ history.containers.states.Filled || 0 }}</strong><span>filled food</span></div><div><strong>{{ history.containers.states['With Customer'] || 0 }}</strong><span>with customers</span></div><div><strong>{{ history.containers.overdue || 0 }}</strong><span>overdue</span></div><div><strong>{{ history.containers.states.Maintenance || 0 }}</strong><span>maintenance</span></div></div></section>
@@ -811,6 +812,9 @@ function openRecipeRecords(create = false) {
 		</header>
 		<div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
 		<div v-if="offlineNotice" class="state-message" role="status">{{ offlineNotice }}</div>
+		<div v-if="station.behind_calendar && station.calendar?.row" class="state-message state-message--warning" role="status">
+			This saved draft is behind the current calendar direction. The upcoming slot is meal {{ station.calendar.row.week_number }} on {{ station.calendar.planned_date }}. Finish or post this draft first so its measurements are not lost.
+		</div>
 		<div v-if="!plan && !adHocMode" class="state-message">
 			<p>Set the current meal direction, or record an off-plan production run.</p>
 			<SystemOperationalButton variant="outline" @click="startAdHocProduction"
@@ -1121,6 +1125,7 @@ function openRecipeRecords(create = false) {
 
 <style scoped>
 .production-details{display:grid}.production-details__card{overflow:hidden;padding:0}.production-details__trigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}.production-details__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.production-details__content{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-m) var(--spacing-m)}
+.skipped-week-list{display:grid;gap:var(--spacing-xs);margin-bottom:var(--spacing-m)}.skipped-week-list article{display:flex;align-items:center;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid color-mix(in oklch,var(--theme-error) 38%,var(--theme-border));border-radius:var(--component-radius-card);background:color-mix(in oklch,var(--theme-error) 6%,var(--theme-surface-raised))}.skipped-week-list article>div{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--spacing-3xs) var(--spacing-xs)}.skipped-week-list strong{min-width:0}.skipped-week-list small{grid-column:2;color:var(--theme-text-muted)}.skipped-week-list>article>span{white-space:nowrap;font-weight:var(--font-weight-700)}
 .history-summary,
 .history-run-list > article {
 	display: grid;
@@ -1315,6 +1320,7 @@ function openRecipeRecords(create = false) {
 	}
 }
 @media (max-width: 44rem) {
+	.skipped-week-list article{align-items:flex-start;flex-direction:column}.skipped-week-list>article>span{white-space:normal}
 	.production-direction-grid,
 	.allocation-grid,
 	.container-suggestion,
