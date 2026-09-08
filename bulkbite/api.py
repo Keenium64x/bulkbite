@@ -1617,7 +1617,7 @@ def get_production_history_snapshot(plan_name=None):
 	run_names = frappe.get_all(
 		"BulkBite Production Run",
 		filters=run_filters,
-		fields=["name", "production_date", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "finished_container_count", "average_container_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_status", "material_cost_variance", "notes"],
+		fields=["name", "production_date", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "planned_output_qty", "actual_output_qty", "finished_container_count", "average_container_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_status", "material_cost_variance", "notes", "docstatus"],
 		order_by="production_date desc, creation desc",
 		limit=200,
 	)
