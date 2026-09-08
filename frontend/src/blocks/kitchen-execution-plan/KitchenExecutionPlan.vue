@@ -173,9 +173,12 @@ function restoreAutomaticAvailability(row) {
 }
 
 function queueKitchenPlanSave() {
-  if (hydratingPlan || busy.value || run.value?.docstatus || !employeeRows.some((row) => row.employee)) return
+  if (hydratingPlan || run.value?.docstatus || !employeeRows.some((row) => row.employee)) return
   window.clearTimeout(kitchenSaveTimer)
-  kitchenSaveTimer = window.setTimeout(() => saveKitchenPlan({ quiet: true }), 500)
+  kitchenSaveTimer = window.setTimeout(() => {
+    if (busy.value) return queueKitchenPlanSave()
+    saveKitchenPlan({ quiet: true })
+  }, 500)
 }
 
 function removeEmployee(index) {
