@@ -71,7 +71,7 @@ onMounted(loadReport)
       </section>
       <section class="data-section">
         <div class="section-heading"><div><p class="eyebrow">Profit</p><h2>After food and operating costs</h2><p>{{ report.profit.actual_qualification }}</p></div></div>
-        <div class="metric-board metric-board--paper"><div><strong>{{ money(report.profit.revenue) }}</strong><span>configured revenue</span></div><div><strong>{{ money(report.profit.expected_gross_profit) }}</strong><span>expected gross profit</span></div><div><strong>{{ money(report.profit.actual_gross_profit) }}</strong><span>actual gross profit</span></div><div><strong>{{ money(report.profit.actual_operating_result) }}</strong><span>result after entered costs</span></div></div>
+        <div class="metric-board metric-board--paper"><div><strong>{{ money(report.profit.revenue) }}</strong><span>customer revenue</span></div><div><strong>{{ money(report.expected_food_consumption_cost) }}</strong><span>forecast food used</span></div><div><strong>{{ money(report.profit.expected_gross_profit) }}</strong><span>forecast gross profit</span></div><div><strong>{{ report.profit.actual_complete ? money(report.profit.actual_operating_result) : "Incomplete" }}</strong><span>recorded operating result</span></div></div>
         <p class="safety-note">Revenue basis: {{ report.profit.revenue_basis }}. Actual labour and overhead only count when entered as cost evidence.</p>
       </section>
       <section class="data-section">

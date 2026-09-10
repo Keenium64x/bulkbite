@@ -1,0 +1,38 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-CUSTOMER-MIX-.#####",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["plan_type", "customer_count", "effective_from", "effective_to", "evidence_status", "commercial_terms_section", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks", "cycle_price", "price_basis", "production_plan", "notes"],
+ "fields": [
+  {"fieldname": "plan_type", "fieldtype": "Link", "in_list_view": 1, "label": "Customer Plan", "options": "BulkBite Customer Plan Type", "read_only": 1, "reqd": 1},
+  {"fieldname": "customer_count", "fieldtype": "Int", "in_list_view": 1, "label": "Customers", "non_negative": 1, "read_only": 1, "reqd": 1},
+  {"fieldname": "effective_from", "fieldtype": "Date", "in_list_view": 1, "label": "Effective From", "read_only": 1, "reqd": 1},
+  {"fieldname": "effective_to", "fieldtype": "Date", "in_list_view": 1, "label": "Effective To", "read_only": 1},
+  {"default": "Incomplete", "fieldname": "evidence_status", "fieldtype": "Select", "in_list_view": 1, "label": "Historical Evidence", "options": "Incomplete\nConfirmed Aggregate\nComplete", "read_only": 1, "reqd": 1},
+  {"fieldname": "commercial_terms_section", "fieldtype": "Section Break", "label": "Frozen Customer Terms"},
+  {"fieldname": "serving_size_g", "fieldtype": "Float", "label": "Serving Size (g)", "non_negative": 1, "read_only": 1},
+  {"fieldname": "meals_per_day", "fieldtype": "Int", "label": "Meals per Day", "non_negative": 1, "read_only": 1},
+  {"fieldname": "days_per_week", "fieldtype": "Int", "label": "Days per Week", "non_negative": 1, "read_only": 1},
+  {"fieldname": "cycle_weeks", "fieldtype": "Int", "label": "Cycle Weeks", "non_negative": 1, "read_only": 1},
+  {"fieldname": "cycle_price", "fieldtype": "Currency", "label": "Price per Cycle", "non_negative": 1, "read_only": 1},
+  {"fieldname": "price_basis", "fieldtype": "Data", "label": "Price Basis", "read_only": 1},
+  {"fieldname": "production_plan", "fieldtype": "Link", "label": "Production Direction", "options": "BulkBite Production Plan", "read_only": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Customer Mix Period",
+ "permissions": [
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager"},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager"},
+  {"export": 1, "read": 1, "report": 1, "role": "BulkBite Accountant"},
+  {"read": 1, "role": "BulkBite Worker"}
+ ],
+ "sort_field": "effective_from",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

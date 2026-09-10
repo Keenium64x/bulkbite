@@ -1730,7 +1730,7 @@ onMounted(() => (props.mode === "finance" ? loadFinance() : loadCatalogue()));
 						<article>
 							<span>Expected food cost</span
 							><strong>{{ money(finance?.forecast?.food_cost) }}</strong
-							><small>Supplier basket after savings and buying costs</small>
+							><small>Recipe ingredients expected to be used</small>
 						</article>
 						<article>
 							<span>Expected operating costs</span
@@ -1753,16 +1753,18 @@ onMounted(() => (props.mode === "finance" ? loadFinance() : loadCatalogue()));
 							><small>Delivery, VAT additions, and fees</small>
 						</article>
 						<article>
-							<span>Actual food spend</span
-							><strong>{{ money(finance?.forecast?.actual_food_cost) }}</strong
+							<span>Purchase spend</span
+							><strong>{{ money(finance?.forecast?.purchase_spend) }}</strong
 							><small>Reviewed receipts this month</small>
 						</article>
 						<article>
 							<span>Actual operating result</span
 							><strong>{{
-								money(finance?.forecast?.actual_operating_result)
+								finance?.forecast?.actual_complete
+									? money(finance?.forecast?.actual_operating_result)
+									: "Incomplete"
 							}}</strong
-							><small>Entered actual costs against configured revenue</small>
+							><small>{{ finance?.forecast?.actual_qualification }}</small>
 						</article>
 					</div>
 				</section>

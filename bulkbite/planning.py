@@ -4,10 +4,11 @@ import math
 from datetime import timedelta
 
 import frappe
-from frappe.utils import add_days, flt, getdate, nowdate
+from frappe.utils import add_days, date_diff, flt, getdate, nowdate
 
 from bulkbite.stock_production import get_available_stock, load_expected_usage, round_operational_quantity
 from bulkbite.pricing import calculate_basket_adjustments, calculate_offer_price_bridge
+from bulkbite.reporting_scope import is_demo_evidence
 
 
 # =============================================================================
@@ -25,20 +26,29 @@ def calculate_customer_demand(customer_mix):
 	for row in customer_mix or []:
 		plan = frappe.get_cached_doc("BulkBite Customer Plan Type", row.plan_type)
 		customers = max(int(row.customer_count or 0), 0)
-		servings = customers * int(plan.meals_per_day) * int(plan.days_per_week)
-		output_qty = round_operational_quantity(servings * flt(plan.serving_size_g) / 1000)
-		customer_price = flt(plan.discounted_price) if flt(plan.discounted_price) > 0 else flt(plan.normal_price)
+		meals_per_day = int(_customer_value(row, "meals_per_day") or plan.meals_per_day)
+		days_per_week = int(_customer_value(row, "days_per_week") or plan.days_per_week)
+		serving_size_g = flt(_customer_value(row, "serving_size_g") or plan.serving_size_g)
+		cycle_weeks = int(_customer_value(row, "cycle_weeks") or plan.cycle_weeks or 4)
+		price_basis = _customer_value(row, "price_basis") or "Normal"
+		frozen_price = flt(_customer_value(row, "customer_price"))
+		selected_price = flt(plan.discounted_price) if price_basis == "Discounted" and flt(plan.discounted_price) > 0 else flt(plan.normal_price)
+		customer_price = frozen_price or selected_price
+		servings = customers * meals_per_day * days_per_week
+		output_qty = round_operational_quantity(servings * serving_size_g / 1000)
 		plan_revenue = round(customers * customer_price, 2)
 		result.append(
 			{
 				"plan_type": row.plan_type,
 				"customer_count": customers,
-				"serving_size_g": flt(plan.serving_size_g),
+				"serving_size_g": serving_size_g,
+				"meals_per_day": meals_per_day,
+				"days_per_week": days_per_week,
 				"weekly_servings": servings,
 				"weekly_output_qty": output_qty,
 				"customer_price": customer_price,
-				"price_basis": "Discounted" if flt(plan.discounted_price) > 0 else "Normal",
-				"cycle_weeks": int(plan.cycle_weeks or 4),
+				"price_basis": price_basis,
+				"cycle_weeks": cycle_weeks,
 				"cycle_revenue": plan_revenue,
 			}
 		)
@@ -53,6 +63,10 @@ def calculate_customer_demand(customer_mix):
 		"weekly_output_qty": round_operational_quantity(weekly_output_qty),
 		"cycle_revenue": round(cycle_revenue, 2),
 	}
+
+
+def _customer_value(row, fieldname):
+	return row.get(fieldname) if hasattr(row, "get") else getattr(row, fieldname, None)
 
 
 # endregion CUSTOMER DEMAND
@@ -445,30 +459,31 @@ def freeze_buying_theory(plan, location="Ingredients"):
 def build_spend_report(from_date, to_date):
 	"""Compare frozen plan baskets with every reviewed receipt in a reporting period."""
 	start, end = getdate(from_date), getdate(to_date)
-	plans = frappe.get_all(
+	plan_rows = frappe.get_all(
 		"BulkBite Production Plan",
-		filters={
-			"period_start": ["<=", end],
-			"period_end": [">=", start],
-			"status": ["!=", "Cancelled"],
-		},
+		filters={"period_start": ["<=", end], "status": ["!=", "Cancelled"]},
 		fields=["name", "plan_title", "period_start", "period_end", "expected_purchase_cost", "buying_snapshot_json"],
 		order_by="period_start asc, name asc",
 	)
+	plans = [row for row in plan_rows if not row.period_end or getdate(row.period_end) >= start]
 	breakdown = {}
 	savings_breakdown = {}
 	expected_base_total = 0
 	expected_savings_total = 0
 	expected_added_costs_total = 0
-	plan_rows = []
+	report_plans = []
 	for plan_row in plans:
 		plan = frappe.get_doc("BulkBite Production Plan", plan_row.name)
 		buying = load_buying_theory(plan)
-		expected = flt(buying.get("expected_cost"))
-		expected_base_total += flt(buying.get("base_cost")) or expected
-		expected_savings_total += flt(buying.get("expected_savings"))
-		expected_added_costs_total += flt(buying.get("expected_added_costs"))
-		plan_rows.append(
+		overlap_start = max(start, getdate(plan.period_start))
+		overlap_end = min(end, getdate(plan.period_end) if plan.period_end else end)
+		cycle_weeks = max(max([int(row.cycle_weeks or 4) for row in plan.customer_mix], default=4), 1)
+		period_share = (date_diff(overlap_end, overlap_start) + 1) / (cycle_weeks * 7)
+		expected = flt(buying.get("expected_cost")) * period_share
+		expected_base_total += (flt(buying.get("base_cost")) or flt(buying.get("expected_cost"))) * period_share
+		expected_savings_total += flt(buying.get("expected_savings")) * period_share
+		expected_added_costs_total += flt(buying.get("expected_added_costs")) * period_share
+		report_plans.append(
 			{
 				"name": plan.name,
 				"plan_title": plan.plan_title,
@@ -484,21 +499,23 @@ def build_spend_report(from_date, to_date):
 				breakdown,
 				line.get("supplier") or "Supplier not chosen",
 				line.get("item_category") or "Uncategorised",
-				expected=flt(line.get("expected_cost")),
+				expected=flt(line.get("expected_cost")) * period_share,
 			)
 			for component in (line.get("price_bridge") or {}).get("components") or []:
-				_add_savings_breakdown(savings_breakdown, line.get("supplier"), component)
+				_add_savings_breakdown(savings_breakdown, line.get("supplier"), component, period_share)
 		for group in buying.get("suppliers") or []:
 			for component in (group.get("basket_adjustments") or {}).get("components") or []:
-				_add_savings_breakdown(savings_breakdown, group.get("supplier"), component)
+				_add_savings_breakdown(savings_breakdown, group.get("supplier"), component, period_share)
 
-	receipts = frappe.get_all(
+	receipts = [
+		receipt for receipt in frappe.get_all(
 		"BulkBite Receipt Intake",
 		filters={"invoice_date": ["between", [start, end]], "status": ["!=", "Rejected"]},
-		fields=["name", "invoice_date", "supplier", "subtotal_amount", "tax_amount", "total_amount"],
+		fields=["name", "invoice_date", "supplier", "supplier_invoice_number", "subtotal_amount", "tax_amount", "total_amount", "review_notes"],
 		order_by="invoice_date asc, name asc",
 	)
-	plan_by_name = {row["name"]: row for row in plan_rows}
+		if not is_demo_evidence(receipt, "supplier_invoice_number", "review_notes")
+	]
 	unassigned_receipts = 0
 	actual_total = 0
 	if receipts:
@@ -509,8 +526,9 @@ def build_spend_report(from_date, to_date):
 		for receipt in receipts:
 			actual_total += flt(receipt.total_amount)
 			matching_plans = [
-				row for row in plan_rows
-				if getdate(row["period_start"]) <= getdate(receipt.invoice_date) <= getdate(row["period_end"])
+				row for row in report_plans
+				if getdate(row["period_start"]) <= getdate(receipt.invoice_date)
+				and (not row["period_end"] or getdate(receipt.invoice_date) <= getdate(row["period_end"]))
 			]
 			if len(matching_plans) == 1:
 				matching_plans[0]["actual_spend"] += flt(receipt.total_amount)
@@ -553,9 +571,9 @@ def build_spend_report(from_date, to_date):
 				if receipt.supplier and receipt.supplier not in row["suppliers"]:
 					row["suppliers"].append(receipt.supplier)
 
-	for row in plan_rows:
+	for row in report_plans:
 		row["variance"] = row["actual_spend"] - row["expected_spend"]
-	expected_total = sum(flt(row["expected_spend"]) for row in plan_rows)
+	expected_total = sum(flt(row["expected_spend"]) for row in report_plans)
 	rows = sorted(breakdown.values(), key=lambda row: (row["supplier"], row["item_category"]))
 	for row in rows:
 		row["variance"] = row["actual_spend"] - row["expected_spend"]
@@ -569,11 +587,11 @@ def build_spend_report(from_date, to_date):
 			"expected_spend": expected_total,
 			"actual_spend": actual_total,
 			"variance": actual_total - expected_total,
-			"plan_count": len(plan_rows),
+			"plan_count": len(report_plans),
 			"receipt_count": len(receipts),
 			"unassigned_receipt_count": unassigned_receipts,
 		},
-		"plans": plan_rows,
+		"plans": report_plans,
 		"breakdown": rows,
 		"savings": savings_rows,
 		"savings_by_type": _summarize_savings_by_type(savings_rows),
@@ -595,10 +613,10 @@ def _add_spend_breakdown(target, supplier, item_category, expected=0, actual=0):
 	row["actual_spend"] += flt(actual)
 
 
-def _add_savings_breakdown(target, supplier, component):
+def _add_savings_breakdown(target, supplier, component, multiplier=1):
 	key = (component.get("name"), component.get("type"), component.get("effect"))
 	row = target.setdefault(key, {"name": component.get("name"), "type": component.get("type"), "effect": component.get("effect"), "expected_amount": 0, "actual_amount": 0, "suppliers": []})
-	row["expected_amount"] += flt(component.get("amount"))
+	row["expected_amount"] += flt(component.get("amount")) * flt(multiplier)
 	if supplier and supplier not in row["suppliers"]:
 		row["suppliers"].append(supplier)
 

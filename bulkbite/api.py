@@ -35,6 +35,8 @@ from bulkbite.planning import (
 	load_buying_theory,
 )
 from bulkbite.costing import calculate_operating_costs, enrich_spend_report
+from bulkbite.customer_periods import close_plan_customer_periods, ensure_plan_customer_periods, get_customer_mix_periods
+from bulkbite.reporting_scope import is_demo_evidence
 from bulkbite.workforce import (
 	calculate_assignment_pay,
 	calculate_capacity_forecast,
@@ -121,7 +123,7 @@ def get_workspace_snapshot():
 			"recipes": frappe.get_all("BulkBite Recipe", filters=[["status", "=", "Approved"], *_exclude_archived_setup_records("BulkBite Recipe")], fields=["name", "recipe_name", "finished_item as item", "nominal_output_qty as quantity", "output_uom as uom"], order_by="recipe_name"),
 			"suppliers": frappe.get_all("BulkBite Supplier", filters={"enabled": 1}, pluck="name", order_by="name"),
 			"production_plans": frappe.get_all("BulkBite Production Plan", filters=[["status", "in", ["Relative Draft", "Dated Draft", "Active"]], *_exclude_archived_setup_records("BulkBite Production Plan")], fields=["name as value", "plan_title as label"], order_by="modified desc"),
-			"customer_plan_types": frappe.get_all("BulkBite Customer Plan Type", filters={"enabled": 1}, fields=["name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks"], order_by="serving_size_g"),
+			"customer_plan_types": frappe.get_all("BulkBite Customer Plan Type", filters={"enabled": 1}, fields=["name", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks", "normal_price", "discounted_price"], order_by="serving_size_g"),
 			"item_categories": frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, fields=["name", "default_supplier"], order_by="name"),
 			"operating_cost_rules": frappe.get_all("BulkBite Operating Cost Rule", filters={"enabled": 1}, fields=["name as value", "cost_name as label", "cost_category", "basis", "rate"], order_by="cost_category, cost_name"),
 			"employees": frappe.get_all("BulkBite Employee", filters={"status": "Active", "available_for_production": 1}, fields=["name as value", "full_name as label", "employee_type", "available_hours_per_run"], order_by="full_name"),
@@ -269,7 +271,8 @@ def get_finance_workspace(from_date=None, to_date=None):
 		},
 		"forecast": {
 			"revenue": spend.get("profit", {}).get("revenue", 0),
-			"food_cost": spend["summary"].get("expected_spend", 0),
+			"food_cost": spend.get("expected_food_consumption_cost", 0),
+			"purchase_spend": spend["summary"].get("actual_spend", 0),
 			"operating_cost": operating["expected_total"],
 			"discounts_and_savings": spend["summary"].get("expected_savings", 0),
 			"added_buying_costs": spend["summary"].get("expected_added_buying_costs", 0),
@@ -279,9 +282,12 @@ def get_finance_workspace(from_date=None, to_date=None):
 				1,
 			) if flt(spend.get("profit", {}).get("revenue")) else 0,
 			"actual_revenue_basis": spend.get("profit", {}).get("revenue_basis"),
-			"actual_food_cost": spend["summary"].get("actual_spend", 0),
+			"actual_food_cost": spend.get("production_food_costs", {}).get("actual_material_cost", 0),
+			"actual_food_cost_basis": "Ingredients consumed by posted production runs",
 			"actual_operating_cost": operating["actual_total"],
 			"actual_operating_result": spend.get("profit", {}).get("actual_operating_result", 0),
+			"actual_complete": spend.get("profit", {}).get("actual_complete", False),
+			"actual_qualification": spend.get("profit", {}).get("actual_qualification"),
 		},
 		"breakdown": operating["breakdown"],
 		"workforce": workforce,
@@ -1984,8 +1990,11 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 			"plan_type": row.plan_type,
 			"customer_count": row.customer_count,
 			"serving_size_g": round_operational_quantity(row.serving_size_g),
-			"meals_per_day": frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "meals_per_day"),
-			"days_per_week": frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "days_per_week"),
+			"meals_per_day": row.meals_per_day or frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "meals_per_day"),
+			"days_per_week": row.days_per_week or frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "days_per_week"),
+			"cycle_weeks": row.cycle_weeks or frappe.get_cached_value("BulkBite Customer Plan Type", row.plan_type, "cycle_weeks"),
+			"customer_price": row.customer_price,
+			"price_basis": row.price_basis,
 			"weekly_servings": row.weekly_servings,
 			"weekly_output_qty": round_operational_quantity(row.weekly_output_qty),
 		} for row in plan.customer_mix],
@@ -1998,6 +2007,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"runs": runs,
 		"service_periods": closed_service_periods,
 		"vacations": vacations,
+		"customer_mix_history": get_customer_mix_periods(),
 	}
 	result["capacity_plan"] = _build_capacity_plan(plan, result["customer_mix"], result["workforce"])
 	result["next_production"] = next_production
@@ -2125,14 +2135,24 @@ def save_monthly_production_plan(payload=None):
 	"""Create or update the one-month customer and recipe plan used by buying and production."""
 	_require_roles("BulkBite Manager")
 	data = _as_dict(payload)
-	plan = frappe.get_doc("BulkBite Production Plan", data.name) if data.get("name") else frappe.new_doc("BulkBite Production Plan")
-	if not plan.is_new() and plan.status == "Cancelled":
+	existing_plan = frappe.get_doc("BulkBite Production Plan", data.name) if data.get("name") else None
+	if existing_plan and existing_plan.status == "Cancelled":
 		frappe.throw(_("A cancelled meal direction cannot be edited. Create a new direction instead."))
+	new_period_start = getdate(data.get("customer_changes_from") or data.get("period_start") or (existing_plan.period_start if existing_plan else None) or nowdate())
+	version_customer_mix = bool(existing_plan and _customer_mix_changed(existing_plan.customer_mix, _as_list(data.get("customer_mix"))))
+	plan = frappe.new_doc("BulkBite Production Plan") if version_customer_mix else (existing_plan or frappe.new_doc("BulkBite Production Plan"))
+	if version_customer_mix:
+		_validate_customer_mix_version_date(existing_plan, new_period_start)
+		plan.plan_title = data.get("plan_title") or existing_plan.plan_title
+		plan.notes = data.get("notes") if "notes" in data else existing_plan.notes
+		plan.source_workbook = existing_plan.source_workbook
+		plan.source_sheet = existing_plan.source_sheet
+		plan.date_note = existing_plan.date_note
 	plan.plan_title = data.get("plan_title") or _("Current meal direction")
 	plan.status = "Active"
 	plan.business_name = "BulkBite"
-	plan.period_start = getdate(data.get("period_start") or plan.period_start or nowdate())
-	plan.period_end = getdate(data.get("period_end") or plan.period_end or add_days(plan.period_start, 27))
+	plan.period_start = new_period_start if version_customer_mix else getdate(data.get("period_start") or plan.period_start or nowdate())
+	plan.period_end = None
 	if "notes" in data:
 		plan.notes = data.get("notes")
 	plan.forecast_weeks = max(int(data.get("forecast_weeks") or 4), 1)
@@ -2140,7 +2160,7 @@ def save_monthly_production_plan(payload=None):
 	plan.set(
 		"customer_mix",
 		[
-			{"plan_type": row.get("plan_type"), "customer_count": max(int(row.get("customer_count") or 0), 0)}
+			{"plan_type": row.get("plan_type"), "customer_count": max(int(row.get("customer_count") or 0), 0), "price_basis": row.get("price_basis") if row.get("price_basis") in {"Normal", "Discounted"} else "Normal"}
 			for row in _as_list(data.get("customer_mix"))
 			if row.get("plan_type")
 		],
@@ -2157,7 +2177,15 @@ def save_monthly_production_plan(payload=None):
 			if row.get("item_category") and row.get("supplier")
 		],
 	)
-	enabled_categories = set(frappe.get_all("BulkBite Item Category", filters={"enabled": 1}, pluck="name"))
+	enabled_categories = {
+		row.item_category
+		for row in frappe.get_all(
+			"BulkBite Item",
+			filters={"enabled": 1, "purchasable": 1, "item_category": ["is", "set"]},
+			fields=["item_category"],
+		)
+		if row.item_category and frappe.get_cached_value("BulkBite Item Category", row.item_category, "enabled")
+	}
 	routed_categories = {row.item_category for row in plan.purchase_routes if row.item_category and row.supplier}
 	missing_categories = sorted(enabled_categories - routed_categories)
 	if missing_categories:
@@ -2216,6 +2244,12 @@ def save_monthly_production_plan(payload=None):
 		],
 	)
 	plan.save()
+	if version_customer_mix:
+		requested_previous_end = add_days(plan.period_start, -1)
+		previous_end = min(getdate(existing_plan.period_end), requested_previous_end) if existing_plan.period_end else requested_previous_end
+		existing_plan.db_set({"status": "Completed", "period_end": previous_end}, update_modified=False)
+		close_plan_customer_periods(existing_plan.name, previous_end)
+		_carry_future_vacations(existing_plan, plan, plan.period_start)
 	frappe.db.set_value(
 		"BulkBite Production Plan",
 		{"name": ("!=", plan.name), "status": "Active"},
@@ -2223,8 +2257,48 @@ def save_monthly_production_plan(payload=None):
 		"Completed",
 		update_modified=False,
 	)
+	ensure_plan_customer_periods(plan)
 	freeze_buying_theory(plan, data.get("location") or "Ingredients")
 	return get_production_plan_snapshot(plan.name, data.get("location") or "Ingredients")
+
+
+def _customer_mix_changed(saved_rows, incoming_rows):
+	"""Return whether plan-type customer counts differ from the saved direction."""
+	saved = {row.plan_type: (int(row.customer_count or 0), row.price_basis or "Normal") for row in saved_rows or []}
+	incoming = {row.get("plan_type"): (max(int(row.get("customer_count") or 0), 0), row.get("price_basis") or "Normal") for row in incoming_rows or [] if row.get("plan_type")}
+	return saved != incoming
+
+
+def _validate_customer_mix_version_date(plan, effective_from):
+	"""Protect completed periods and require the replacement direction to begin later."""
+	if effective_from <= getdate(plan.period_start):
+		frappe.throw(_("Customer changes must start after the current direction began."))
+	if frappe.db.exists("BulkBite Production Run", {"production_plan": plan.name, "production_date": (">=", effective_from)}):
+		frappe.throw(_("This direction already has production on or after the customer change date."))
+
+
+def _carry_future_vacations(old_plan, new_plan, effective_from):
+	"""Move future vacation configuration to the replacement direction."""
+	for vacation in frappe.get_all(
+		"BulkBite Planning Vacation",
+		filters={"production_plan": old_plan.name, "status": "Active", "from_date": (">=", effective_from)},
+		fields=["name", "vacation_name", "from_date", "to_date"],
+	):
+		filters = {
+			"production_plan": new_plan.name,
+			"status": "Active",
+			"from_date": vacation.from_date,
+			"to_date": vacation.to_date,
+		}
+		if not frappe.db.exists("BulkBite Planning Vacation", filters):
+			frappe.get_doc({
+				"doctype": "BulkBite Planning Vacation",
+				"vacation_name": vacation.vacation_name,
+				"production_plan": new_plan.name,
+				"from_date": vacation.from_date,
+				"to_date": vacation.to_date,
+			}).insert()
+		frappe.db.set_value("BulkBite Planning Vacation", vacation.name, "status", "Deleted", update_modified=False)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -2845,12 +2919,15 @@ def get_spend_report(from_date, to_date):
 
 def _get_production_capacity_actuals(from_date, to_date):
 	"""Summarise posted team evidence for the selected reporting period."""
-	runs = frappe.get_all(
+	runs = [
+		run for run in frappe.get_all(
 		"BulkBite Production Run",
 		filters={"docstatus": 1, "production_date": ["between", [from_date, to_date]]},
-		fields=["name", "production_date", "finished_item", "actual_output_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_variance_minutes_per_kg", "takt_status"],
+		fields=["name", "production_date", "finished_item", "actual_output_qty", "actual_elapsed_hours", "actual_team_size", "actual_labour_hours", "actual_labour_minutes_per_kg", "planned_takt_minutes_per_kg", "takt_variance_minutes_per_kg", "takt_status", "notes"],
 		order_by="production_date asc, name asc",
 	)
+		if not is_demo_evidence(run, "name", "notes")
+	]
 	_enrich_run_workforce_evidence(runs)
 	total_output = sum(flt(row.actual_output_qty) for row in runs)
 	total_labour = sum(flt(row.actual_labour_hours) for row in runs)

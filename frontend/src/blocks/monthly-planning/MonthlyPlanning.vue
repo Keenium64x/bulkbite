@@ -8,6 +8,7 @@ import {
 	SystemAccordionTrigger,
 	SystemBadge,
 	SystemCheckboxShadcn,
+	SystemDatePicker,
 	SystemDateRangePicker,
 	SystemFormControl,
 	SystemLinkedRecordField,
@@ -53,6 +54,7 @@ const form = reactive({
 	name: "",
 	plan_title: "",
 	status: "Active",
+	customer_changes_from: "",
 	customer_mix: [],
 	plan_rows: [],
 	purchase_routes: [],
@@ -410,16 +412,23 @@ watch(
 
 function hydrate() {
 	hydrating = true;
+	const nextServiceDate =
+		props.plan?.next_production?.calendar?.planned_date ||
+		props.plan?.next_production?.row?.planned_date ||
+		props.plan?.period_start ||
+		new Date().toLocaleDateString("en-CA");
 	Object.assign(form, {
 		name: props.plan?.name || "",
 		plan_title: props.plan?.plan_title || "Current meal direction",
 		status: props.plan?.status || "Active",
+		customer_changes_from: nextServiceDate,
 		customer_mix: planTypes.value.map((type) => {
 			const current = props.plan?.customer_mix?.find((row) => row.plan_type === type.name);
 			return {
 				...type,
 				plan_type: type.name,
 				customer_count: Number(current?.customer_count || 0),
+				price_basis: current?.price_basis || "Normal",
 			};
 		}),
 		plan_rows: Array.from({ length: 4 }, (_, index) => {
@@ -698,6 +707,8 @@ async function savePlan() {
 	error.value = "";
 	if (form.plan_rows.some((row) => !row.recipe))
 		return (error.value = "Choose all four meals in the repeating cycle.");
+	if (!form.customer_changes_from)
+		return (error.value = "Choose when customer changes apply.");
 	busy.value = true;
 	try {
 		const payload = {
@@ -1370,8 +1381,8 @@ function number(value) {
 						<SystemAccordionItem value="customers" class="planning-setup__subcard">
 							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Customers</span><strong>Current customer mix</strong></div></SystemAccordionTrigger>
 							<SystemAccordionContent class="planning-setup__subcontent">
-								<SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" />
-								<div class="plan-mix"><article v-for="row in form.customer_mix" :key="row.plan_type" class="plan-mix__row"><div><strong>{{ row.plan_type }}</strong><small>{{ number(row.serving_size_g) }} g per meal · {{ row.meals_per_day }} meals/day</small></div><SystemFormControl v-model="row.customer_count" type="number" label="Customers" min="0" step="1" size="lg" /><div class="calculated-value"><span>Food per week</span><strong>{{ number((Number(row.customer_count || 0) * row.meals_per_day * row.days_per_week * row.serving_size_g) / 1000) }} kg</strong></div></article></div>
+								<div class="customer-direction-fields"><SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" /><SystemDatePicker v-model="form.customer_changes_from" label="Customer changes apply from" format="YYYY-MM-DD" :clearable="false" /></div>
+								<div class="plan-mix"><article v-for="row in form.customer_mix" :key="row.plan_type" class="plan-mix__row"><div><strong>{{ row.plan_type }}</strong><small>{{ number(row.serving_size_g) }} g per meal · {{ row.meals_per_day }} meals/day</small></div><SystemFormControl v-model="row.customer_count" type="number" label="Customers" min="0" step="1" size="lg" /><SystemSelect v-model="row.price_basis" label="Price" :options="[{ label: `Normal · R ${number(row.normal_price)}`, value: 'Normal' }, ...(Number(row.discounted_price || 0) ? [{ label: `Discounted · R ${number(row.discounted_price)}`, value: 'Discounted' }] : [])]" /><div class="calculated-value"><span>Food per week</span><strong>{{ number((Number(row.customer_count || 0) * row.meals_per_day * row.days_per_week * row.serving_size_g) / 1000) }} kg</strong></div></article></div>
 								<div class="metric-board"><div><strong>{{ totalCustomers }}</strong><span>customers</span></div><div><strong>{{ weeklyServings }}</strong><span>portions per week</span></div><div><strong>{{ number(weeklyKg) }} kg</strong><span>food per week</span></div><div><strong>{{ number(weeklyKg * 4) }} kg</strong><span>one full cycle</span></div></div>
 							</SystemAccordionContent>
 						</SystemAccordionItem>
@@ -1458,6 +1469,7 @@ function number(value) {
 .planning-setup__subtrigger>div{display:grid;gap:var(--spacing-3xs)}
 .planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:var(--font-letter-spacing-2)}
 .planning-setup__subtrigger strong{font-size:var(--font-size--1);font-weight:var(--font-weight-600)}
+.customer-direction-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(14rem,.5fr);gap:var(--spacing-s);align-items:end}
 .planning-setup__subcontent{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-s) var(--spacing-s)}
 .vacation-fields{display:grid;grid-template-columns:minmax(14rem,.75fr) minmax(16rem,1fr) auto;align-items:end;gap:var(--spacing-s)}
 .vacation-fields :deep(.system-component--date-range-picker){min-width:0}
@@ -1487,6 +1499,7 @@ function number(value) {
 @media(max-width:72rem){.weekly-position__metrics>div{flex-basis:45%;border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-position__metrics>div:nth-child(2n){border-right:0}.weekly-position__metrics>div:last-child{border-bottom:0}.weekly-run-list article{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-run-list article :deep(button){width:100%}}
 @media(max-width:64rem){.vacation-fields{grid-template-columns:1fr}.vacation-editor__actions :deep(button){flex:1}}
 @media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article{grid-template-columns:1fr}.weekly-position__metrics>div{flex-basis:100%;border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.vacation-list article{display:grid}}
+@media(max-width:44rem){.customer-direction-fields{grid-template-columns:1fr}}
 .capacity-window-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));

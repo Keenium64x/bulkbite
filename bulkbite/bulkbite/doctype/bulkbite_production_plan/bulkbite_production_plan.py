@@ -19,6 +19,11 @@ class BulkBiteProductionPlan(Document):
 		demand = calculate_customer_demand(self.customer_mix)
 		for row, calculated in zip(self.customer_mix, demand["mix"], strict=False):
 			row.serving_size_g = calculated["serving_size_g"]
+			row.meals_per_day = calculated["meals_per_day"]
+			row.days_per_week = calculated["days_per_week"]
+			row.cycle_weeks = calculated["cycle_weeks"]
+			row.customer_price = calculated["customer_price"]
+			row.price_basis = calculated["price_basis"]
 			row.weekly_servings = calculated["weekly_servings"]
 			row.weekly_output_qty = calculated["weekly_output_qty"]
 		for row in self.plan_rows:

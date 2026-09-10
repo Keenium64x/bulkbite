@@ -1,10 +1,15 @@
 {
  "actions": [], "creation": "2026-08-24 12:00:00.000000", "doctype": "DocType", "editable_grid": 1, "engine": "InnoDB",
- "field_order": ["plan_type", "customer_count", "serving_size_g", "weekly_servings", "weekly_output_qty"],
+ "field_order": ["plan_type", "customer_count", "serving_size_g", "meals_per_day", "days_per_week", "cycle_weeks", "customer_price", "price_basis", "weekly_servings", "weekly_output_qty"],
  "fields": [
   {"fieldname": "plan_type", "fieldtype": "Link", "in_list_view": 1, "label": "Customer Plan", "options": "BulkBite Customer Plan Type", "reqd": 1},
   {"fieldname": "customer_count", "fieldtype": "Int", "in_list_view": 1, "label": "Customers", "non_negative": 1, "reqd": 1},
   {"fetch_from": "plan_type.serving_size_g", "fieldname": "serving_size_g", "fieldtype": "Float", "in_list_view": 1, "label": "Serving Size (g)", "read_only": 1},
+  {"fieldname": "meals_per_day", "fieldtype": "Int", "hidden": 1, "label": "Meals per Day", "read_only": 1},
+  {"fieldname": "days_per_week", "fieldtype": "Int", "hidden": 1, "label": "Days per Week", "read_only": 1},
+  {"fieldname": "cycle_weeks", "fieldtype": "Int", "hidden": 1, "label": "Cycle Weeks", "read_only": 1},
+  {"fieldname": "customer_price", "fieldtype": "Currency", "hidden": 1, "label": "Customer Price", "read_only": 1},
+  {"default": "Normal", "fieldname": "price_basis", "fieldtype": "Select", "label": "Customer Price", "options": "Normal\nDiscounted", "reqd": 1},
   {"fieldname": "weekly_servings", "fieldtype": "Int", "label": "Weekly Servings", "read_only": 1},
   {"fieldname": "weekly_output_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Weekly Food (kg)", "read_only": 1}
  ],
