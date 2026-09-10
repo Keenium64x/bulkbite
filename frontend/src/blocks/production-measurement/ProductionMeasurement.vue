@@ -1212,6 +1212,7 @@ function openRecipeRecords(create = false) {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: var(--spacing-xs);
+	margin-top: var(--spacing-s);
 	margin-bottom: var(--spacing-s);
 	padding: var(--spacing-s);
 	border: var(--border-width-1) solid color-mix(in oklch, var(--theme-success) 34%, var(--theme-border));
@@ -1289,6 +1290,9 @@ function openRecipeRecords(create = false) {
 .actual-team-list {
 	display: grid;
 	gap: var(--spacing-xs);
+	margin-top: var(--spacing-s);
+}
+.actual-timing-section > .direction-note {
 	margin-top: var(--spacing-s);
 }
 .actual-team-list article {
