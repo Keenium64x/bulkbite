@@ -12,6 +12,10 @@ from bulkbite.customer_periods import ensure_plan_customer_periods
 # =============================================================================
 
 
+COMPLETED_CYCLE_PRICE = 2239.96
+NORMAL_FULL_CYCLE_PRICE = 2799.95
+
+
 @frappe.whitelist()
 def preview_known_customer_history():
 	"""Show the exact real customer periods that can replace the demo direction."""
@@ -20,13 +24,15 @@ def preview_known_customer_history():
 			"from_date": "2026-08-01",
 			"to_date": "2026-08-28",
 			"customer_mix": [{"plan_type": "Full", "customer_count": 1}],
-			"cycle_revenue": 2799.95,
+			"cycle_revenue": COMPLETED_CYCLE_PRICE,
+			"price_basis": "Provisional 20% Discount",
 			"evidence_status": "Confirmed Aggregate",
 		},
 		"next_cycle": {
 			"from_date": "2026-09-12",
 			"customer_mix": [{"plan_type": "Full", "customer_count": 2}],
-			"cycle_revenue": 5599.90,
+			"cycle_revenue": round(NORMAL_FULL_CYCLE_PRICE * 2, 2),
+			"price_basis": "Normal",
 			"evidence_status": "Confirmed Aggregate",
 		},
 		"service_gap": {"from_date": "2026-08-29", "to_date": "2026-09-11"},
@@ -58,7 +64,15 @@ def apply_known_customer_history_records(required_source=True):
 	if is_demo_source:
 		frappe.db.delete("BulkBite Customer Mix Period", {"production_plan": source.name})
 		source.db_set({"status": "Cancelled", "period_end": getdate("2026-08-28")}, update_modified=False)
-	completed = _ensure_direction_version(source, "2026-08-01", "2026-08-28", 1, "Completed")
+	completed = _ensure_direction_version(
+		source,
+		"2026-08-01",
+		"2026-08-28",
+		1,
+		"Completed",
+		customer_price=COMPLETED_CYCLE_PRICE,
+		period_price_basis="Provisional 20% Discount",
+	)
 	active = _ensure_direction_version(source, "2026-09-12", None, 2, "Active")
 	_copy_future_vacations(source, active, "2026-09-12")
 	frappe.db.set_value(
@@ -80,7 +94,15 @@ def apply_known_customer_history_records(required_source=True):
 	}
 
 
-def _ensure_direction_version(source, period_start, period_end, full_customers, status):
+def _ensure_direction_version(
+	source,
+	period_start,
+	period_end,
+	full_customers,
+	status,
+	customer_price=None,
+	period_price_basis=None,
+):
 	title = f"Real customer direction from {period_start}"
 	existing = frappe.db.get_value("BulkBite Production Plan", {"plan_title": title}, "name")
 	if existing:
@@ -95,12 +117,25 @@ def _ensure_direction_version(source, period_start, period_end, full_customers, 
 		result = save_monthly_production_plan(payload)
 		plan = frappe.get_doc("BulkBite Production Plan", result["name"])
 	plan.db_set({"status": status, "period_end": getdate(period_end) if period_end else None}, update_modified=False)
+	if customer_price is not None:
+		_set_full_customer_price(plan.name, customer_price)
+		plan.reload()
 	ensure_plan_customer_periods(plan.reload(), evidence_status="Confirmed Aggregate")
 	for period_name in frappe.get_all("BulkBite Customer Mix Period", filters={"production_plan": plan.name}, pluck="name"):
+		period_values = {
+			"effective_to": getdate(period_end) if period_end else None,
+			"evidence_status": "Confirmed Aggregate",
+		}
+		if customer_price is not None:
+			period_values.update({
+				"cycle_price": customer_price,
+				"price_basis": period_price_basis or "Discounted",
+				"notes": "Provisional amount based on the customer's reported 20% discount. Confirm against payment evidence.",
+			})
 		frappe.db.set_value(
 			"BulkBite Customer Mix Period",
 			period_name,
-			{"effective_to": getdate(period_end) if period_end else None, "evidence_status": "Confirmed Aggregate"},
+			period_values,
 			update_modified=False,
 		)
 	return plan.reload()
@@ -124,7 +159,7 @@ def _plan_payload(source, period_start, full_customers, title):
 
 
 def _customer_mix(source, full_customers):
-	return [
+	mix = [
 		{
 			"plan_type": row.plan_type,
 			"customer_count": full_customers if row.plan_type == "Full" else 0,
@@ -132,6 +167,25 @@ def _customer_mix(source, full_customers):
 		}
 		for row in source.customer_mix
 	]
+	if not any(row["plan_type"] == "Full" for row in mix):
+		mix.append({"plan_type": "Full", "customer_count": full_customers, "price_basis": "Normal"})
+	return mix
+
+
+def _set_full_customer_price(plan_name, customer_price):
+	"""Freeze the reported historical price without changing the reusable Full plan tariff."""
+	row_name = frappe.db.get_value(
+		"BulkBite Plan Customer Mix",
+		{"parent": plan_name, "plan_type": "Full"},
+		"name",
+	)
+	if row_name:
+		frappe.db.set_value(
+			"BulkBite Plan Customer Mix",
+			row_name,
+			{"customer_price": customer_price, "price_basis": "Discounted"},
+			update_modified=False,
+		)
 
 
 def _copy_future_vacations(source, target, effective_from):

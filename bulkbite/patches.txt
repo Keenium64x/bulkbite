@@ -13,3 +13,4 @@ bulkbite.patches.seed_employee_available_hours
 bulkbite.patches.migrate_future_service_skips_to_vacations
 bulkbite.patches.backfill_customer_mix_periods
 bulkbite.patches.configure_known_customer_history
+bulkbite.patches.repair_known_customer_history

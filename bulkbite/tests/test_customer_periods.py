@@ -6,6 +6,7 @@ import frappe
 
 from bulkbite.api import _customer_mix_changed, _validate_customer_mix_version_date
 from bulkbite.customer_periods import calculate_customer_period_drivers, ensure_plan_customer_periods
+from bulkbite.customer_history_bootstrap import _customer_mix
 from bulkbite.reporting_scope import is_demo_evidence
 
 
@@ -36,7 +37,7 @@ class TestEffectiveDatedCustomerPeriods(TestCase):
 		periods = [
 			frappe._dict(
 				plan_type="Full", customer_count=1, effective_from=date(2026, 8, 1), effective_to=date(2026, 8, 28),
-				evidence_status="Incomplete", serving_size_g=600, meals_per_day=2, days_per_week=7, cycle_weeks=4, cycle_price=2799.95,
+				evidence_status="Incomplete", serving_size_g=600, meals_per_day=2, days_per_week=7, cycle_weeks=4, cycle_price=2239.96,
 			),
 			frappe._dict(
 				plan_type="Full", customer_count=2, effective_from=date(2026, 9, 12), effective_to=None,
@@ -47,7 +48,7 @@ class TestEffectiveDatedCustomerPeriods(TestCase):
 		with patch("bulkbite.customer_periods.get_customer_mix_periods", return_value=periods):
 			drivers = calculate_customer_period_drivers(date(2026, 8, 1), date(2026, 10, 9))
 
-		self.assertEqual(drivers["revenue"], 8399.85)
+		self.assertEqual(drivers["revenue"], 7839.86)
 		self.assertEqual(drivers["customers"], 3)
 		self.assertEqual(drivers["customer_period_count"], 2)
 		self.assertEqual(drivers["incomplete_customer_period_count"], 2)
@@ -75,6 +76,12 @@ class TestEffectiveDatedCustomerPeriods(TestCase):
 		values = set_value.call_args.args[2]
 		self.assertEqual(values["cycle_price"], 2799.95)
 		self.assertEqual(values["price_basis"], "Normal")
+
+	def test_known_history_supplies_full_customers_when_source_mix_is_empty(self):
+		self.assertEqual(
+			_customer_mix(frappe._dict(customer_mix=[]), 2),
+			[{"plan_type": "Full", "customer_count": 2, "price_basis": "Normal"}],
+		)
 
 
 # endregion EFFECTIVE-DATED CUSTOMER PERIOD PROOF
