@@ -63,6 +63,7 @@ from bulkbite.setup_workbook import (
 from bulkbite.production_instructions import build_run_instruction_plan
 from bulkbite.production_periods import (
 	load_service_period_records,
+	mark_service_period_range_skipped,
 	mark_service_period_skipped,
 	missed_service_periods,
 	production_calendar_slot,
@@ -1800,6 +1801,33 @@ def skip_production_service_period(plan_name, planned_date, reason):
 		"status": period.status,
 		"cycle_number": period.cycle_number,
 		"meal_number": period.meal_number,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def skip_production_service_period_range(plan_name, from_date, to_date, reason):
+	"""Record all scheduled service dates in one manager-approved vacation range."""
+	_require_roles("BulkBite Manager")
+	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
+	rows = build_plan_snapshot(plan, "Ingredients")[0]
+	result = mark_service_period_range_skipped(plan, rows, from_date, to_date, reason)
+	return {
+		"scheduled_dates": result["scheduled_dates"],
+		"created": [_service_period_result(row) for row in result["created"]],
+		"already_skipped": [_service_period_result(row) for row in result["already_skipped"]],
+		"protected": [_service_period_result(row) for row in result["protected"]],
+	}
+
+
+def _service_period_result(period):
+	value = period.get if isinstance(period, dict) else lambda key: getattr(period, key, None)
+	return {
+		"name": value("name"),
+		"planned_date": value("planned_date"),
+		"status": value("status"),
+		"cycle_number": value("cycle_number"),
+		"meal_number": value("meal_number"),
+		"resolution_reason": value("resolution_reason"),
 	}
 
 

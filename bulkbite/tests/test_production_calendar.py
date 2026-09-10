@@ -9,7 +9,11 @@ from bulkbite.api import (
 	_production_calendar_slot,
 	_skipped_production_weeks,
 )
-from bulkbite.production_periods import resolve_elapsed_service_periods
+from bulkbite.production_periods import (
+	mark_service_period_range_skipped,
+	resolve_elapsed_service_periods,
+	service_period_slots_in_range,
+)
 
 
 # =============================================================================
@@ -130,6 +134,56 @@ class ProductionCalendarProof(TestCase):
 		self.assertEqual(periods[2]["status"], "Intentionally Skipped")
 		self.assertEqual(periods[2]["missing_output_qty"], 0)
 		self.assertEqual(station["row"]["week_number"], 4)
+
+	def test_vacation_range_selects_only_scheduled_service_dates(self):
+		slots = service_period_slots_in_range(
+			plan_rows(), date(2026, 8, 1), date(2026, 8, 3), date(2026, 8, 17)
+		)
+
+		self.assertEqual(
+			[slot["planned_date"] for slot in slots],
+			[date(2026, 8, 8), date(2026, 8, 15)],
+		)
+
+	def test_vacation_range_is_idempotent_and_preserves_resolved_periods(self):
+		plan = SimpleNamespace(name="plan-1", period_start=date(2026, 8, 1))
+		existing_skip = {
+			"name": "skip-1",
+			"period_key": "plan-1:2026-08-08",
+			"planned_date": date(2026, 8, 8),
+			"status": "Intentionally Skipped",
+		}
+		fulfilled = {
+			"name": "fulfilled-1",
+			"period_key": "plan-1:2026-08-15",
+			"planned_date": date(2026, 8, 15),
+			"status": "Fulfilled",
+		}
+		created = SimpleNamespace(
+			name="skip-2",
+			planned_date=date(2026, 8, 22),
+			status="Intentionally Skipped",
+		)
+		with patch(
+			"bulkbite.production_periods.load_service_period_records",
+			return_value=[existing_skip, fulfilled],
+		), patch(
+			"bulkbite.production_periods._insert_closed_service_period",
+			return_value=created,
+		) as insert_period:
+			result = mark_service_period_range_skipped(
+				plan,
+				plan_rows(),
+				date(2026, 8, 8),
+				date(2026, 8, 22),
+				"Annual closure",
+				as_of_date=date(2026, 8, 1),
+			)
+
+		self.assertEqual(result["created"], [created])
+		self.assertEqual(result["already_skipped"], [existing_skip])
+		self.assertEqual(result["protected"], [fulfilled])
+		insert_period.assert_called_once()
 
 	def test_existing_missed_period_does_not_turn_into_an_intentional_skip(self):
 		recorded = [{

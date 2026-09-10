@@ -226,6 +226,75 @@ def mark_service_period_skipped(plan, rows, planned_date, reason):
 	return _insert_closed_service_period(plan, period, period_key)
 
 
+def mark_service_period_range_skipped(plan, rows, from_date, to_date, reason, as_of_date=None):
+	"""Record every unresolved service date in an inclusive vacation range as intentionally skipped."""
+	start = getdate(from_date)
+	end = getdate(to_date)
+	today = getdate(as_of_date or nowdate())
+	if start > end:
+		frappe.throw(_("Vacation start date must be on or before the end date."))
+	if end < today:
+		frappe.throw(_("A vacation range must include a current or future service date."))
+	reason_value = str(reason or "").strip()
+	if not reason_value:
+		frappe.throw(_("Enter why these service dates will be skipped."))
+
+	slots = service_period_slots_in_range(rows, plan.period_start, max(start, today), end)
+	if not slots:
+		frappe.throw(_("No scheduled service dates fall within this vacation range."))
+
+	known = {
+		service_period_key(plan.name, row.get("planned_date")): row
+		for row in load_service_period_records(plan.name)
+	}
+	created = []
+	already_skipped = []
+	protected = []
+	for slot in slots:
+		period_key = service_period_key(plan.name, slot["planned_date"])
+		existing = known.get(period_key)
+		if existing:
+			if existing.get("status") == "Intentionally Skipped":
+				already_skipped.append(existing)
+			else:
+				protected.append(existing)
+			continue
+		period = _resolve_service_period(slot, [], {"resolution_reason": reason_value})
+		period["status"] = "Intentionally Skipped"
+		period["missing_output_qty"] = 0
+		created.append(_insert_closed_service_period(plan, period, period_key))
+
+	return {
+		"scheduled_dates": [slot["planned_date"] for slot in slots],
+		"created": created,
+		"already_skipped": already_skipped,
+		"protected": protected,
+	}
+
+
+def service_period_slots_in_range(rows, period_start, from_date, to_date):
+	"""Return the plan's weekly calendar slots inside one inclusive date range."""
+	ordered_rows = _ordered_plan_rows(rows)
+	if not ordered_rows:
+		return []
+	start = getdate(period_start or nowdate())
+	range_start = getdate(from_date)
+	range_end = getdate(to_date)
+	if range_start > range_end:
+		return []
+	first_index = max(((range_start - start).days + 6) // 7, 0)
+	slots = []
+	slot_index = first_index
+	while True:
+		slot = _calendar_slot_at_index(ordered_rows, start, slot_index)
+		if slot["planned_date"] > range_end:
+			break
+		if slot["planned_date"] >= range_start:
+			slots.append(slot)
+		slot_index += 1
+	return slots
+
+
 def service_period_key(plan_name, planned_date):
 	return f"{plan_name}:{getdate(planned_date).isoformat()}"
 

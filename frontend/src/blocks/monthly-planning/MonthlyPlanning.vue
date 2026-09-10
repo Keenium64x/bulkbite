@@ -8,6 +8,7 @@ import {
 	SystemAccordionTrigger,
 	SystemBadge,
 	SystemCheckboxShadcn,
+	SystemDateRangePicker,
 	SystemFormControl,
 	SystemLinkedRecordField,
 	SystemOperationalButton,
@@ -18,7 +19,7 @@ import {
 	calculateCapacityScenario,
 	cancelProductionPlan,
 	saveMonthlyProductionPlan,
-	skipProductionServicePeriod,
+	skipProductionServicePeriodRange,
 } from "@/resources/api";
 import { syncOfflineMutation } from "@/resources/api";
 import {
@@ -64,8 +65,9 @@ const form = reactive({
 });
 const scenarioForecast = ref([]);
 const weeklyCapacityResult = ref(null);
-const closureEditorOpen = ref(false);
-const closureReason = ref("");
+const vacationRange = ref("");
+const vacationReason = ref("Vacation or planned closure");
+const vacationOutcome = ref("");
 let scenarioTimer;
 let hydrating = false;
 const planTypes = computed(() => props.snapshot?.options?.customer_plan_types || []);
@@ -74,6 +76,11 @@ const recipeOptions = computed(() =>
 		label: row.recipe_name,
 		value: row.name,
 	})),
+);
+const intentionallySkippedPeriods = computed(() =>
+	(props.plan?.service_periods || []).filter(
+		(row) => row.status === "Intentionally Skipped",
+	),
 );
 const teamTemplates = computed(() => props.snapshot?.options?.team_templates || []);
 const teamTemplateOptions = computed(() =>
@@ -770,22 +777,43 @@ async function cancelDirection() {
 	}
 }
 
-async function skipUpcomingService() {
-	if (!form.name || !props.plan?.next_production?.calendar?.planned_date) return;
-	if (!closureReason.value.trim()) {
-		error.value = "Enter why this service period will be skipped.";
+async function saveVacationRange() {
+	const [fromDate, toDate] = String(vacationRange.value || "")
+		.split(",")
+		.map((value) => value.trim());
+	if (!form.name) {
+		error.value = "Save the meal direction before adding vacation dates.";
+		return;
+	}
+	if (!fromDate || !toDate) {
+		error.value = "Choose the first and last vacation date.";
+		return;
+	}
+	if (!vacationReason.value.trim()) {
+		error.value = "Enter why these service dates will be skipped.";
 		return;
 	}
 	busy.value = true;
 	error.value = "";
+	vacationOutcome.value = "";
 	try {
-		await skipProductionServicePeriod(
+		const result = await skipProductionServicePeriodRange(
 			form.name,
-			props.plan.next_production.calendar.planned_date,
-			closureReason.value.trim(),
+			fromDate,
+			toDate,
+			vacationReason.value.trim(),
 		);
-		closureEditorOpen.value = false;
-		closureReason.value = "";
+		const created = result?.created?.length || 0;
+		const unchanged = result?.already_skipped?.length || 0;
+		const protectedDates = result?.protected?.length || 0;
+		vacationOutcome.value = [
+			created ? `${created} service ${created === 1 ? "date" : "dates"} skipped` : "",
+			unchanged ? `${unchanged} already skipped` : "",
+			protectedDates ? `${protectedDates} already resolved` : "",
+		]
+			.filter(Boolean)
+			.join(". ");
+		vacationRange.value = "";
 		emit("changed");
 	} catch (exception) {
 		error.value = exception.message;
@@ -844,30 +872,6 @@ function number(value) {
 		<div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
 		<div v-if="offlineNotice" class="state-message" role="status">{{ offlineNotice }}</div>
 
-		<SystemAccordion v-if="mode === 'planning'" type="multiple" class="planning-setup">
-			<SystemAccordionItem value="setup" class="planning-setup__card">
-				<SystemAccordionTrigger class="planning-setup__trigger">
-					<div class="section-heading"><div><p class="eyebrow">Setup</p><h2>Customers and repeating meals</h2><p>Open this only when customer numbers or the four-meal direction change.</p></div><SystemBadge>{{ totalCustomers }} customers</SystemBadge></div>
-				</SystemAccordionTrigger>
-				<SystemAccordionContent class="planning-setup__content">
-					<SystemAccordion type="multiple" class="planning-setup__subsections">
-						<SystemAccordionItem value="customers" class="planning-setup__subcard">
-							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Customers</span><strong>Current customer mix</strong></div></SystemAccordionTrigger>
-							<SystemAccordionContent class="planning-setup__subcontent">
-								<SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" />
-								<div class="plan-mix"><article v-for="row in form.customer_mix" :key="row.plan_type" class="plan-mix__row"><div><strong>{{ row.plan_type }}</strong><small>{{ number(row.serving_size_g) }} g per meal · {{ row.meals_per_day }} meals/day</small></div><SystemFormControl v-model="row.customer_count" type="number" label="Customers" min="0" step="1" size="lg" /><div class="calculated-value"><span>Food per week</span><strong>{{ number((Number(row.customer_count || 0) * row.meals_per_day * row.days_per_week * row.serving_size_g) / 1000) }} kg</strong></div></article></div>
-								<div class="metric-board"><div><strong>{{ totalCustomers }}</strong><span>customers</span></div><div><strong>{{ weeklyServings }}</strong><span>portions per week</span></div><div><strong>{{ number(weeklyKg) }} kg</strong><span>food per week</span></div><div><strong>{{ number(weeklyKg * 4) }} kg</strong><span>one full cycle</span></div></div>
-							</SystemAccordionContent>
-						</SystemAccordionItem>
-						<SystemAccordionItem value="meals" class="planning-setup__subcard">
-							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Meal direction</span><strong>Four repeating meals</strong></div></SystemAccordionTrigger>
-							<SystemAccordionContent class="planning-setup__subcontent"><div class="week-grid"><article v-for="row in form.plan_rows" :key="row.week_number" class="week-card"><SystemBadge>MEAL {{ row.week_number }}</SystemBadge><SystemLinkedRecordField v-model="row.recipe" label="Meal recipe" :options="recipeOptions" placeholder="Choose this meal" create-label="Add recipe" manage-label="Manage recipes" @create="openLinked('create', 'BulkBite Recipe')" @manage="openLinked('list', 'BulkBite Recipe')" /><div class="calculated-field"><span>Customer food required</span><strong>{{ number(weeklyKg) }} kg</strong></div></article></div></SystemAccordionContent>
-						</SystemAccordionItem>
-					</SystemAccordion>
-				</SystemAccordionContent>
-			</SystemAccordionItem>
-		</SystemAccordion>
-
 		<SystemAccordion v-if="mode === 'planning'" type="multiple" :default-value="['weekly-plan']" class="weekly-plan-accordion">
 			<SystemAccordionItem value="weekly-plan" class="form-section weekly-plan">
 			<SystemAccordionTrigger class="weekly-plan__trigger"><div class="section-heading">
@@ -875,8 +879,7 @@ function number(value) {
 				<SystemBadge>{{ upcomingRuns.length }} {{ upcomingRuns.length === 1 ? 'run' : 'runs' }}</SystemBadge>
 			</div></SystemAccordionTrigger>
 			<SystemAccordionContent class="weekly-plan__content">
-			<div class="weekly-plan__actions"><SystemOperationalButton v-if="form.name && props.plan?.next_production?.calendar?.planned_date" variant="outline" @click="closureEditorOpen = !closureEditorOpen">{{ closureEditorOpen ? 'Keep service date' : 'Mark holiday or closure' }}</SystemOperationalButton><SystemOperationalButton variant="solid" @click="addUpcomingRun">Add run</SystemOperationalButton></div>
-			<div v-if="closureEditorOpen" class="closure-control"><div><strong>Skip {{ props.plan.next_production.calendar.planned_date }}</strong><small>The meal cycle advances and no missing food is added to a later week.</small></div><SystemTextarea v-model="closureReason" label="Reason" placeholder="Holiday or planned closure" /><SystemOperationalButton variant="solid" :loading="busy" :disabled="!closureReason.trim()" @click="skipUpcomingService">Confirm skip</SystemOperationalButton></div>
+			<div class="weekly-plan__actions"><SystemOperationalButton variant="solid" @click="addUpcomingRun">Add run</SystemOperationalButton></div>
 			<article class="weekly-position" :class="weeklyCapacity.ready ? 'is-ready' : 'is-under'">
 				<div class="weekly-position__heading"><div><p class="eyebrow">Upcoming meal</p><h3>{{ upcomingPlanRow?.recipe ? recipeOptions.find((item) => item.value === upcomingPlanRow.recipe)?.label || upcomingPlanRow.recipe : 'Choose the meal in Setup' }}</h3></div><SystemBadge :theme="weeklyCapacity.ready ? 'green' : 'red'">{{ weeklyCapacity.ready ? 'Capacity ready' : 'Capacity gap' }}</SystemBadge></div>
 				<div class="weekly-position__metrics">
@@ -1339,6 +1342,45 @@ function number(value) {
 			</footer>
 		</template>
 
+		<SystemAccordion v-if="mode === 'planning'" type="multiple" class="planning-setup">
+			<SystemAccordionItem value="setup" class="planning-setup__card">
+				<SystemAccordionTrigger class="planning-setup__trigger">
+					<div class="section-heading"><div><p class="eyebrow">Setup</p><h2>Planning setup</h2><p>Customers, repeating meals, and vacation dates.</p></div><SystemBadge>{{ totalCustomers }} customers</SystemBadge></div>
+				</SystemAccordionTrigger>
+				<SystemAccordionContent class="planning-setup__content">
+					<SystemAccordion type="multiple" class="planning-setup__subsections">
+						<SystemAccordionItem value="customers" class="planning-setup__subcard">
+							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Customers</span><strong>Current customer mix</strong></div></SystemAccordionTrigger>
+							<SystemAccordionContent class="planning-setup__subcontent">
+								<SystemFormControl v-model="form.plan_title" label="Direction name" size="lg" />
+								<div class="plan-mix"><article v-for="row in form.customer_mix" :key="row.plan_type" class="plan-mix__row"><div><strong>{{ row.plan_type }}</strong><small>{{ number(row.serving_size_g) }} g per meal · {{ row.meals_per_day }} meals/day</small></div><SystemFormControl v-model="row.customer_count" type="number" label="Customers" min="0" step="1" size="lg" /><div class="calculated-value"><span>Food per week</span><strong>{{ number((Number(row.customer_count || 0) * row.meals_per_day * row.days_per_week * row.serving_size_g) / 1000) }} kg</strong></div></article></div>
+								<div class="metric-board"><div><strong>{{ totalCustomers }}</strong><span>customers</span></div><div><strong>{{ weeklyServings }}</strong><span>portions per week</span></div><div><strong>{{ number(weeklyKg) }} kg</strong><span>food per week</span></div><div><strong>{{ number(weeklyKg * 4) }} kg</strong><span>one full cycle</span></div></div>
+							</SystemAccordionContent>
+						</SystemAccordionItem>
+						<SystemAccordionItem value="meals" class="planning-setup__subcard">
+							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Meal direction</span><strong>Four repeating meals</strong></div></SystemAccordionTrigger>
+							<SystemAccordionContent class="planning-setup__subcontent"><div class="week-grid"><article v-for="row in form.plan_rows" :key="row.week_number" class="week-card"><SystemBadge>MEAL {{ row.week_number }}</SystemBadge><SystemLinkedRecordField v-model="row.recipe" label="Meal recipe" :options="recipeOptions" placeholder="Choose this meal" create-label="Add recipe" manage-label="Manage recipes" @create="openLinked('create', 'BulkBite Recipe')" @manage="openLinked('list', 'BulkBite Recipe')" /><div class="calculated-field"><span>Customer food required</span><strong>{{ number(weeklyKg) }} kg</strong></div></article></div></SystemAccordionContent>
+						</SystemAccordionItem>
+						<SystemAccordionItem value="vacations" class="planning-setup__subcard">
+							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Vacation dates</span><strong>Planned closures</strong></div></SystemAccordionTrigger>
+							<SystemAccordionContent class="planning-setup__subcontent">
+								<div class="vacation-fields">
+									<SystemDateRangePicker v-model="vacationRange" label="Vacation dates" placeholder="Choose start and end dates" format="DD MMM YYYY" :disabled="!form.name" />
+									<SystemTextarea v-model="vacationReason" label="Reason" placeholder="Vacation or planned closure" />
+									<SystemOperationalButton variant="solid" :loading="busy" :disabled="!form.name || !vacationRange || !vacationReason.trim()" @click="saveVacationRange">Save vacation dates</SystemOperationalButton>
+								</div>
+								<p v-if="!form.name" class="vacation-note">Save the meal direction before adding vacation dates.</p>
+								<p v-if="vacationOutcome" class="vacation-note" role="status">{{ vacationOutcome }}</p>
+								<div v-if="intentionallySkippedPeriods.length" class="vacation-list">
+									<article v-for="period in intentionallySkippedPeriods" :key="period.name"><div><strong>{{ period.planned_date }}</strong><small>Meal {{ period.meal_number }} · Cycle {{ period.cycle_number }}</small></div><span>{{ period.resolution_reason || 'Planned closure' }}</span></article>
+								</div>
+							</SystemAccordionContent>
+						</SystemAccordionItem>
+					</SystemAccordion>
+				</SystemAccordionContent>
+			</SystemAccordionItem>
+		</SystemAccordion>
+
 		<footer v-if="mode === 'planning'" class="posting-bar">
 			<div>
 				<SystemBadge>{{
@@ -1393,7 +1435,15 @@ function number(value) {
 .planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:var(--font-letter-spacing-2)}
 .planning-setup__subtrigger strong{font-size:var(--font-size--1);font-weight:var(--font-weight-600)}
 .planning-setup__subcontent{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-s) var(--spacing-s)}
-.weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0!important}.weekly-plan__trigger{width:100%;text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m)}.weekly-plan__actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--spacing-xs);margin-bottom:var(--spacing-s)}.closure-control{display:grid;grid-template-columns:minmax(14rem,.8fr) minmax(16rem,1fr) auto;align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.closure-control>div{display:grid;gap:var(--spacing-3xs)}.closure-control small{color:var(--theme-text-muted)}
+.vacation-fields{display:grid;grid-template-columns:minmax(16rem,1fr) minmax(16rem,1fr) auto;align-items:end;gap:var(--spacing-s)}
+.vacation-fields :deep(.system-component--date-range-picker){min-width:0}
+.vacation-fields :deep(.system-component--date-range-picker input){width:100%;min-height:2.75rem;padding-inline:.8rem;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-field);color:var(--theme-text)}
+.vacation-note{margin:0;color:var(--theme-text-muted);font-size:var(--font-size--2)}
+.vacation-list{display:grid;gap:var(--spacing-2xs)}
+.vacation-list article{display:flex;align-items:start;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}
+.vacation-list article div{display:grid;gap:var(--spacing-3xs)}
+.vacation-list small,.vacation-list span{color:var(--theme-text-muted);font-size:var(--font-size--2)}
+.weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0!important}.weekly-plan__trigger{width:100%;text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m)}.weekly-plan__actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--spacing-xs);margin-bottom:var(--spacing-s)}
 .weekly-position{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .weekly-position.is-ready{border-color:color-mix(in oklch,var(--theme-success) 45%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 5%,var(--theme-surface-raised))}
 .weekly-position.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 7%,var(--theme-surface-raised))}
@@ -1410,7 +1460,8 @@ function number(value) {
 .weekly-run-list article{display:grid;grid-template-columns:minmax(9rem,.75fr) minmax(9rem,.65fr) minmax(9rem,.65fr) auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .weekly-run-list__empty{margin:0;padding:var(--spacing-xs) var(--spacing-s)}
 @media(max-width:72rem){.weekly-position__metrics>div{flex-basis:45%;border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-position__metrics>div:nth-child(2n){border-right:0}.weekly-position__metrics>div:last-child{border-bottom:0}.weekly-run-list article{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-run-list article :deep(button){width:100%}}
-@media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article,.closure-control{grid-template-columns:1fr}.weekly-position__metrics>div{flex-basis:100%;border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.closure-control :deep(button){width:100%}}
+@media(max-width:64rem){.vacation-fields{grid-template-columns:1fr}.vacation-fields :deep(button){width:100%}}
+@media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article{grid-template-columns:1fr}.weekly-position__metrics>div{flex-basis:100%;border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.vacation-list article{display:grid}}
 .capacity-window-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
