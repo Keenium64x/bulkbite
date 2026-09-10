@@ -353,41 +353,43 @@ watch(
 			@changed="loadAll"
 		/>
 		<template v-else-if="activeSection === 'stock'">
-			<SystemStockOverview
-				mode="stock"
-				:snapshot="snapshot"
-				:inventory="inventory"
-				:plan="plan"
-				:scan-result="scanResult"
-				:loading="loading"
-				:error="error"
-				@scan="scan"
-				@map-scan="mapScan"
-				@open-workflow="navigate"
-			/>
-			<SystemAccordion type="multiple" :default-value="['reconciliation']" class="stock-support-sections">
-				<SystemAccordionItem value="reconciliation" class="stock-support-section">
-					<SystemAccordionTrigger class="stock-support-section__trigger">
-						<div><span>Physical count</span><strong>Stock reconciliation</strong></div>
-					</SystemAccordionTrigger>
-					<SystemAccordionContent class="stock-support-section__content">
-						<SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
-					</SystemAccordionContent>
-				</SystemAccordionItem>
-				<SystemAccordionItem value="prices" class="stock-support-section">
-					<SystemAccordionTrigger class="stock-support-section__trigger">
-						<div><span>Cost evidence</span><strong>Price history</strong></div>
-					</SystemAccordionTrigger>
-					<SystemAccordionContent class="stock-support-section__content">
-						<SystemPriceHistory
-							mode="catalogue"
-							:snapshot="snapshot"
-							:inventory="inventory"
-							@changed="loadAll"
-						/>
-					</SystemAccordionContent>
-				</SystemAccordionItem>
-			</SystemAccordion>
+			<div class="stock-workspace">
+				<SystemStockOverview
+					mode="stock"
+					:snapshot="snapshot"
+					:inventory="inventory"
+					:plan="plan"
+					:scan-result="scanResult"
+					:loading="loading"
+					:error="error"
+					@scan="scan"
+					@map-scan="mapScan"
+					@open-workflow="navigate"
+				/>
+				<SystemAccordion type="multiple" :default-value="[]" class="stock-support-sections">
+					<SystemAccordionItem value="reconciliation" class="stock-support-section">
+						<SystemAccordionTrigger class="stock-support-section__trigger">
+							<div><span>Physical count</span><strong>Stock reconciliation</strong></div>
+						</SystemAccordionTrigger>
+						<SystemAccordionContent class="stock-support-section__content">
+							<SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
+						</SystemAccordionContent>
+					</SystemAccordionItem>
+					<SystemAccordionItem value="prices" class="stock-support-section">
+						<SystemAccordionTrigger class="stock-support-section__trigger">
+							<div><span>Cost evidence</span><strong>Price history</strong></div>
+						</SystemAccordionTrigger>
+						<SystemAccordionContent class="stock-support-section__content">
+							<SystemPriceHistory
+								mode="catalogue"
+								:snapshot="snapshot"
+								:inventory="inventory"
+								@changed="loadAll"
+							/>
+						</SystemAccordionContent>
+					</SystemAccordionItem>
+				</SystemAccordion>
+			</div>
 		</template>
 		<SystemStockOverview
 			v-else-if="activeSection === 'operations'"
@@ -411,13 +413,34 @@ watch(
 </template>
 
 <style scoped>
+.stock-workspace {
+	display: flex;
+	width: min(100%, 90rem);
+	max-width: 100%;
+	min-width: 0;
+	margin: 0 auto;
+	padding: var(--spacing-l) var(--spacing-m) var(--spacing-xl-2xl);
+	flex-direction: column;
+	gap: var(--spacing-m);
+}
+
+.stock-workspace :deep([data-block="stock-overview"]) {
+	width: 100%;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+}
+
 .stock-support-sections {
-	display: grid;
-	gap: var(--spacing-s);
-	margin-top: var(--spacing-m);
+	display: flex;
+	width: 100%;
+	min-width: 0;
+	flex-direction: column;
+	gap: var(--spacing-m);
 }
 
 .stock-support-section {
+	min-width: 0;
 	overflow: hidden;
 }
 
@@ -445,5 +468,28 @@ watch(
 }
 
 .stock-support-section__content {
+}
+
+.stock-support-section__content :deep(.workflow-block) {
+	width: 100%;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+}
+
+@media (max-width: 64rem) {
+	.stock-workspace,
+	.stock-support-sections {
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		overflow-x: clip;
+	}
+}
+
+@media (max-width: 44rem) {
+	.stock-workspace {
+		padding: var(--spacing-m) var(--spacing-s) var(--spacing-xl);
+	}
 }
 </style>

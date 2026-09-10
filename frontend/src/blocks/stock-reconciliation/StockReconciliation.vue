@@ -21,17 +21,27 @@ async function approve() { busy.value = true; error.value = ""; try { draft.valu
 <template>
   <section data-block="stock-reconciliation" class="workflow-block">
     <div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
-    <section class="form-section"><div class="section-heading"><div><p class="eyebrow">Count details</p><h2>Match the system to physical stock</h2><p>Enter what is present, review the differences, then approve the correction.</p></div></div><SystemDatePicker v-model="postingDate" label="Posting date" format="YYYY-MM-DD" :disabled="Boolean(draft)" :clearable="false" /><label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" :disabled="Boolean(draft)" placeholder="Who counted, where, and any unusual conditions" /></label></section>
-    <section class="data-section">
-      <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>Physical counts and differences</h2></div><SystemBadge>{{ changedCounts.length }} differences</SystemBadge></div>
-      <div class="measurement-list">
-        <article v-for="item in counts" :key="item.item_code" class="measurement-row measurement-row--count" :class="{ 'is-different': Number(item.counted_qty) !== Number(item.actual_qty) }">
-          <div><strong>{{ item.item_name }}</strong><small>System says {{ Number(item.actual_qty).toFixed(2) }} {{ item.stock_uom }}</small></div>
-          <SystemFormControl v-model="item.counted_qty" type="number" label="Counted" min="0" step="0.1" size="lg" :disabled="Boolean(draft)" />
-          <div class="difference"><span>Difference</span><strong>{{ (Number(item.counted_qty) - Number(item.actual_qty)).toFixed(2) }} {{ item.stock_uom }}</strong></div>
-        </article>
+    <section class="form-section">
+      <div class="section-heading"><div><p class="eyebrow">Count details</p><h2>Match the system to physical stock</h2><p>Enter what is present, review the differences, then approve the correction.</p></div></div>
+      <SystemDatePicker v-model="postingDate" label="Posting date" format="YYYY-MM-DD" :disabled="Boolean(draft)" :clearable="false" />
+      <label class="field-shell"><span>Count notes</span><SystemTextarea v-model="notes" :rows="3" :disabled="Boolean(draft)" placeholder="Who counted, where, and any unusual conditions" /></label>
+      <div class="stock-counts" data-stock-counts>
+        <div class="section-heading"><div><p class="eyebrow">{{ inventory?.location || "Ingredients" }}</p><h2>Physical counts and differences</h2></div><SystemBadge>{{ changedCounts.length }} differences</SystemBadge></div>
+        <div class="measurement-list">
+          <article v-for="item in counts" :key="item.item_code" class="measurement-row measurement-row--count" :class="{ 'is-different': Number(item.counted_qty) !== Number(item.actual_qty) }">
+            <div><strong>{{ item.item_name }}</strong><small>System says {{ Number(item.actual_qty).toFixed(2) }} {{ item.stock_uom }}</small></div>
+            <SystemFormControl v-model="item.counted_qty" type="number" label="Counted" min="0" step="0.1" size="lg" :disabled="Boolean(draft)" />
+            <div class="difference"><span>Difference</span><strong>{{ (Number(item.counted_qty) - Number(item.actual_qty)).toFixed(2) }} {{ item.stock_uom }}</strong></div>
+          </article>
+        </div>
       </div>
     </section>
     <footer class="posting-bar"><div><SystemBadge>{{ draft ? (draft.docstatus ? "STOCK RECONCILED" : "READY FOR APPROVAL") : "COUNT NOT SAVED" }}</SystemBadge><p>{{ draft ? (draft.docstatus ? "The approved differences are now reflected in stock." : "A manager must check and approve these differences before stock changes.") : "Saving creates a review draft only. Stock will not change yet." }}</p></div><SystemOperationalButton v-if="!draft" variant="outline" size="lg" :loading="busy" @click="saveCount">Save count draft</SystemOperationalButton><SystemOperationalButton v-else-if="!draft.docstatus" variant="solid" size="lg" :loading="busy" @click="approve">Approve reconciliation</SystemOperationalButton></footer>
   </section>
 </template>
+
+<style scoped>
+.stock-counts {
+  margin-top: var(--spacing-l);
+}
+</style>
