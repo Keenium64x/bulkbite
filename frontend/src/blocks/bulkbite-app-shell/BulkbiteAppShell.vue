@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   ReceiptText,
   Settings,
+  TrendingUp,
   UserRound,
   WalletCards,
   Warehouse,
@@ -64,6 +65,7 @@ const props = defineProps({
       { label: "Stock", icon: Warehouse, href: "/bulkbite?work=stock", target: { mode: "workflow", id: "stock" } },
     ] },
     { label: "More", links: [
+      { label: "Forecasting", icon: TrendingUp, href: "/bulkbite?work=forecasting", target: { mode: "workflow", id: "forecasting" } },
       { label: "Finance", icon: WalletCards, href: "/bulkbite?work=finance", target: { mode: "workflow", id: "finance" } },
       { label: "Reports", icon: ReceiptText, href: "/bulkbite?work=export", target: { mode: "workflow", id: "export" } },
       { label: "Import", icon: Package, href: "/bulkbite?work=import", target: { mode: "workflow", id: "import" } },
@@ -108,7 +110,7 @@ const mobilePrimarySections = computed(() => mobilePrimaryIds
   .map(id => props.sections.find(section => section.id === id))
   .filter(Boolean)
   .map(section => ({ ...section, icon: mobileSectionIcons[section.id] })))
-const mobileSecondarySections = computed(() => props.sections.filter(section => !mobilePrimaryIds.includes(section.id)))
+const mobileSecondarySections = computed(() => theoreticalSections.value)
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value

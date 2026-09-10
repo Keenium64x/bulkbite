@@ -12,11 +12,13 @@ import {
 	SystemLinkedRecordField,
 	SystemOperationalButton,
 	SystemSelect,
+	SystemTextarea,
 } from "@/desyium";
 import {
 	calculateCapacityScenario,
 	cancelProductionPlan,
 	saveMonthlyProductionPlan,
+	skipProductionServicePeriod,
 } from "@/resources/api";
 import { syncOfflineMutation } from "@/resources/api";
 import {
@@ -62,6 +64,8 @@ const form = reactive({
 });
 const scenarioForecast = ref([]);
 const weeklyCapacityResult = ref(null);
+const closureEditorOpen = ref(false);
+const closureReason = ref("");
 let scenarioTimer;
 let hydrating = false;
 const planTypes = computed(() => props.snapshot?.options?.customer_plan_types || []);
@@ -205,6 +209,25 @@ const weeklyCapacity = computed(() => {
 		consequence,
 		storage: { status: "Not configured", configured: false, required_qty: weeklyExtraOutput.value },
 	};
+});
+const weeklyCapacityPosition = computed(() => {
+	const difference = Number(weeklyCapacity.value.differenceKg || 0);
+	if (!planningMinutesPerKg.value)
+		return { label: "Capacity not measured", quantity: null };
+	return {
+		label: difference >= 0 ? "Spare capacity" : "Capacity shortfall",
+		quantity: Math.abs(difference),
+	};
+});
+const weeklyStoragePosition = computed(() => {
+	const storage = weeklyCapacity.value.storage || {};
+	if (!weeklyExtraOutput.value) return { label: "No extra storage needed", value: "0 kg" };
+	if (!storage.configured)
+		return { label: "Storage to confirm", value: `${number(weeklyExtraOutput.value)} kg` };
+	const difference = Number(storage.capacity_qty || 0) - Number(storage.required_qty || 0);
+	return difference >= 0
+		? { label: "Storage spare", value: `${number(difference)} kg` }
+		: { label: "Storage shortfall", value: `${number(Math.abs(difference))} kg` };
 });
 const capacitySummary = computed(() => {
 	const totals = scenarioForecast.value.reduce(
@@ -747,6 +770,30 @@ async function cancelDirection() {
 	}
 }
 
+async function skipUpcomingService() {
+	if (!form.name || !props.plan?.next_production?.calendar?.planned_date) return;
+	if (!closureReason.value.trim()) {
+		error.value = "Enter why this service period will be skipped.";
+		return;
+	}
+	busy.value = true;
+	error.value = "";
+	try {
+		await skipProductionServicePeriod(
+			form.name,
+			props.plan.next_production.calendar.planned_date,
+			closureReason.value.trim(),
+		);
+		closureEditorOpen.value = false;
+		closureReason.value = "";
+		emit("changed");
+	} catch (exception) {
+		error.value = exception.message;
+	} finally {
+		busy.value = false;
+	}
+}
+
 function roundQuantity(value) {
 	return Math.round(Number(value || 0) * 1000) / 1000;
 }
@@ -828,26 +875,23 @@ function number(value) {
 				<SystemBadge>{{ upcomingRuns.length }} {{ upcomingRuns.length === 1 ? 'run' : 'runs' }}</SystemBadge>
 			</div></SystemAccordionTrigger>
 			<SystemAccordionContent class="weekly-plan__content">
-			<div class="weekly-plan__actions"><SystemOperationalButton variant="solid" @click="addUpcomingRun">Add run</SystemOperationalButton></div>
+			<div class="weekly-plan__actions"><SystemOperationalButton v-if="form.name && props.plan?.next_production?.calendar?.planned_date" variant="outline" @click="closureEditorOpen = !closureEditorOpen">{{ closureEditorOpen ? 'Keep service date' : 'Mark holiday or closure' }}</SystemOperationalButton><SystemOperationalButton variant="solid" @click="addUpcomingRun">Add run</SystemOperationalButton></div>
+			<div v-if="closureEditorOpen" class="closure-control"><div><strong>Skip {{ props.plan.next_production.calendar.planned_date }}</strong><small>The meal cycle advances and no missing food is added to a later week.</small></div><SystemTextarea v-model="closureReason" label="Reason" placeholder="Holiday or planned closure" /><SystemOperationalButton variant="solid" :loading="busy" :disabled="!closureReason.trim()" @click="skipUpcomingService">Confirm skip</SystemOperationalButton></div>
 			<article class="weekly-position" :class="weeklyCapacity.ready ? 'is-ready' : 'is-under'">
 				<div class="weekly-position__heading"><div><p class="eyebrow">Upcoming meal</p><h3>{{ upcomingPlanRow?.recipe ? recipeOptions.find((item) => item.value === upcomingPlanRow.recipe)?.label || upcomingPlanRow.recipe : 'Choose the meal in Setup' }}</h3></div><SystemBadge :theme="weeklyCapacity.ready ? 'green' : 'red'">{{ weeklyCapacity.ready ? 'Capacity ready' : 'Capacity gap' }}</SystemBadge></div>
 				<div class="weekly-position__metrics">
-					<div><strong>{{ number(weeklyKg) }} kg</strong><span>customer food required</span></div>
-					<div><strong>{{ number(weeklyExtraOutput) }} kg</strong><span>extra planned</span></div>
-					<div><strong>{{ number(planningMinutesPerKg) }} min/kg</strong><span>{{ demonstratedMinutesPerKg ? 'past demonstrated rate' : 'estimated labour rate' }}</span></div>
-					<div><strong>{{ number(weeklyCapacity.efficiencyPercent) }}%</strong><span>estimated team efficiency</span></div>
-					<div><strong>{{ number(weeklyCapacity.minimumElapsedHours) }} h</strong><span>minimum elapsed time</span></div>
-					<div><strong>{{ number(weeklyCapacity.taktMinutesPerKg) }} min/kg</strong><span>available takt</span></div>
+					<div><span>Customers need</span><strong>{{ number(weeklyKg) }} kg</strong></div>
+					<div><span>Planned output</span><strong>{{ number(weeklyTargetOutput) }} kg</strong><small v-if="weeklyExtraOutput">Includes {{ number(weeklyExtraOutput) }} kg extra</small></div>
+					<div><span>Planned capacity</span><strong>{{ number(weeklyCapacity.capacityKg) }} kg</strong></div>
+					<div :class="weeklyCapacity.ready ? 'is-positive' : 'is-negative'"><span>{{ weeklyCapacityPosition.label }}</span><strong>{{ weeklyCapacityPosition.quantity === null ? 'Post a timed run' : `${number(weeklyCapacityPosition.quantity)} kg` }}</strong></div>
+					<div v-if="weeklyExtraOutput" :class="weeklyStoragePosition.label.includes('shortfall') || weeklyStoragePosition.label.includes('confirm') ? 'is-negative' : 'is-positive'"><span>{{ weeklyStoragePosition.label }}</span><strong>{{ weeklyStoragePosition.value }}</strong></div>
 				</div>
-				<p class="weekly-position__consequence"><strong>Next consequence</strong><span>{{ weeklyCapacity.consequence }}</span></p>
-				<p class="weekly-position__storage"><strong>Freezer capacity</strong><span>{{ weeklyCapacity.storage?.configured ? `${weeklyCapacity.storage.status}: ${number(weeklyCapacity.storage.required_qty)} kg needs storage.` : 'Not configured yet. Extra output is flagged for a storage check, but no capacity is assumed.' }}</span></p>
 			</article>
 			<div class="extra-output-control"><SystemCheckboxShadcn v-model="form.extra_output_enabled" label="Plan extra output for this week" /><SystemFormControl v-if="form.extra_output_enabled && upcomingPlanRow" v-model="upcomingPlanRow.extra_output_qty" type="number" min="0" step="0.1" label="Extra output (kg)" /><div v-else class="calculated-field"><span>Required weekly output</span><strong>{{ number(weeklyKg) }} kg</strong></div></div>
 			<div class="weekly-run-list">
 				<article v-for="row in upcomingRuns" :key="`${row.week_number}-${row.run_number}`"><SystemSelect v-model="row.day_of_week" label="Day" :options="dayOptions" /><SystemFormControl v-model="row.scheduled_elapsed_hours" type="number" min="0.1" max="8" step="0.1" label="Cooking hours" /><SystemFormControl v-model="row.planned_people" type="number" min="1" step="1" label="People working" /><SystemOperationalButton variant="ghost" @click="removeUpcomingRun(row)">Remove</SystemOperationalButton></article>
 				<p v-if="!upcomingRuns.length" class="weekly-run-list__empty">No cooking session is planned for the upcoming meal.</p>
 			</div>
-			<p class="capacity-method-note">People are not treated as linearly interchangeable. The estimate uses the demonstrated labour rate first and applies diminishing returns as the crew grows. A person is never allocated more than eight hours in one session.</p>
 			</SystemAccordionContent>
 			</SystemAccordionItem>
 		</SystemAccordion>
@@ -1337,35 +1381,36 @@ function number(value) {
 </template>
 
 <style scoped>
-.planning-setup{display:grid;gap:var(--spacing-s)}
-.planning-setup__card,.planning-setup__subcard{overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-block);background:var(--theme-surface)}
-.planning-setup__trigger,.planning-setup__subtrigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}
+.planning-setup{display:grid;gap:var(--spacing-s);margin-top:var(--spacing-m)}
+.planning-setup__card,.planning-setup__subcard{overflow:hidden;border:var(--border-width-1) solid var(--theme-border)!important;border-radius:var(--component-radius-block)!important;background:var(--theme-surface)!important;box-shadow:0 1px 2px color-mix(in oklch,var(--theme-text) 5%,transparent)!important}
+.planning-setup__trigger{width:100%;text-align:left;text-decoration:none!important}
 .planning-setup__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}
 .planning-setup__content{padding:0 var(--spacing-m) var(--spacing-m)}
 .planning-setup__subsections{display:grid;gap:var(--spacing-xs)}
-.planning-setup__subcard{border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+.planning-setup__subcard{border-radius:var(--component-radius-card)!important;background:var(--theme-surface-raised)!important;box-shadow:none!important}
+.planning-setup__subtrigger{width:100%;padding:var(--spacing-s);text-align:left;text-decoration:none!important}
 .planning-setup__subtrigger>div{display:grid;gap:var(--spacing-3xs)}
 .planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:var(--font-letter-spacing-2)}
-.planning-setup__subtrigger strong{font-size:var(--font-size-0)}
+.planning-setup__subtrigger strong{font-size:var(--font-size--1);font-weight:var(--font-weight-600)}
 .planning-setup__subcontent{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-s) var(--spacing-s)}
-.weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0}.weekly-plan__trigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m);padding:0 var(--spacing-m) var(--spacing-m)}.weekly-plan__actions{display:flex;justify-content:flex-end}
+.weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0!important}.weekly-plan__trigger{width:100%;text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m)}.weekly-plan__actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--spacing-xs)}.closure-control{display:grid;grid-template-columns:minmax(14rem,.8fr) minmax(16rem,1fr) auto;align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.closure-control>div{display:grid;gap:var(--spacing-3xs)}.closure-control small{color:var(--theme-text-muted)}
 .weekly-position{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .weekly-position.is-ready{border-color:color-mix(in oklch,var(--theme-success) 45%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 5%,var(--theme-surface-raised))}
 .weekly-position.is-under{border-color:color-mix(in oklch,var(--theme-error) 52%,var(--theme-border));background:color-mix(in oklch,var(--theme-error) 7%,var(--theme-surface-raised))}
 .weekly-position__heading{display:flex;align-items:start;justify-content:space-between;gap:var(--spacing-s)}
 .weekly-position__heading h3{margin:var(--spacing-3xs) 0 0;font-size:var(--font-size-1)}
-.weekly-position__metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface-raised)}
-.weekly-position__metrics>div{display:grid;gap:var(--spacing-3xs);min-width:0;padding:var(--spacing-xs);border-right:var(--border-width-1) solid var(--theme-border)}
+.weekly-position__metrics{display:flex;flex-wrap:wrap;overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-surface-raised)}
+.weekly-position__metrics>div{display:grid;flex:1 1 10rem;gap:var(--spacing-3xs);min-width:0;padding:var(--spacing-xs);border-right:var(--border-width-1) solid var(--theme-border)}
 .weekly-position__metrics>div:last-child{border-right:0}
-.weekly-position__metrics strong{font-size:var(--font-size-0);overflow-wrap:anywhere}.weekly-position__metrics span{color:var(--theme-text-muted);font-size:var(--font-size--2)}
-.weekly-position__consequence,.weekly-position__storage{display:grid;grid-template-columns:minmax(9rem,.25fr) minmax(0,1fr);gap:var(--spacing-s);margin:0;padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-field);background:var(--theme-secondary)}
-.weekly-position__consequence span,.weekly-position__storage span,.capacity-method-note,.weekly-run-list__empty{color:var(--theme-text-muted)}
+.weekly-position__metrics strong{font-size:var(--font-size-0);overflow-wrap:anywhere}.weekly-position__metrics span,.weekly-position__metrics small{color:var(--theme-text-muted);font-size:var(--font-size--2)}
+.weekly-position__metrics .is-positive strong{color:var(--theme-success)}.weekly-position__metrics .is-negative strong{color:var(--theme-error)}
 .extra-output-control{display:grid;grid-template-columns:minmax(14rem,1fr) minmax(14rem,.6fr);align-items:end;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
+.calculated-field{display:flex;align-items:baseline;justify-content:space-between;gap:var(--spacing-s);min-width:0;padding:var(--spacing-xs) var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}.calculated-field span{color:var(--theme-text-muted);font-size:var(--font-size--2)}.calculated-field strong{flex:0 0 auto;white-space:nowrap}
 .weekly-run-list{display:grid;gap:var(--spacing-xs)}
 .weekly-run-list article{display:grid;grid-template-columns:minmax(9rem,.75fr) minmax(9rem,.65fr) minmax(9rem,.65fr) auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
-.weekly-run-list__empty,.capacity-method-note{margin:0;padding:var(--spacing-xs) var(--spacing-s)}
-@media(max-width:72rem){.weekly-position__metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.weekly-position__metrics>div:nth-child(3){border-right:0}.weekly-position__metrics>div:nth-child(-n+3){border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-run-list article{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-run-list article :deep(button){width:100%}}
-@media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article{grid-template-columns:1fr}.weekly-position__metrics>div{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-position__metrics>div:last-child{border-bottom:0}.weekly-position__consequence,.weekly-position__storage{grid-template-columns:1fr;gap:var(--spacing-3xs)}}
+.weekly-run-list__empty{margin:0;padding:var(--spacing-xs) var(--spacing-s)}
+@media(max-width:72rem){.weekly-position__metrics>div{flex-basis:45%;border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-position__metrics>div:nth-child(2n){border-right:0}.weekly-position__metrics>div:last-child{border-bottom:0}.weekly-run-list article{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-run-list article :deep(button){width:100%}}
+@media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article,.closure-control{grid-template-columns:1fr}.weekly-position__metrics>div{flex-basis:100%;border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.closure-control :deep(button){width:100%}}
 .capacity-window-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));

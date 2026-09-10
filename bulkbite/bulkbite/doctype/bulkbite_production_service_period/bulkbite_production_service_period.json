@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:period_key",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["period_key", "production_plan", "production_plan_row", "cycle_number", "meal_number", "planned_date", "finished_item", "required_output_qty", "actual_output_qty", "missing_output_qty", "status", "resolution_reason", "truth_event", "customer_follow_up_action"],
+ "fields": [
+  {"fieldname": "period_key", "fieldtype": "Data", "label": "Period Key", "read_only": 1, "reqd": 1, "unique": 1},
+  {"fieldname": "production_plan", "fieldtype": "Link", "in_list_view": 1, "label": "Meal Direction", "options": "BulkBite Production Plan", "read_only": 1, "reqd": 1},
+  {"fieldname": "production_plan_row", "fieldtype": "Data", "label": "Planned Meal Row", "read_only": 1},
+  {"fieldname": "cycle_number", "fieldtype": "Int", "in_list_view": 1, "label": "Cycle", "read_only": 1, "reqd": 1},
+  {"fieldname": "meal_number", "fieldtype": "Int", "in_list_view": 1, "label": "Meal", "read_only": 1, "reqd": 1},
+  {"fieldname": "planned_date", "fieldtype": "Date", "in_list_view": 1, "label": "Service Date", "read_only": 1, "reqd": 1},
+  {"fieldname": "finished_item", "fieldtype": "Link", "label": "Finished Meal", "options": "BulkBite Item", "read_only": 1},
+  {"fieldname": "required_output_qty", "fieldtype": "Float", "label": "Customer Food Required (kg)", "non_negative": 1, "read_only": 1},
+  {"fieldname": "actual_output_qty", "fieldtype": "Float", "label": "Food Produced (kg)", "non_negative": 1, "read_only": 1},
+  {"fieldname": "missing_output_qty", "fieldtype": "Float", "label": "Food Not Produced (kg)", "non_negative": 1, "read_only": 1},
+  {"fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Resolution", "options": "Fulfilled\nMissed\nIntentionally Skipped", "read_only": 1, "reqd": 1},
+  {"fieldname": "resolution_reason", "fieldtype": "Small Text", "label": "Reason", "read_only": 1},
+  {"fieldname": "truth_event", "fieldtype": "Link", "label": "Truth Event", "options": "BulkBite Truth Event", "read_only": 1},
+  {"fieldname": "customer_follow_up_action", "fieldtype": "Link", "label": "Customer Follow-up", "options": "BulkBite Operational Action", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Production Service Period",
+ "permissions": [
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager"},
+  {"export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager"},
+  {"read": 1, "role": "BulkBite Worker"}
+ ],
+ "sort_field": "planned_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

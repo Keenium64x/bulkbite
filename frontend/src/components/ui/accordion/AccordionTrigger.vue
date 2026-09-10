@@ -23,7 +23,7 @@ const delegatedProps = reactiveOmit(props, "class");
       v-bind="delegatedProps"
       :class="
         cn(
-          'flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
+          'system-accordion-trigger flex flex-1 items-center justify-between text-sm font-medium no-underline transition-all hover:no-underline [&[data-state=open]>svg]:rotate-180',
           props.class,
         )
       "
@@ -37,3 +37,22 @@ const delegatedProps = reactiveOmit(props, "class");
     </AccordionTrigger>
   </AccordionHeader>
 </template>
+
+<style scoped>
+.system-accordion-trigger {
+  width: 100%;
+  padding: var(--spacing-m);
+  color: var(--theme-text);
+  text-align: left;
+  text-decoration: none;
+}
+
+.system-accordion-trigger:hover {
+  text-decoration: none;
+}
+
+.system-accordion-trigger:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: -2px;
+}
+</style>

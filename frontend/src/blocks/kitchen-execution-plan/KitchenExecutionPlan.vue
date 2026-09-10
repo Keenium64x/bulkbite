@@ -794,9 +794,9 @@ function printKitchenPack() {
 .state-message {
   padding: var(--spacing-m);
   border: var(--border-width-1) solid var(--theme-border);
-  border-radius: var(--component-radius-card);
-  background: var(--theme-surface-raised);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--component-radius-block);
+  background: var(--theme-surface);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--theme-text) 5%, transparent);
 }
 
 .state-message--error {
@@ -905,7 +905,7 @@ function printKitchenPack() {
 :deep(.section-trigger) {
   width: 100%;
   min-height: 4.5rem;
-  padding: var(--spacing-m) !important;
+  padding: var(--spacing-m);
   border: 0 !important;
   color: var(--theme-text);
   text-align: left;
@@ -914,7 +914,6 @@ function printKitchenPack() {
 }
 
 :deep(.section-trigger:hover) {
-  background: color-mix(in oklch, var(--theme-surface) 62%, var(--theme-surface-raised));
   text-decoration: none !important;
   text-decoration-line: none !important;
 }

@@ -12,11 +12,11 @@ const sections = [
 	{ id: "receipts", label: "Receipts" },
 	{ id: "production", label: "Production" },
 	{ id: "planning", label: "Planning", group: "theoretical" },
-	{ id: "forecasting", label: "Forecasting", group: "theoretical" },
+	{ id: "forecasting", label: "Forecasting", group: "supporting" },
 	{ id: "buying", label: "Buying", group: "theoretical" },
-	{ id: "finance", label: "Finance", group: "theoretical" },
-	{ id: "export", label: "Reports", group: "theoretical" },
-	{ id: "import", label: "Import", group: "theoretical" },
+	{ id: "finance", label: "Finance", group: "supporting" },
+	{ id: "export", label: "Reports", group: "supporting" },
+	{ id: "import", label: "Import", group: "supporting" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
 ];
 const snapshot = ref(null);

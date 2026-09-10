@@ -30,6 +30,7 @@ class BulkBiteProductionRun(Document):
 			{"stock_events_posted": 1, "employee_costs_posted": 1, "output_stock_event": output_event.name, "truth_event": event.name},
 			update_modified=False,
 		)
+		self._resolve_elapsed_service_periods()
 
 	def on_cancel(self):
 		frappe.throw(_("Posted production runs remain immutable. Create a correcting production or audit record."))
@@ -87,6 +88,25 @@ class BulkBiteProductionRun(Document):
 	def _validate_submission_boundary(self):
 		if self.stock_events_posted and self.docstatus == 0:
 			frappe.throw(_("A posted production run cannot return to draft."))
+
+	def _resolve_elapsed_service_periods(self):
+		"""Close any service periods made final by this posted production evidence."""
+		if not self.production_plan:
+			return
+		from bulkbite.planning import build_plan_snapshot
+		from bulkbite.production_periods import materialize_elapsed_service_periods
+
+		plan = frappe.get_doc("BulkBite Production Plan", self.production_plan)
+		rows = build_plan_snapshot(plan, self.source_location or "Ingredients")[0]
+		runs = frappe.get_all(
+			"BulkBite Production Run",
+			filters={"production_plan": plan.name},
+			fields=[
+				"name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action",
+				"production_date", "finished_item", "docstatus", "actual_output_qty",
+			],
+		)
+		materialize_elapsed_service_periods(plan, rows, runs)
 
 
 # endregion PRODUCTION RUN LIFECYCLE

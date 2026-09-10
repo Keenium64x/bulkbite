@@ -22,7 +22,17 @@ const forwardedProps = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <AccordionItem v-bind="forwardedProps" :class="cn('border-b', props.class)">
+  <AccordionItem v-bind="forwardedProps" :class="cn('system-accordion-card', props.class)">
     <slot />
   </AccordionItem>
 </template>
+
+<style scoped>
+.system-accordion-card {
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--theme-border);
+  border-radius: var(--component-radius-block);
+  background: var(--theme-surface);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--theme-text) 5%, transparent);
+}
+</style>

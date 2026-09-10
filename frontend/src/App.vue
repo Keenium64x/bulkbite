@@ -43,7 +43,7 @@ const sections = [
 	{ id: "receipts", label: "Receipts" },
 	{ id: "production", label: "Production" },
 	{ id: "planning", label: "Planning", group: "theoretical" },
-	{ id: "forecasting", label: "Forecasting", group: "theoretical" },
+	{ id: "forecasting", label: "Forecasting", group: "supporting" },
 	{ id: "buying", label: "Buying", group: "theoretical" },
 	{ id: "finance", label: "Finance", group: "supporting" },
 	{ id: "export", label: "Reports", group: "supporting" },
@@ -414,18 +414,15 @@ watch(
 .stock-support-sections {
 	display: grid;
 	gap: var(--spacing-s);
+	margin-top: var(--spacing-m);
 }
 
 .stock-support-section {
 	overflow: hidden;
-	border: var(--border-width-1) solid var(--theme-border);
-	border-radius: var(--component-radius-block);
-	background: var(--theme-surface);
 }
 
 .stock-support-section__trigger {
 	width: 100%;
-	padding: var(--spacing-m);
 	text-align: left;
 	text-decoration: none !important;
 }
@@ -448,6 +445,5 @@ watch(
 }
 
 .stock-support-section__content {
-	padding: 0 var(--spacing-m) var(--spacing-m);
 }
 </style>

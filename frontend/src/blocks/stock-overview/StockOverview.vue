@@ -232,7 +232,6 @@ async function saveContainerMovement() {
             </div>
           </div>
 
-          <p v-if="!actualAvailable" class="evidence-note">Actual food usage appears after four production runs are posted for this direction. {{ finances?.actual_run_count || 0 }} of 4 are available, so expected recipe cost is shown.</p>
           <table class="desyium-block__visually-hidden"><caption>{{ basisLabel }} financial chart values</caption><thead><tr><th>Measure</th><th>Amount</th></tr></thead><tbody><tr><td>Revenue</td><td>{{ money(finances?.revenue) }}</td></tr><tr><td>Food cost</td><td>{{ money(selectedPosition.food_cost) }}</td></tr><tr><td>Gross profit before overheads</td><td>{{ money(selectedPosition.gross_profit) }}</td></tr></tbody></table>
         </SystemCard>
 
@@ -296,7 +295,7 @@ async function saveContainerMovement() {
 	            <div v-if="scanResult?.matched" class="scan-result" aria-live="polite"><SystemBadge class="status-badge">MATCHED</SystemBadge><strong>{{ scanResult.item_name }}</strong><span>{{ scanResult.item_code }} · {{ scanResult.uom }}</span></div>
 	            <div v-else-if="scanResult && !scanResult.matched" class="scan-result scan-result--unknown" aria-live="polite"><SystemBadge>NOT MAPPED</SystemBadge><strong>{{ scanResult.scan_code }}</strong><span>{{ scanResult.reason }}</span><SystemLinkedRecordField v-model="mappingItem" label="Assign to item" :options="itemOptions" placeholder="Choose an ingredient" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" /><SystemOperationalButton variant="outline" :disabled="!mappingItem" @click="assignCode">Save code mapping</SystemOperationalButton></div>
 	          </div>
-	          <div class="table-wrap"><table><thead><tr><th>Ingredient</th><th>On hand</th><th>Planned need</th><th>Position</th><th>Unit</th><th>Rate</th><th>Stock value</th></tr></thead><tbody><tr v-for="item in stockRows" :key="item.item_code" :class="{ 'is-short': item.requirement?.shortage_qty > 0 }"><td><strong>{{ item.item_name }}</strong><small>{{ item.item_code }}</small></td><td class="number-cell">{{ number(item.actual_qty, 3) }}</td><td class="number-cell">{{ item.requirement ? number(item.requirement.required_qty, 3) : "Not planned" }}</td><td class="number-cell">{{ item.requirement?.shortage_qty > 0 ? `SHORT ${number(item.requirement.shortage_qty, 3)}` : item.requirement ? "ENOUGH" : "ON HAND" }}</td><td>{{ item.stock_uom }}</td><td class="money-cell">R {{ number(item.valuation_rate) }}</td><td class="money-cell">R {{ number(item.stock_value) }}</td></tr><tr v-if="!stockRows.length"><td colspan="7">No ingredient records are available.</td></tr></tbody></table></div>
+	          <div class="table-wrap"><table><thead><tr><th>Ingredient</th><th>On hand</th><th>Planned need</th><th>Unit</th><th>Rate</th><th>Stock value</th></tr></thead><tbody><tr v-for="item in stockRows" :key="item.item_code" :class="item.requirement?.shortage_qty > 0 ? 'is-short' : item.requirement ? 'is-ready' : ''"><td><strong>{{ item.item_name }}</strong><small>{{ item.item_code }}</small></td><td class="number-cell"><strong>{{ number(item.actual_qty, 3) }}</strong><small v-if="item.requirement?.shortage_qty > 0">{{ number(item.requirement.shortage_qty, 3) }} short</small><small v-else-if="item.requirement">Enough for the plan</small></td><td class="number-cell">{{ item.requirement ? number(item.requirement.required_qty, 3) : "Not planned" }}</td><td>{{ item.stock_uom }}</td><td class="money-cell">R {{ number(item.valuation_rate) }}</td><td class="money-cell">R {{ number(item.stock_value) }}</td></tr><tr v-if="!stockRows.length"><td colspan="6">No ingredient records are available.</td></tr></tbody></table></div>
 	        </SystemAccordionContent>
 	      </SystemAccordionItem>
 	    </SystemAccordion>
@@ -304,11 +303,12 @@ async function saveContainerMovement() {
 </template>
 
 <style scoped>
-.stock-sections{display:grid;gap:var(--spacing-s)}
-.stock-section{overflow:hidden;padding:0}
-.stock-section__trigger{width:100%;padding:var(--spacing-m);text-align:left;text-decoration:none!important}
+.stock-sections{display:grid;gap:var(--spacing-s);margin-top:var(--spacing-m)}
+.stock-section{overflow:hidden;padding:0!important}
+.stock-section__trigger{width:100%;text-align:left;text-decoration:none!important}
 .stock-section__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}
-.stock-section__content{display:grid;gap:var(--spacing-m);padding:0 var(--spacing-m) var(--spacing-m)}
+.stock-section__content{display:grid;gap:var(--spacing-m)}
+.stock-section tbody tr.is-short td{background:color-mix(in oklch,var(--theme-error) 7%,var(--theme-surface-raised))}.stock-section tbody tr.is-ready td{background:color-mix(in oklch,var(--theme-success) 7%,var(--theme-surface-raised))}.stock-section tbody tr.is-short td:first-child{box-shadow:inset .2rem 0 0 var(--theme-error)}.stock-section tbody tr.is-ready td:first-child{box-shadow:inset .2rem 0 0 var(--theme-success)}.stock-section tbody tr.is-short .number-cell small{color:var(--theme-error)}.stock-section tbody tr.is-ready .number-cell small{color:var(--theme-success)}
 .stock-lookup{display:grid;grid-template-columns:minmax(16rem,28rem) minmax(0,1fr);align-items:start;gap:var(--spacing-s);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .stock-lookup .scan-result{margin:0}
 @media(max-width:54rem){.stock-lookup{grid-template-columns:1fr}.stock-section__trigger,.stock-section__content{padding-inline:var(--spacing-s)}}

@@ -57,6 +57,7 @@ export const syncOfflineMutation = (mutation) => call("bulkbite.api.sync_offline
   overwrite_conflict: Boolean(mutation.overwriteConflict),
 })
 export const cancelProductionPlan = (name) => call("bulkbite.api.cancel_production_plan", { name })
+export const skipProductionServicePeriod = (planName, plannedDate, reason) => call("bulkbite.api.skip_production_service_period", { plan_name: planName, planned_date: plannedDate, reason })
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")
 export const assignScanCode = (itemCode, code) => call("bulkbite.api.assign_scan_code", { item_code: itemCode, code })
 export const getAuxiliaryCatalogue = () => call("bulkbite.api.get_auxiliary_form_catalogue", {}, "GET")

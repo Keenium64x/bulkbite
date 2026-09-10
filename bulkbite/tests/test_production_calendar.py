@@ -9,6 +9,7 @@ from bulkbite.api import (
 	_production_calendar_slot,
 	_skipped_production_weeks,
 )
+from bulkbite.production_periods import resolve_elapsed_service_periods
 
 
 # =============================================================================
@@ -34,12 +35,14 @@ def plan_rows():
 
 def posted_run(cycle_number, meal_number, output=100, direction_action="Advance Direction"):
 	return SimpleNamespace(
+		name=f"run-{cycle_number}-{meal_number}-{output}",
 		docstatus=1,
 		cycle_number=cycle_number,
 		plan_week_number=meal_number,
 		actual_output_qty=output,
 		direction_action=direction_action,
 		production_plan_row=f"row-{meal_number}",
+		finished_item=f"meal-{meal_number}",
 		production_date=date(2026, 8, 1),
 		creation="2026-08-01 08:00:00",
 	)
@@ -91,7 +94,69 @@ class ProductionCalendarProof(TestCase):
 			[(row["cycle_number"], row["meal_number"]) for row in skipped],
 			[(1, 3), (1, 4), (2, 1), (2, 2)],
 		)
-		self.assertTrue(all(row["status"] == "Skipped" for row in skipped))
+		self.assertTrue(all(row["status"] == "Missed" for row in skipped))
+
+	def test_elapsed_periods_close_independently_without_carrying_missing_food(self):
+		periods = resolve_elapsed_service_periods(
+			plan_rows(),
+			[posted_run(1, 1, output=40)],
+			date(2026, 8, 1),
+			date(2026, 8, 16),
+		)
+
+		self.assertEqual(
+			[(row["status"], row["missing_output_qty"]) for row in periods],
+			[("Missed", 60), ("Missed", 100), ("Missed", 100)],
+		)
+		station = _next_production_station(
+			plan_rows(), [posted_run(1, 1, output=40)], date(2026, 8, 1), date(2026, 8, 16)
+		)
+		self.assertEqual(station["row"]["week_number"], 4)
+		self.assertEqual(station["row"]["remaining_output_qty"], 100)
+
+	def test_intentional_holiday_skip_advances_without_missing_food(self):
+		closures = [{
+			"planned_date": date(2026, 8, 15),
+			"status": "Intentionally Skipped",
+			"resolution_reason": "Holiday closure",
+		}]
+		periods = resolve_elapsed_service_periods(
+			plan_rows(), [], date(2026, 8, 1), date(2026, 8, 16), closures
+		)
+		station = _next_production_station(
+			plan_rows(), [], date(2026, 8, 1), date(2026, 8, 16), closures
+		)
+
+		self.assertEqual(periods[2]["status"], "Intentionally Skipped")
+		self.assertEqual(periods[2]["missing_output_qty"], 0)
+		self.assertEqual(station["row"]["week_number"], 4)
+
+	def test_existing_missed_period_does_not_turn_into_an_intentional_skip(self):
+		recorded = [{
+			"planned_date": date(2026, 8, 15),
+			"status": "Missed",
+			"resolution_reason": None,
+		}]
+
+		periods = resolve_elapsed_service_periods(
+			plan_rows(), [], date(2026, 8, 1), date(2026, 8, 16), recorded
+		)
+
+		self.assertEqual(periods[2]["status"], "Missed")
+		self.assertEqual(periods[2]["missing_output_qty"], 100)
+
+	def test_dated_off_plan_run_can_fulfil_the_matching_meal(self):
+		substitute = posted_run(9, 4, direction_action="Off Plan")
+		substitute.name = "substitute-run"
+		substitute.finished_item = "meal-2"
+		substitute.production_date = date(2026, 8, 8)
+
+		periods = resolve_elapsed_service_periods(
+			plan_rows(), [substitute], date(2026, 8, 1), date(2026, 8, 9)
+		)
+
+		self.assertEqual(periods[1]["status"], "Fulfilled")
+		self.assertEqual(periods[1]["evidence_runs"], ["substitute-run"])
 
 	def test_current_calendar_meal_keeps_partial_output_remaining(self):
 		runs = [posted_run(2, 3, output=35)]
@@ -115,7 +180,7 @@ class ProductionCalendarProof(TestCase):
 		self.assertEqual(station["row"]["week_number"], 4)
 		self.assertEqual(station["row"]["planned_date"], date(2026, 9, 19))
 
-	def test_existing_draft_resumes_and_reports_current_calendar_target(self):
+	def test_stale_draft_does_not_block_the_current_calendar_target(self):
 		with patch("bulkbite.api.frappe.get_doc", return_value=SimpleNamespace()), patch(
 			"bulkbite.api._serialize_run", return_value={"name": "draft-run"}
 		):
@@ -123,10 +188,11 @@ class ProductionCalendarProof(TestCase):
 				plan_rows(), [draft_run(2, 1)], date(2026, 8, 1), date(2026, 9, 8)
 			)
 
-		self.assertEqual(station["state"], "draft")
-		self.assertEqual(station["row"]["week_number"], 1)
+		self.assertEqual(station["state"], "ready")
+		self.assertEqual(station["row"]["week_number"], 3)
 		self.assertEqual(station["calendar"]["row"]["week_number"], 3)
-		self.assertTrue(station["behind_calendar"])
+		self.assertFalse(station["behind_calendar"])
+		self.assertEqual(station["stale_drafts"][0]["name"], "draft-run")
 
 
 # endregion PRODUCTION CALENDAR PROOF

@@ -154,6 +154,7 @@ auth_hooks = ["bulkbite.mobile.validate_mobile_jwt"]
 scheduler_events = {
 	"daily": [
 		"bulkbite.operational_actions.daily_operational_action_generation",
+		"bulkbite.production_periods.daily_production_service_period_resolution",
 	],
 }
 
