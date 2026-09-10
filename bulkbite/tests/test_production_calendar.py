@@ -10,7 +10,7 @@ from bulkbite.api import (
 	_skipped_production_weeks,
 )
 from bulkbite.production_periods import (
-	mark_service_period_range_skipped,
+	load_effective_service_periods,
 	resolve_elapsed_service_periods,
 	service_period_slots_in_range,
 )
@@ -145,45 +145,61 @@ class ProductionCalendarProof(TestCase):
 			[date(2026, 8, 8), date(2026, 8, 15)],
 		)
 
-	def test_vacation_range_is_idempotent_and_preserves_resolved_periods(self):
+	def test_active_vacation_skips_future_service_dates_without_replacing_history(self):
 		plan = SimpleNamespace(name="plan-1", period_start=date(2026, 8, 1))
-		existing_skip = {
-			"name": "skip-1",
-			"period_key": "plan-1:2026-08-08",
-			"planned_date": date(2026, 8, 8),
-			"status": "Intentionally Skipped",
-		}
-		fulfilled = {
-			"name": "fulfilled-1",
-			"period_key": "plan-1:2026-08-15",
-			"planned_date": date(2026, 8, 15),
-			"status": "Fulfilled",
-		}
-		created = SimpleNamespace(
-			name="skip-2",
-			planned_date=date(2026, 8, 22),
-			status="Intentionally Skipped",
-		)
+		history = [SimpleNamespace(
+			name="fulfilled-1", planned_date=date(2026, 8, 15), status="Fulfilled"
+		)]
+		vacations = [SimpleNamespace(
+			name="vacation-1",
+			vacation_name="December break",
+			from_date=date(2026, 8, 20),
+			to_date=date(2026, 8, 30),
+			status="Active",
+			legacy_service_period=None,
+		)]
 		with patch(
 			"bulkbite.production_periods.load_service_period_records",
-			return_value=[existing_skip, fulfilled],
+			return_value=history,
 		), patch(
-			"bulkbite.production_periods._insert_closed_service_period",
-			return_value=created,
-		) as insert_period:
-			result = mark_service_period_range_skipped(
-				plan,
-				plan_rows(),
-				date(2026, 8, 8),
-				date(2026, 8, 22),
-				"Annual closure",
-				as_of_date=date(2026, 8, 1),
+			"bulkbite.production_periods.load_planning_vacations",
+			return_value=vacations,
+		):
+			periods = load_effective_service_periods(
+				plan, plan_rows(), as_of_date=date(2026, 8, 16)
 			)
 
-		self.assertEqual(result["created"], [created])
-		self.assertEqual(result["already_skipped"], [existing_skip])
-		self.assertEqual(result["protected"], [fulfilled])
-		insert_period.assert_called_once()
+		self.assertEqual(periods[0], history[0])
+		self.assertEqual(
+			[row.planned_date for row in periods[1:]],
+			[date(2026, 8, 22), date(2026, 8, 29)],
+		)
+		self.assertTrue(all(row.status == "Intentionally Skipped" for row in periods[1:]))
+		self.assertTrue(all(row.resolution_reason == "December break" for row in periods[1:]))
+
+	def test_deleted_vacation_no_longer_skips_future_service_date(self):
+		plan = SimpleNamespace(name="plan-1", period_start=date(2026, 8, 1))
+		vacations = [SimpleNamespace(
+			name="vacation-1",
+			vacation_name="Cancelled break",
+			from_date=date(2026, 8, 22),
+			to_date=date(2026, 8, 22),
+			status="Deleted",
+			legacy_service_period="skip-legacy",
+		)]
+		legacy = SimpleNamespace(
+			name="skip-legacy", planned_date=date(2026, 8, 22), status="Intentionally Skipped"
+		)
+		with patch(
+			"bulkbite.production_periods.load_service_period_records", return_value=[legacy]
+		), patch(
+			"bulkbite.production_periods.load_planning_vacations", return_value=vacations
+		):
+			periods = load_effective_service_periods(
+				plan, plan_rows(), as_of_date=date(2026, 8, 16)
+			)
+
+		self.assertEqual(periods, [])
 
 	def test_existing_missed_period_does_not_turn_into_an_intentional_skip(self):
 		recorded = [{

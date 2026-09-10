@@ -1,0 +1,29 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-VAC-.#####",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["vacation_name", "production_plan", "from_date", "to_date", "status", "legacy_service_period"],
+ "fields": [
+  {"fieldname": "vacation_name", "fieldtype": "Data", "in_list_view": 1, "label": "Vacation Name", "reqd": 1},
+  {"fieldname": "production_plan", "fieldtype": "Link", "in_list_view": 1, "label": "Meal Direction", "options": "BulkBite Production Plan", "reqd": 1},
+  {"fieldname": "from_date", "fieldtype": "Date", "in_list_view": 1, "label": "From Date", "reqd": 1},
+  {"fieldname": "to_date", "fieldtype": "Date", "in_list_view": 1, "label": "To Date", "reqd": 1},
+  {"default": "Active", "fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Active\nDeleted", "read_only": 1, "reqd": 1},
+  {"fieldname": "legacy_service_period", "fieldtype": "Link", "hidden": 1, "label": "Legacy Service Period", "options": "BulkBite Production Service Period", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "BulkBite",
+ "name": "BulkBite Planning Vacation",
+ "permissions": [
+  {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "write": 1},
+  {"create": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "write": 1},
+  {"read": 1, "role": "BulkBite Worker"}
+ ],
+ "sort_field": "from_date",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

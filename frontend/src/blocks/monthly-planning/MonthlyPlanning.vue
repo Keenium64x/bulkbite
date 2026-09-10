@@ -13,13 +13,13 @@ import {
 	SystemLinkedRecordField,
 	SystemOperationalButton,
 	SystemSelect,
-	SystemTextarea,
 } from "@/desyium";
 import {
 	calculateCapacityScenario,
 	cancelProductionPlan,
+	deletePlanningVacation,
 	saveMonthlyProductionPlan,
-	skipProductionServicePeriodRange,
+	savePlanningVacation,
 } from "@/resources/api";
 import { syncOfflineMutation } from "@/resources/api";
 import {
@@ -65,8 +65,9 @@ const form = reactive({
 });
 const scenarioForecast = ref([]);
 const weeklyCapacityResult = ref(null);
+const vacationName = ref("");
 const vacationRange = ref("");
-const vacationReason = ref("Vacation or planned closure");
+const editingVacation = ref("");
 const vacationOutcome = ref("");
 let scenarioTimer;
 let hydrating = false;
@@ -77,11 +78,7 @@ const recipeOptions = computed(() =>
 		value: row.name,
 	})),
 );
-const intentionallySkippedPeriods = computed(() =>
-	(props.plan?.service_periods || []).filter(
-		(row) => row.status === "Intentionally Skipped",
-	),
-);
+const planningVacations = computed(() => props.plan?.vacations || []);
 const teamTemplates = computed(() => props.snapshot?.options?.team_templates || []);
 const teamTemplateOptions = computed(() =>
 	teamTemplates.value.map((row) => ({ label: row.template_name, value: row.name })),
@@ -789,31 +786,52 @@ async function saveVacationRange() {
 		error.value = "Choose the first and last vacation date.";
 		return;
 	}
-	if (!vacationReason.value.trim()) {
-		error.value = "Enter why these service dates will be skipped.";
+	if (!vacationName.value.trim()) {
+		error.value = "Enter a vacation name.";
 		return;
 	}
 	busy.value = true;
 	error.value = "";
 	vacationOutcome.value = "";
 	try {
-		const result = await skipProductionServicePeriodRange(
+		await savePlanningVacation(
 			form.name,
+			vacationName.value.trim(),
 			fromDate,
 			toDate,
-			vacationReason.value.trim(),
+			editingVacation.value || undefined,
 		);
-		const created = result?.created?.length || 0;
-		const unchanged = result?.already_skipped?.length || 0;
-		const protectedDates = result?.protected?.length || 0;
-		vacationOutcome.value = [
-			created ? `${created} service ${created === 1 ? "date" : "dates"} skipped` : "",
-			unchanged ? `${unchanged} already skipped` : "",
-			protectedDates ? `${protectedDates} already resolved` : "",
-		]
-			.filter(Boolean)
-			.join(". ");
-		vacationRange.value = "";
+		vacationOutcome.value = editingVacation.value ? "Vacation updated." : "Vacation added.";
+		resetVacationEditor();
+		emit("changed");
+	} catch (exception) {
+		error.value = exception.message;
+	} finally {
+		busy.value = false;
+	}
+}
+
+function editVacation(vacation) {
+	editingVacation.value = vacation.name;
+	vacationName.value = vacation.vacation_name;
+	vacationRange.value = `${vacation.from_date},${vacation.to_date}`;
+	vacationOutcome.value = "";
+}
+
+function resetVacationEditor() {
+	editingVacation.value = "";
+	vacationName.value = "";
+	vacationRange.value = "";
+}
+
+async function removeVacation(vacation) {
+	if (!window.confirm(`Delete ${vacation.vacation_name}?`)) return;
+	busy.value = true;
+	error.value = "";
+	try {
+		await deletePlanningVacation(vacation.name);
+		if (editingVacation.value === vacation.name) resetVacationEditor();
+		vacationOutcome.value = "Vacation deleted.";
 		emit("changed");
 	} catch (exception) {
 		error.value = exception.message;
@@ -1365,14 +1383,20 @@ function number(value) {
 							<SystemAccordionTrigger class="planning-setup__subtrigger"><div><span>Vacation dates</span><strong>Planned closures</strong></div></SystemAccordionTrigger>
 							<SystemAccordionContent class="planning-setup__subcontent">
 								<div class="vacation-fields">
+									<SystemFormControl v-model="vacationName" label="Vacation name" placeholder="December break" />
 									<SystemDateRangePicker v-model="vacationRange" label="Vacation dates" placeholder="Choose start and end dates" format="DD MMM YYYY" :disabled="!form.name" />
-									<SystemTextarea v-model="vacationReason" label="Reason" placeholder="Vacation or planned closure" />
-									<SystemOperationalButton variant="solid" :loading="busy" :disabled="!form.name || !vacationRange || !vacationReason.trim()" @click="saveVacationRange">Save vacation dates</SystemOperationalButton>
+									<div class="vacation-editor__actions">
+										<SystemOperationalButton v-if="editingVacation" variant="ghost" :disabled="busy" @click="resetVacationEditor">Cancel</SystemOperationalButton>
+										<SystemOperationalButton variant="solid" :loading="busy" :disabled="!form.name || !vacationName.trim() || !vacationRange" @click="saveVacationRange">{{ editingVacation ? 'Update vacation' : 'Add vacation' }}</SystemOperationalButton>
+									</div>
 								</div>
 								<p v-if="!form.name" class="vacation-note">Save the meal direction before adding vacation dates.</p>
 								<p v-if="vacationOutcome" class="vacation-note" role="status">{{ vacationOutcome }}</p>
-								<div v-if="intentionallySkippedPeriods.length" class="vacation-list">
-									<article v-for="period in intentionallySkippedPeriods" :key="period.name"><div><strong>{{ period.planned_date }}</strong><small>Meal {{ period.meal_number }} · Cycle {{ period.cycle_number }}</small></div><span>{{ period.resolution_reason || 'Planned closure' }}</span></article>
+								<div v-if="planningVacations.length" class="vacation-list">
+									<article v-for="vacation in planningVacations" :key="vacation.name">
+										<div><strong>{{ vacation.vacation_name }}</strong><small>{{ vacation.from_date }} to {{ vacation.to_date }} · {{ vacation.service_dates.length }} service {{ vacation.service_dates.length === 1 ? 'date' : 'dates' }}</small></div>
+										<div class="vacation-list__actions"><SystemOperationalButton variant="ghost" @click="editVacation(vacation)">Edit</SystemOperationalButton><SystemOperationalButton theme="red" variant="ghost" @click="removeVacation(vacation)">Delete</SystemOperationalButton></div>
+									</article>
 								</div>
 							</SystemAccordionContent>
 						</SystemAccordionItem>
@@ -1435,14 +1459,15 @@ function number(value) {
 .planning-setup__subtrigger span{color:var(--theme-text-muted);font-size:var(--font-size--2);text-transform:uppercase;letter-spacing:var(--font-letter-spacing-2)}
 .planning-setup__subtrigger strong{font-size:var(--font-size--1);font-weight:var(--font-weight-600)}
 .planning-setup__subcontent{display:grid;gap:var(--spacing-s);padding:0 var(--spacing-s) var(--spacing-s)}
-.vacation-fields{display:grid;grid-template-columns:minmax(16rem,1fr) minmax(16rem,1fr) auto;align-items:end;gap:var(--spacing-s)}
+.vacation-fields{display:grid;grid-template-columns:minmax(14rem,.75fr) minmax(16rem,1fr) auto;align-items:end;gap:var(--spacing-s)}
 .vacation-fields :deep(.system-component--date-range-picker){min-width:0}
 .vacation-fields :deep(.system-component--date-range-picker input){width:100%;min-height:2.75rem;padding-inline:.8rem;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-field);color:var(--theme-text)}
 .vacation-note{margin:0;color:var(--theme-text-muted);font-size:var(--font-size--2)}
+.vacation-editor__actions,.vacation-list__actions{display:flex;align-items:center;justify-content:flex-end;gap:var(--spacing-2xs)}
 .vacation-list{display:grid;gap:var(--spacing-2xs)}
 .vacation-list article{display:flex;align-items:start;justify-content:space-between;gap:var(--spacing-s);padding:var(--spacing-xs);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-field);background:var(--theme-secondary)}
-.vacation-list article div{display:grid;gap:var(--spacing-3xs)}
-.vacation-list small,.vacation-list span{color:var(--theme-text-muted);font-size:var(--font-size--2)}
+.vacation-list article>div:first-child{display:grid;gap:var(--spacing-3xs)}
+.vacation-list small{color:var(--theme-text-muted);font-size:var(--font-size--2)}
 .weekly-plan-accordion{display:grid}.weekly-plan{display:grid;gap:0;overflow:hidden;padding:0!important}.weekly-plan__trigger{width:100%;text-align:left;text-decoration:none!important}.weekly-plan__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}.weekly-plan__content{display:grid;gap:var(--spacing-m)}.weekly-plan__actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--spacing-xs);margin-bottom:var(--spacing-s)}
 .weekly-position{display:grid;gap:var(--spacing-s);padding:var(--spacing-m);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .weekly-position.is-ready{border-color:color-mix(in oklch,var(--theme-success) 45%,var(--theme-border));background:color-mix(in oklch,var(--theme-success) 5%,var(--theme-surface-raised))}
@@ -1460,7 +1485,7 @@ function number(value) {
 .weekly-run-list article{display:grid;grid-template-columns:minmax(9rem,.75fr) minmax(9rem,.65fr) minmax(9rem,.65fr) auto;align-items:end;gap:var(--spacing-xs);padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 .weekly-run-list__empty{margin:0;padding:var(--spacing-xs) var(--spacing-s)}
 @media(max-width:72rem){.weekly-position__metrics>div{flex-basis:45%;border-bottom:var(--border-width-1) solid var(--theme-border)}.weekly-position__metrics>div:nth-child(2n){border-right:0}.weekly-position__metrics>div:last-child{border-bottom:0}.weekly-run-list article{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-run-list article :deep(button){width:100%}}
-@media(max-width:64rem){.vacation-fields{grid-template-columns:1fr}.vacation-fields :deep(button){width:100%}}
+@media(max-width:64rem){.vacation-fields{grid-template-columns:1fr}.vacation-editor__actions :deep(button){flex:1}}
 @media(max-width:44rem){.planning-setup__trigger,.planning-setup__content,.weekly-plan__trigger,.weekly-plan__content{padding-inline:var(--spacing-s)}.weekly-position__heading{flex-direction:column}.weekly-position__metrics,.extra-output-control,.weekly-run-list article{grid-template-columns:1fr}.weekly-position__metrics>div{flex-basis:100%;border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.vacation-list article{display:grid}}
 .capacity-window-grid {
 	display: grid;

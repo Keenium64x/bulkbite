@@ -62,12 +62,13 @@ from bulkbite.setup_workbook import (
 )
 from bulkbite.production_instructions import build_run_instruction_plan
 from bulkbite.production_periods import (
+	load_effective_service_periods,
+	load_planning_vacations,
 	load_service_period_records,
-	mark_service_period_range_skipped,
-	mark_service_period_skipped,
 	missed_service_periods,
 	production_calendar_slot,
 	resolve_current_service_period,
+	service_period_slots_in_range,
 )
 from bulkbite.operational_actions import (
 	build_operational_action_snapshot,
@@ -1630,7 +1631,8 @@ def get_production_history_snapshot(plan_name=None):
 		order_by="production_date desc, creation desc",
 		limit=200,
 	)
-	service_periods = load_service_period_records(plan.name) if plan else []
+	closed_service_periods = load_service_period_records(plan.name) if plan else []
+	service_periods = load_effective_service_periods(plan, plan_rows) if plan else []
 	current_period = resolve_current_service_period(
 		plan_rows, run_names, plan.period_start, intentional_skips=service_periods
 	) if plan else None
@@ -1708,7 +1710,7 @@ def get_production_history_snapshot(plan_name=None):
 		},
 		"runs": runs,
 		"skipped_weeks": skipped_weeks,
-		"service_periods": service_periods,
+		"service_periods": closed_service_periods,
 		"containers": get_container_position_snapshot(),
 	}
 
@@ -1789,45 +1791,54 @@ def create_custom_operational_action(title, due_date, consequence_note=None, tar
 
 
 @frappe.whitelist(methods=["POST"])
-def skip_production_service_period(plan_name, planned_date, reason):
-	"""Record one manager-approved holiday or closure without creating later production debt."""
+def save_planning_vacation(plan_name, vacation_name, from_date, to_date, name=None):
+	"""Create or update one named future vacation range."""
 	_require_roles("BulkBite Manager")
 	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
 	rows = build_plan_snapshot(plan, "Ingredients")[0]
-	period = mark_service_period_skipped(plan, rows, planned_date, reason)
-	return {
-		"name": period.name,
-		"planned_date": period.planned_date,
-		"status": period.status,
-		"cycle_number": period.cycle_number,
-		"meal_number": period.meal_number,
-	}
+	if not service_period_slots_in_range(rows, plan.period_start, from_date, to_date):
+		frappe.throw(_("No scheduled service dates fall within this vacation range."))
+	if name:
+		doc = frappe.get_doc("BulkBite Planning Vacation", name)
+		if doc.production_plan != plan.name:
+			frappe.throw(_("This vacation belongs to another meal direction."))
+	else:
+		doc = frappe.new_doc("BulkBite Planning Vacation")
+		doc.production_plan = plan.name
+	doc.vacation_name = vacation_name
+	doc.from_date = from_date
+	doc.to_date = to_date
+	doc.status = "Active"
+	doc.save()
+	return _planning_vacation_result(doc, rows, plan.period_start)
 
 
 @frappe.whitelist(methods=["POST"])
-def skip_production_service_period_range(plan_name, from_date, to_date, reason):
-	"""Record all scheduled service dates in one manager-approved vacation range."""
+def delete_planning_vacation(name):
+	"""Remove one future vacation from calendar planning while preserving elapsed history."""
 	_require_roles("BulkBite Manager")
-	plan = frappe.get_doc("BulkBite Production Plan", plan_name)
-	rows = build_plan_snapshot(plan, "Ingredients")[0]
-	result = mark_service_period_range_skipped(plan, rows, from_date, to_date, reason)
-	return {
-		"scheduled_dates": result["scheduled_dates"],
-		"created": [_service_period_result(row) for row in result["created"]],
-		"already_skipped": [_service_period_result(row) for row in result["already_skipped"]],
-		"protected": [_service_period_result(row) for row in result["protected"]],
-	}
+	doc = frappe.get_doc("BulkBite Planning Vacation", name)
+	if getdate(doc.from_date) < getdate(nowdate()):
+		frappe.throw(_("A vacation that has started cannot be deleted."))
+	if doc.legacy_service_period:
+		from bulkbite.production_periods import supersede_future_legacy_skip
+
+		supersede_future_legacy_skip(doc.legacy_service_period, doc.name)
+	doc.db_set("status", "Deleted")
+	return {"name": doc.name, "deleted": True}
 
 
-def _service_period_result(period):
-	value = period.get if isinstance(period, dict) else lambda key: getattr(period, key, None)
+def _planning_vacation_result(vacation, rows, period_start):
 	return {
-		"name": value("name"),
-		"planned_date": value("planned_date"),
-		"status": value("status"),
-		"cycle_number": value("cycle_number"),
-		"meal_number": value("meal_number"),
-		"resolution_reason": value("resolution_reason"),
+		"name": vacation.name,
+		"vacation_name": vacation.vacation_name,
+		"from_date": vacation.from_date,
+		"to_date": vacation.to_date,
+		"status": vacation.status,
+		"service_dates": [
+			slot["planned_date"]
+			for slot in service_period_slots_in_range(rows, period_start, vacation.from_date, vacation.to_date)
+		],
 	}
 
 
@@ -1951,7 +1962,9 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
 		order_by="production_date, creation",
 	)
-	service_periods = load_service_period_records(plan.name)
+	closed_service_periods = load_service_period_records(plan.name)
+	service_periods = load_effective_service_periods(plan, rows)
+	vacations = load_planning_vacations(plan.name, rows, plan.period_start)
 	next_production = _next_production_station(rows, runs, plan.period_start, service_periods=service_periods)
 	start_cycle_week = int((next_production.get("row") or {}).get("cycle_week") or (next_production.get("row") or {}).get("week_number") or 1)
 	buying_rows, buying_requirements = build_plan_snapshot(plan, location, cover_with_finished_stock=True, start_cycle_week=start_cycle_week)
@@ -1983,7 +1996,8 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"financial_summary": build_dashboard_financial_summary(demand, rows, plan.name),
 		"workforce": get_employee_capacity_snapshot(demand),
 		"runs": runs,
-		"service_periods": service_periods,
+		"service_periods": closed_service_periods,
+		"vacations": vacations,
 	}
 	result["capacity_plan"] = _build_capacity_plan(plan, result["customer_mix"], result["workforce"])
 	result["next_production"] = next_production
@@ -2007,7 +2021,7 @@ def get_buying_recommendation(plan_name=None, location="Ingredients", horizon_we
 		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "finished_item", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation"],
 		order_by="production_date, creation",
 	)
-	service_periods = load_service_period_records(plan.name)
+	service_periods = load_effective_service_periods(plan, direction_rows)
 	next_production = _next_production_station(
 		direction_rows, runs, plan.period_start, service_periods=service_periods
 	)

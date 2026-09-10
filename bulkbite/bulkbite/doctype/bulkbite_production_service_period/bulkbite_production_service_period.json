@@ -4,7 +4,7 @@
  "autoname": "field:period_key",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["period_key", "production_plan", "production_plan_row", "cycle_number", "meal_number", "planned_date", "finished_item", "required_output_qty", "actual_output_qty", "missing_output_qty", "status", "resolution_reason", "truth_event", "customer_follow_up_action"],
+ "field_order": ["period_key", "production_plan", "production_plan_row", "cycle_number", "meal_number", "planned_date", "finished_item", "required_output_qty", "actual_output_qty", "missing_output_qty", "status", "resolution_reason", "truth_event", "customer_follow_up_action", "superseded", "superseded_by_vacation", "superseded_truth_event"],
  "fields": [
   {"fieldname": "period_key", "fieldtype": "Data", "label": "Period Key", "read_only": 1, "reqd": 1, "unique": 1},
   {"fieldname": "production_plan", "fieldtype": "Link", "in_list_view": 1, "label": "Meal Direction", "options": "BulkBite Production Plan", "read_only": 1, "reqd": 1},
@@ -19,7 +19,10 @@
   {"fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Resolution", "options": "Fulfilled\nMissed\nIntentionally Skipped", "read_only": 1, "reqd": 1},
   {"fieldname": "resolution_reason", "fieldtype": "Small Text", "label": "Reason", "read_only": 1},
   {"fieldname": "truth_event", "fieldtype": "Link", "label": "Truth Event", "options": "BulkBite Truth Event", "read_only": 1},
-  {"fieldname": "customer_follow_up_action", "fieldtype": "Link", "label": "Customer Follow-up", "options": "BulkBite Operational Action", "read_only": 1}
+  {"fieldname": "customer_follow_up_action", "fieldtype": "Link", "label": "Customer Follow-up", "options": "BulkBite Operational Action", "read_only": 1},
+  {"default": "0", "fieldname": "superseded", "fieldtype": "Check", "hidden": 1, "label": "Superseded", "read_only": 1},
+  {"fieldname": "superseded_by_vacation", "fieldtype": "Link", "hidden": 1, "label": "Superseded By Vacation", "options": "BulkBite Planning Vacation", "read_only": 1},
+  {"fieldname": "superseded_truth_event", "fieldtype": "Link", "hidden": 1, "label": "Superseded Truth Event", "options": "BulkBite Truth Event", "read_only": 1}
  ],
  "index_web_pages_for_search": 0,
  "links": [],

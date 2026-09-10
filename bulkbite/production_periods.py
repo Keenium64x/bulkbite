@@ -183,7 +183,7 @@ def load_service_period_records(plan_name):
 		return []
 	return frappe.get_all(
 		"BulkBite Production Service Period",
-		filters={"production_plan": plan_name},
+		filters={"production_plan": plan_name, "superseded": 0},
 		fields=[
 			"name", "period_key", "production_plan", "production_plan_row", "cycle_number", "meal_number",
 			"planned_date", "finished_item", "required_output_qty", "actual_output_qty", "missing_output_qty",
@@ -193,10 +193,79 @@ def load_service_period_records(plan_name):
 	)
 
 
+def load_planning_vacations(plan_name, rows=None, period_start=None, include_deleted=False):
+	"""Load named vacation ranges and derive the scheduled service dates they affect."""
+	if not plan_name:
+		return []
+	filters = {"production_plan": plan_name}
+	if not include_deleted:
+		filters["status"] = "Active"
+	vacations = frappe.get_all(
+		"BulkBite Planning Vacation",
+		filters=filters,
+		fields=["name", "vacation_name", "production_plan", "from_date", "to_date", "status", "legacy_service_period"],
+		order_by="from_date asc, creation asc",
+	)
+	if rows is None:
+		return vacations
+	for vacation in vacations:
+		vacation["service_dates"] = [
+			slot["planned_date"]
+			for slot in service_period_slots_in_range(rows, period_start, vacation.from_date, vacation.to_date)
+		]
+	return vacations
+
+
+def load_effective_service_periods(plan, rows, as_of_date=None):
+	"""Combine closed history with active vacation dates used by the production calendar."""
+	today = getdate(as_of_date or nowdate())
+	history = load_service_period_records(plan.name)
+	all_vacations = load_planning_vacations(plan.name, include_deleted=True)
+	legacy_periods = {
+		vacation.legacy_service_period
+		for vacation in all_vacations
+		if vacation.legacy_service_period
+	}
+	effective = [
+		period
+		for period in history
+		if not (
+			period.status == "Intentionally Skipped"
+			and getdate(period.planned_date) >= today
+			and period.name in legacy_periods
+		)
+	]
+	effective_skip_dates = {
+		getdate(period.planned_date)
+		for period in effective
+		if period.status == "Intentionally Skipped"
+	}
+	for vacation in all_vacations:
+		if vacation.status != "Active":
+			continue
+		for slot in service_period_slots_in_range(
+			rows, plan.period_start, vacation.from_date, vacation.to_date
+		):
+			if slot["planned_date"] in effective_skip_dates:
+				continue
+			effective.append(frappe._dict({
+				"name": vacation.name,
+				"planned_date": slot["planned_date"],
+				"status": "Intentionally Skipped",
+				"resolution_reason": vacation.vacation_name,
+				"vacation": vacation.name,
+			}))
+			effective_skip_dates.add(slot["planned_date"])
+	return effective
+
+
 def materialize_elapsed_service_periods(plan, rows, runs, as_of_date=None):
 	"""Persist each elapsed service-period result exactly once in the current transaction."""
 	known = load_service_period_records(plan.name)
-	intentional = [row for row in known if row.status == "Intentionally Skipped"]
+	intentional = [
+		row for row in load_effective_service_periods(plan, rows, as_of_date)
+		if row.status == "Intentionally Skipped"
+	]
 	resolved = resolve_elapsed_service_periods(rows, runs, plan.period_start, as_of_date, intentional)
 	known_keys = {row.period_key for row in known}
 	created = []
@@ -207,69 +276,6 @@ def materialize_elapsed_service_periods(plan, rows, runs, as_of_date=None):
 		created.append(_insert_closed_service_period(plan, period, period_key))
 		known_keys.add(period_key)
 	return created
-
-
-def mark_service_period_skipped(plan, rows, planned_date, reason):
-	"""Record one explicit future closure so the meal cycle advances without a missed-service debt."""
-	date_value = getdate(planned_date)
-	if date_value < getdate(nowdate()):
-		frappe.throw(_("A past service period can no longer be changed to an intentional skip."))
-	if not str(reason or "").strip():
-		frappe.throw(_("Enter why this service period will be skipped."))
-	slot = _slot_for_planned_date(rows, plan.period_start, date_value)
-	period_key = service_period_key(plan.name, date_value)
-	if frappe.db.exists("BulkBite Production Service Period", period_key):
-		frappe.throw(_("This service period has already been resolved."))
-	period = _resolve_service_period(slot, [], {"resolution_reason": str(reason).strip()})
-	period["status"] = "Intentionally Skipped"
-	period["missing_output_qty"] = 0
-	return _insert_closed_service_period(plan, period, period_key)
-
-
-def mark_service_period_range_skipped(plan, rows, from_date, to_date, reason, as_of_date=None):
-	"""Record every unresolved service date in an inclusive vacation range as intentionally skipped."""
-	start = getdate(from_date)
-	end = getdate(to_date)
-	today = getdate(as_of_date or nowdate())
-	if start > end:
-		frappe.throw(_("Vacation start date must be on or before the end date."))
-	if end < today:
-		frappe.throw(_("A vacation range must include a current or future service date."))
-	reason_value = str(reason or "").strip()
-	if not reason_value:
-		frappe.throw(_("Enter why these service dates will be skipped."))
-
-	slots = service_period_slots_in_range(rows, plan.period_start, max(start, today), end)
-	if not slots:
-		frappe.throw(_("No scheduled service dates fall within this vacation range."))
-
-	known = {
-		service_period_key(plan.name, row.get("planned_date")): row
-		for row in load_service_period_records(plan.name)
-	}
-	created = []
-	already_skipped = []
-	protected = []
-	for slot in slots:
-		period_key = service_period_key(plan.name, slot["planned_date"])
-		existing = known.get(period_key)
-		if existing:
-			if existing.get("status") == "Intentionally Skipped":
-				already_skipped.append(existing)
-			else:
-				protected.append(existing)
-			continue
-		period = _resolve_service_period(slot, [], {"resolution_reason": reason_value})
-		period["status"] = "Intentionally Skipped"
-		period["missing_output_qty"] = 0
-		created.append(_insert_closed_service_period(plan, period, period_key))
-
-	return {
-		"scheduled_dates": [slot["planned_date"] for slot in slots],
-		"created": created,
-		"already_skipped": already_skipped,
-		"protected": protected,
-	}
 
 
 def service_period_slots_in_range(rows, period_start, from_date, to_date):
@@ -299,13 +305,46 @@ def service_period_key(plan_name, planned_date):
 	return f"{plan_name}:{getdate(planned_date).isoformat()}"
 
 
+def supersede_future_legacy_skip(period_name, vacation_name):
+	"""Preserve a premature legacy skip while removing it from active calendar truth."""
+	if not period_name:
+		return None
+	period = frappe.get_doc("BulkBite Production Service Period", period_name)
+	if period.superseded:
+		return period
+	if period.status != "Intentionally Skipped" or getdate(period.planned_date) < getdate(nowdate()):
+		frappe.throw(_("Only a future planned closure can be replaced by vacation planning."))
+	truth = append_truth_event(
+		"PRODUCTION_SERVICE_PERIOD_SUPERSEDED",
+		period.doctype,
+		period.name,
+		{
+			"period_key": period.period_key,
+			"planned_date": period.planned_date,
+			"superseded_by_vacation": vacation_name,
+		},
+	)
+	period.db_set({
+		"superseded": 1,
+		"superseded_by_vacation": vacation_name,
+		"superseded_truth_event": truth.name,
+	}, update_modified=False)
+	return period
+
+
 def _insert_closed_service_period(plan, period, period_key):
 	frappe.db.sql(
 		"select name from `tabDocType` where name = %s for update",
 		("BulkBite Production Service Period",),
 	)
+	existing = frappe.db.get_value(
+		"BulkBite Production Service Period",
+		{"production_plan": plan.name, "planned_date": period["planned_date"], "superseded": 0},
+	)
+	if existing:
+		return frappe.get_doc("BulkBite Production Service Period", existing)
 	if frappe.db.exists("BulkBite Production Service Period", period_key):
-		return frappe.get_doc("BulkBite Production Service Period", period_key)
+		period_key = f"{period_key}:correction:{frappe.generate_hash(length=8)}"
 	doc = frappe.get_doc({
 		"doctype": "BulkBite Production Service Period",
 		"period_key": period_key,
@@ -366,17 +405,6 @@ def _insert_customer_follow_up(period):
 		"consequence_note": _("Arrange the customer follow-up for {0} kg that was not produced.").format(period.missing_output_qty),
 		"notes": _("Service period {0} closed as missed. This quantity does not carry into later production targets.").format(period.planned_date),
 	}).insert(ignore_permissions=True)
-
-
-def _slot_for_planned_date(rows, period_start, planned_date):
-	start = getdate(period_start or nowdate())
-	days = (getdate(planned_date) - start).days
-	if days < 0 or days % 7:
-		frappe.throw(_("Choose one of the plan's scheduled service dates."))
-	ordered_rows = _ordered_plan_rows(rows)
-	if not ordered_rows:
-		frappe.throw(_("Add meals to the production direction first."))
-	return _calendar_slot_at_index(ordered_rows, start, days // 7)
 
 
 def daily_production_service_period_resolution():
