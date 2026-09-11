@@ -87,6 +87,9 @@ build_release_archive() {
   local archive_path="${TEMPORARY_DIRECTORY}/bulkbite-release.tar.gz"
 
   git -C "${SCRIPT_DIRECTORY}" ls-files --cached --others --exclude-standard -z |
+    while IFS= read -r -d '' release_path; do
+      [[ -e "${SCRIPT_DIRECTORY}/${release_path}" ]] && printf '%s\0' "${release_path}"
+    done |
     tar \
       --directory="${SCRIPT_DIRECTORY}" \
       --no-recursion \
