@@ -15,6 +15,9 @@ import { syncOfflineMutation } from "@/resources/api"
 // =============================================================================
 
 let nativeBackConsumer = null
+let activeNativeSynchronization = null
+let lastNativeSynchronizationAt = 0
+const NATIVE_SYNCHRONIZATION_FRESHNESS_MS = 15_000
 
 export function registerNativeBackConsumer(consumer) {
   nativeBackConsumer = typeof consumer === "function" ? consumer : null
@@ -52,30 +55,42 @@ export async function handleNativeBack(router, exitApp = () => CapacitorApp.exit
   return "exit"
 }
 
-async function restoreSessionAfterResume() {
-	if (!nativeState.connected) return
-	const available = await checkNativeProductionAvailability({ force: true, announce: nativeSession.authenticated })
-	if (!available) return
+export async function synchronizeNativeState({ force = false } = {}) {
+	if (!nativeState.connected) return false
+	if (activeNativeSynchronization) return activeNativeSynchronization
+	if (!force && Date.now() - lastNativeSynchronizationAt < NATIVE_SYNCHRONIZATION_FRESHNESS_MS) return true
+
+	activeNativeSynchronization = runNativeSynchronization().finally(() => {
+		lastNativeSynchronizationAt = Date.now()
+		activeNativeSynchronization = null
+	})
+	return activeNativeSynchronization
+}
+
+async function runNativeSynchronization() {
+	const available = await checkNativeProductionAvailability({ announce: false })
+	if (!available) return false
 	if (nativeSession.authenticated) await restoreNativeSession().catch(() => {})
 	if (nativeSession.authenticated) await flushOfflineMutations(syncOfflineMutation).catch(() => {})
+	return true
 }
 
 export async function initialiseNativeLifecycle(router) {
   if (!runtimeConfig.isNative) return
   SystemBars.setStyle({ style: SystemBarsStyle.Dark }).catch(() => {})
   const network = await Network.getStatus()
-  nativeState.connected = network.connected
-  nativeState.connectionType = network.connectionType
+	nativeState.connected = network.connected
+	nativeState.connectionType = network.connectionType
 	Network.addListener("networkStatusChange", status => {
+		const connectionChanged = status.connected !== nativeState.connected || status.connectionType !== nativeState.connectionType
 		Object.assign(nativeState, status)
+		if (!connectionChanged) return
 		if (!status.connected) markNativeOffline()
-		else checkNativeProductionAvailability({ force: true, announce: nativeSession.authenticated }).then(available => {
-			if (available && nativeSession.authenticated) flushOfflineMutations(syncOfflineMutation).catch(() => {})
-		})
+		else synchronizeNativeState({ force: true }).catch(() => {})
 	})
   CapacitorApp.addListener("appUrlOpen", ({ url }) => handleAppUrl(url, router))
   CapacitorApp.addListener("appStateChange", ({ isActive }) => {
-    if (isActive) restoreSessionAfterResume()
+		if (isActive) synchronizeNativeState().catch(() => {})
   })
   CapacitorApp.addListener("backButton", () => handleNativeBack(router))
   const launch = await CapacitorApp.getLaunchUrl()

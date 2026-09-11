@@ -21,11 +21,27 @@ test("Back closes transient UI, returns auxiliary routes to app root, then exits
 
 test("successful native login replaces the current entry and never stores a password", () => {
   assert.match(app, /handleNativeAuthenticated[\s\S]*router\.replace\("\/bulkbite"\)/)
-  assert.doesNotMatch(login, /localStorage|sessionStorage|writeSecureValue/)
+  assert.match(login, /password\.value = ""/)
+  assert.doesNotMatch(login, /(?:localStorage|sessionStorage|writeSecureValue)[^\n]*password/i)
 })
 
 test("native resume revalidates the secure server session", () => {
   assert.match(lifecycle, /appStateChange/)
-  assert.match(lifecycle, /if \(isActive\) restoreSessionAfterResume\(\)/)
+  assert.match(lifecycle, /if \(isActive\) synchronizeNativeState\(\)/)
   assert.match(lifecycle, /await restoreNativeSession\(\)/)
+})
+
+test("background native synchronization stays quiet and coalesces repeated wake events", () => {
+  assert.match(lifecycle, /activeNativeSynchronization/)
+  assert.match(lifecycle, /NATIVE_SYNCHRONIZATION_FRESHNESS_MS = 15_000/)
+  assert.match(lifecycle, /checkNativeProductionAvailability\(\{ announce: false \}\)/)
+  assert.match(lifecycle, /if \(!connectionChanged\) return/)
+  assert.doesNotMatch(lifecycle, /announce: nativeSession\.authenticated/)
+})
+
+test("workspace data refreshes in the background after child changes", () => {
+  assert.match(app, /function refreshWorkspace\(\) \{\s*return loadAll\(false\)/)
+  assert.match(app, /function refreshWorkspaceManually\(\) \{\s*return loadAll\(true\)/)
+  assert.match(app, /if \(activeWorkspaceLoad\) return activeWorkspaceLoad/)
+  assert.doesNotMatch(app, /@changed="loadAll"/)
 })

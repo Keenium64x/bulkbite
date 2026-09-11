@@ -21,7 +21,7 @@ test("sub-threshold pulls reset without refreshing", () => {
 
 test("an armed pull runs one existing workflow refresh at a time", () => {
   assert.match(controller, /activeRefresh \|\|=/)
-  assert.match(app, /:refresh-action="loadAll"/)
+  assert.match(app, /:refresh-action="refreshWorkspaceManually"/)
   assert.match(shell, /useNativePullToRefresh\(refreshCurrentWorkflow\)/)
   assert.match(controller, /bulkbite:native-refresh-replay/)
 })

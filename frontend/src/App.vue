@@ -76,6 +76,7 @@ const loading = ref(false);
 const sessionBusy = ref(false);
 const error = ref("");
 const applicationInitialising = ref(false);
+let activeWorkspaceLoad = null;
 const currentUser = computed(
 	() => snapshot.value?.user || nativeSession.user || window.boot?.user || "",
 );
@@ -126,25 +127,40 @@ function navigateAuxiliary(target) {
 	});
 }
 
-async function loadAll() {
-	loading.value = true;
+async function loadAll(foreground = false) {
+	const showLoading = foreground || !snapshot.value;
+	if (showLoading) loading.value = true;
+	if (activeWorkspaceLoad) return activeWorkspaceLoad;
+
 	error.value = "";
-	try {
-		const [workspaceData, inventoryData, planData] = await Promise.all([
-			getWorkspaceSnapshot(),
-			getInventorySnapshot("Ingredients"),
-			getProductionPlanSnapshot(null, "Ingredients"),
-		]);
-		snapshot.value = workspaceData;
-		inventory.value = inventoryData;
-		plan.value = planData;
-		return true;
-	} catch (exception) {
-		error.value = exception.message;
-		return false;
-	} finally {
-		loading.value = false;
-	}
+	activeWorkspaceLoad = Promise.all([
+		getWorkspaceSnapshot(),
+		getInventorySnapshot("Ingredients"),
+		getProductionPlanSnapshot(null, "Ingredients"),
+	])
+		.then(([workspaceData, inventoryData, planData]) => {
+			snapshot.value = workspaceData;
+			inventory.value = inventoryData;
+			plan.value = planData;
+			return true;
+		})
+		.catch((exception) => {
+			error.value = exception.message;
+			return false;
+		})
+		.finally(() => {
+			activeWorkspaceLoad = null;
+			loading.value = false;
+		});
+	return activeWorkspaceLoad;
+}
+
+function refreshWorkspace() {
+	return loadAll(false);
+}
+
+function refreshWorkspaceManually() {
+	return loadAll(true);
 }
 
 async function initialiseApplication() {
@@ -169,7 +185,7 @@ async function initialiseApplication() {
 		if (route.path === "/" || !route.path.startsWith("/bulkbite"))
 			await router.replace("/bulkbite");
 	}
-	await loadAll();
+	await loadAll(true);
 	applicationInitialising.value = false;
 }
 
@@ -251,9 +267,9 @@ watch(
 		:user="currentUser"
 		:busy="loading"
 		:session-busy="sessionBusy"
-		:refresh-action="loadAll"
+		:refresh-action="refreshWorkspaceManually"
 		@navigate="navigate"
-		@refresh="loadAll"
+		@refresh="refreshWorkspaceManually"
 		@logout="handleLogout"
 	>
 		<SystemAuxiliaryRecords
@@ -268,7 +284,7 @@ watch(
 			:run-name="String(route.params.runName || '')"
 			@close="closeKitchenPlan"
 			@open-employees="navigate('employees')"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemStockOverview
 			v-else-if="activeSection === 'overview'"
@@ -285,13 +301,13 @@ watch(
 			:snapshot="snapshot"
 			:inventory="inventory"
 			:plan="plan"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemProductionMeasurement
 			v-else-if="activeSection === 'production'"
 			:snapshot="snapshot"
 			:plan="plan"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 			@open-worker-sheets="navigate('documents')"
 			@open-employees="openEmployees('production')"
 			@open-history="navigate('history')"
@@ -306,13 +322,13 @@ watch(
 		<SystemEmployeeManagement
 			v-else-if="activeSection === 'employees'"
 			@close="navigate(employeeReturnSection)"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemMonthlyPlanning
 			v-else-if="activeSection === 'planning'"
 			:snapshot="snapshot"
 			:plan="plan"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 			@open-employees="openEmployees('planning')"
 		/>
 		<SystemMonthlyPlanning
@@ -320,7 +336,7 @@ watch(
 			mode="forecasting"
 			:snapshot="snapshot"
 			:plan="plan"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 			@open-employees="openEmployees('forecasting')"
 		/>
 		<SystemBuyingPlan
@@ -328,13 +344,13 @@ watch(
 			:snapshot="snapshot"
 			:plan="plan"
 			@open-workflow="navigate"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemDocumentReview
 			v-else-if="activeSection === 'documents'"
 			:snapshot="snapshot"
 			:inventory="inventory"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemPriceHistory
 			v-else-if="activeSection === 'finance'"
@@ -342,7 +358,7 @@ watch(
 			:snapshot="snapshot"
 			:inventory="inventory"
 			@open-workflow="navigate"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemAccountantExport v-else-if="activeSection === 'export'" />
 		<SystemPriceHistory
@@ -350,7 +366,7 @@ watch(
 			mode="import"
 			:snapshot="snapshot"
 			:inventory="inventory"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<template v-else-if="activeSection === 'stock'">
 			<div class="stock-workspace">
@@ -372,7 +388,7 @@ watch(
 							<div><span>Physical count</span><strong>Stock reconciliation</strong></div>
 						</SystemAccordionTrigger>
 						<SystemAccordionContent class="stock-support-section__content">
-							<SystemStockReconciliation :inventory="inventory" @changed="loadAll" />
+							<SystemStockReconciliation :inventory="inventory" @changed="refreshWorkspace" />
 						</SystemAccordionContent>
 					</SystemAccordionItem>
 					<SystemAccordionItem value="prices" class="stock-support-section">
@@ -384,7 +400,7 @@ watch(
 								mode="catalogue"
 								:snapshot="snapshot"
 								:inventory="inventory"
-								@changed="loadAll"
+								@changed="refreshWorkspace"
 							/>
 						</SystemAccordionContent>
 					</SystemAccordionItem>
@@ -398,7 +414,7 @@ watch(
 			:inventory="inventory"
 			:plan="plan"
 			@open-workflow="navigate"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 		<SystemStockOverview
 			v-else-if="activeSection === 'containers'"
@@ -407,7 +423,7 @@ watch(
 			:inventory="inventory"
 			:plan="plan"
 			@open-workflow="navigate"
-			@changed="loadAll"
+			@changed="refreshWorkspace"
 		/>
 	</SystemBulkbiteAppShell>
 </template>
