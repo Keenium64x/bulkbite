@@ -7,6 +7,8 @@ from bulkbite.api import (
 	_capacity_run_for_meal,
 	_next_production_station,
 	_production_calendar_slot,
+	_remap_direction_weeks,
+	_rotate_direction_rows,
 	_skipped_production_weeks,
 )
 from bulkbite.production_periods import (
@@ -65,6 +67,28 @@ def draft_run(cycle_number, meal_number):
 
 
 class ProductionCalendarProof(TestCase):
+	def test_selected_upcoming_meal_rotates_the_future_direction(self):
+		rows, week_map = _rotate_direction_rows(plan_rows(), "recipe-3")
+
+		self.assertEqual([row["recipe"] for row in rows], ["recipe-3", "recipe-4", "recipe-1", "recipe-2"])
+		self.assertEqual([row["week_number"] for row in rows], [1, 2, 3, 4])
+		self.assertEqual(week_map, {3: 1, 4: 2, 1: 3, 2: 4})
+
+	def test_capacity_stays_with_its_meal_when_the_direction_rotates(self):
+		_rows, week_map = _rotate_direction_rows(plan_rows(), "recipe-3")
+		runs = _remap_direction_weeks(
+			[
+				{"week_number": 1, "run_number": 1, "planned_people": 2},
+				{"week_number": 3, "run_number": 1, "planned_people": 5},
+			],
+			week_map,
+		)
+
+		self.assertEqual(
+			[(row["week_number"], row["planned_people"]) for row in runs],
+			[(1, 5), (3, 2)],
+		)
+
 	def test_saved_weekly_session_is_selected_for_the_planned_meal(self):
 		capacity_plan = {
 			"runs": [

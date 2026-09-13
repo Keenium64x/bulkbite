@@ -2140,9 +2140,18 @@ def save_monthly_production_plan(payload=None):
 		frappe.throw(_("A cancelled meal direction cannot be edited. Create a new direction instead."))
 	new_period_start = getdate(data.get("customer_changes_from") or data.get("period_start") or (existing_plan.period_start if existing_plan else None) or nowdate())
 	version_customer_mix = bool(existing_plan and _customer_mix_changed(existing_plan.customer_mix, _as_list(data.get("customer_mix"))))
-	plan = frappe.new_doc("BulkBite Production Plan") if version_customer_mix else (existing_plan or frappe.new_doc("BulkBite Production Plan"))
+	requested_upcoming_recipe = data.get("upcoming_recipe")
+	version_meal_cycle = bool(
+		existing_plan
+		and requested_upcoming_recipe
+		and requested_upcoming_recipe != _current_upcoming_recipe(existing_plan)
+	)
+	version_direction = version_customer_mix or version_meal_cycle
+	plan = frappe.new_doc("BulkBite Production Plan") if version_direction else (existing_plan or frappe.new_doc("BulkBite Production Plan"))
 	if version_customer_mix:
 		_validate_customer_mix_version_date(existing_plan, new_period_start)
+	elif version_meal_cycle:
+		_validate_meal_cycle_version_date(existing_plan, new_period_start)
 		plan.plan_title = data.get("plan_title") or existing_plan.plan_title
 		plan.notes = data.get("notes") if "notes" in data else existing_plan.notes
 		plan.source_workbook = existing_plan.source_workbook
@@ -2151,7 +2160,7 @@ def save_monthly_production_plan(payload=None):
 	plan.plan_title = data.get("plan_title") or _("Current meal direction")
 	plan.status = "Active"
 	plan.business_name = "BulkBite"
-	plan.period_start = new_period_start if version_customer_mix else getdate(data.get("period_start") or plan.period_start or nowdate())
+	plan.period_start = new_period_start if version_direction else getdate(data.get("period_start") or plan.period_start or nowdate())
 	plan.period_end = None
 	if "notes" in data:
 		plan.notes = data.get("notes")
@@ -2195,6 +2204,10 @@ def save_monthly_production_plan(payload=None):
 	rows = [row for row in _as_list(data.get("plan_rows")) if row.get("recipe")]
 	if len(rows) != 4:
 		frappe.throw(_("Choose one recipe for each of the four weeks."))
+	if version_direction or not existing_plan:
+		rows, week_map = _rotate_direction_rows(rows, requested_upcoming_recipe)
+	else:
+		week_map = {int(row.get("week_number") or index): index for index, row in enumerate(rows, start=1)}
 	plan.set(
 		"plan_rows",
 		[
@@ -2216,7 +2229,7 @@ def save_monthly_production_plan(payload=None):
 		"capacity_windows",
 		[
 			{"week_number": index, "scheduled_elapsed_hours": flt(row.get("scheduled_elapsed_hours")) or 4, "runs_per_week": max(int(row.get("runs_per_week") or 1), 1), "team_template": row.get("team_template") or plan.default_team_template}
-			for index, row in enumerate(_as_list(data.get("capacity_windows"))[:4], start=1)
+			for index, row in enumerate(_remap_direction_weeks(_as_list(data.get("capacity_windows"))[:4], week_map), start=1)
 		],
 	)
 	plan.set(
@@ -2239,12 +2252,12 @@ def save_monthly_production_plan(payload=None):
 				"team_template": row.get("team_template") or plan.default_team_template,
 				"planned_people": max(int(row.get("planned_people") or 0), 0),
 			}
-			for row in _as_list(data.get("capacity_runs"))
+			for row in _remap_direction_weeks(_as_list(data.get("capacity_runs")), week_map)
 			if flt(row.get("scheduled_elapsed_hours")) > 0
 		],
 	)
 	plan.save()
-	if version_customer_mix:
+	if version_direction:
 		requested_previous_end = add_days(plan.period_start, -1)
 		previous_end = min(getdate(existing_plan.period_end), requested_previous_end) if existing_plan.period_end else requested_previous_end
 		existing_plan.db_set({"status": "Completed", "period_end": previous_end}, update_modified=False)
@@ -2262,6 +2275,46 @@ def save_monthly_production_plan(payload=None):
 	return get_production_plan_snapshot(plan.name, data.get("location") or "Ingredients")
 
 
+def _current_upcoming_recipe(plan):
+	"""Return the recipe currently selected by the dated production resolver."""
+	rows, _requirements = build_plan_snapshot(plan, "Ingredients")
+	runs = frappe.get_all(
+		"BulkBite Production Run",
+		filters={"production_plan": plan.name},
+		fields=["name", "production_plan_row", "plan_week_number", "cycle_number", "direction_action", "recipe", "finished_item", "production_date", "docstatus", "planned_output_qty", "actual_output_qty", "creation", "modified"],
+		order_by="production_date, creation",
+	)
+	service_periods = load_effective_service_periods(plan, rows)
+	station = _next_production_station(rows, runs, plan.period_start, service_periods=service_periods)
+	return (station.get("row") or {}).get("recipe")
+
+
+def _rotate_direction_rows(rows, upcoming_recipe=None):
+	"""Rotate future meal rows from the selected recipe and return the old-to-new week map."""
+	rows = [dict(row) for row in rows]
+	if not upcoming_recipe:
+		return rows, {int(row.get("week_number") or index): index for index, row in enumerate(rows, start=1)}
+	selected_index = next((index for index, row in enumerate(rows) if row.get("recipe") == upcoming_recipe), None)
+	if selected_index is None:
+		frappe.throw(_("Choose an upcoming meal from the four recipes in this direction."))
+	rotated = rows[selected_index:] + rows[:selected_index]
+	week_map = {}
+	for new_week, row in enumerate(rotated, start=1):
+		week_map[int(row.get("week_number") or new_week)] = new_week
+		row["week_number"] = new_week
+	return rotated, week_map
+
+
+def _remap_direction_weeks(rows, week_map):
+	"""Keep capacity settings attached to their meal when the future cycle rotates."""
+	remapped = []
+	for row in rows:
+		value = dict(row)
+		value["week_number"] = week_map.get(int(value.get("week_number") or 1), int(value.get("week_number") or 1))
+		remapped.append(value)
+	return sorted(remapped, key=lambda row: (int(row.get("week_number") or 0), int(row.get("run_number") or 0)))
+
+
 def _customer_mix_changed(saved_rows, incoming_rows):
 	"""Return whether plan-type customer counts differ from the saved direction."""
 	saved = {row.plan_type: (int(row.customer_count or 0), row.price_basis or "Normal") for row in saved_rows or []}
@@ -2275,6 +2328,17 @@ def _validate_customer_mix_version_date(plan, effective_from):
 		frappe.throw(_("Customer changes must start after the current direction began."))
 	if frappe.db.exists("BulkBite Production Run", {"production_plan": plan.name, "production_date": (">=", effective_from)}):
 		frappe.throw(_("This direction already has production on or after the customer change date."))
+
+
+def _validate_meal_cycle_version_date(plan, effective_from):
+	"""Require a future boundary and protect posted production when the meal cycle changes."""
+	if effective_from <= getdate(plan.period_start):
+		frappe.throw(_("The updated direction must start after the current direction began."))
+	if frappe.db.exists(
+		"BulkBite Production Run",
+		{"production_plan": plan.name, "production_date": (">=", effective_from), "docstatus": 1},
+	):
+		frappe.throw(_("Posted production already exists on or after the updated direction date."))
 
 
 def _carry_future_vacations(old_plan, new_plan, effective_from):

@@ -55,6 +55,7 @@ const form = reactive({
 	plan_title: "",
 	status: "Active",
 	customer_changes_from: "",
+	upcoming_recipe: "",
 	customer_mix: [],
 	plan_rows: [],
 	purchase_routes: [],
@@ -139,7 +140,8 @@ const weeklyKg = computed(() =>
 );
 const upcomingWeekNumber = computed(() =>
 	Number(
-		props.plan?.next_production?.calendar?.row?.cycle_week ||
+		form.plan_rows.find((row) => row.recipe === form.upcoming_recipe)?.week_number ||
+			props.plan?.next_production?.calendar?.row?.cycle_week ||
 			props.plan?.next_production?.calendar?.row?.week_number ||
 			props.plan?.next_production?.row?.cycle_week ||
 			props.plan?.next_production?.row?.week_number ||
@@ -422,6 +424,11 @@ function hydrate() {
 		plan_title: props.plan?.plan_title || "Current meal direction",
 		status: props.plan?.status || "Active",
 		customer_changes_from: nextServiceDate,
+		upcoming_recipe:
+			props.plan?.next_production?.row?.recipe ||
+			props.plan?.next_production?.calendar?.row?.recipe ||
+			props.plan?.rows?.[0]?.recipe ||
+			"",
 		customer_mix: planTypes.value.map((type) => {
 			const current = props.plan?.customer_mix?.find((row) => row.plan_type === type.name);
 			return {
@@ -695,6 +702,26 @@ function changeCapacityRunTeam(row, value) {
 	row.planned_people = templateSize(value);
 }
 
+function selectUpcomingMeal(recipe) {
+	const selectedIndex = form.plan_rows.findIndex((row) => row.recipe === recipe);
+	if (selectedIndex < 0) return;
+	const rotate = (rows) => [...rows.slice(selectedIndex), ...rows.slice(0, selectedIndex)];
+	const weekMap = new Map();
+	const rotatedPlanRows = rotate(form.plan_rows).map((row, index) => {
+		weekMap.set(Number(row.week_number), index + 1);
+		return { ...row, week_number: index + 1 };
+	});
+	form.plan_rows = rotatedPlanRows;
+	form.capacity_windows = form.capacity_windows
+		.map((row) => ({ ...row, week_number: weekMap.get(Number(row.week_number)) || row.week_number }))
+		.sort((left, right) => Number(left.week_number) - Number(right.week_number));
+	form.capacity_runs = form.capacity_runs.map((row) => ({
+		...row,
+		week_number: weekMap.get(Number(row.week_number)) || row.week_number,
+	}));
+	form.upcoming_recipe = recipe;
+}
+
 function openLinked(mode, doctype) {
 	router.push(
 		mode === "create"
@@ -904,13 +931,13 @@ function number(value) {
 		<SystemAccordion v-if="mode === 'planning'" type="multiple" :default-value="['weekly-plan']" class="weekly-plan-accordion">
 			<SystemAccordionItem value="weekly-plan" class="form-section weekly-plan">
 			<SystemAccordionTrigger class="weekly-plan__trigger"><div class="section-heading">
-				<div><p class="eyebrow">Cooking schedule</p><h2>Plan the upcoming week</h2><p>BulkBite has selected meal {{ upcomingWeekNumber }} from the repeating direction. Add only the cooking sessions available for this meal.</p></div>
+				<div><p class="eyebrow">Cooking schedule</p><h2>Plan the upcoming week</h2><p>Choose the meal to make next, then add the cooking sessions available for it.</p></div>
 				<SystemBadge>{{ upcomingRuns.length }} {{ upcomingRuns.length === 1 ? 'run' : 'runs' }}</SystemBadge>
 			</div></SystemAccordionTrigger>
 			<SystemAccordionContent class="weekly-plan__content">
 			<div class="weekly-plan__actions"><SystemOperationalButton variant="solid" @click="addUpcomingRun">Add run</SystemOperationalButton></div>
 			<article class="weekly-position" :class="weeklyCapacity.ready ? 'is-ready' : 'is-under'">
-				<div class="weekly-position__heading"><div><p class="eyebrow">Upcoming meal</p><h3>{{ upcomingPlanRow?.recipe ? recipeOptions.find((item) => item.value === upcomingPlanRow.recipe)?.label || upcomingPlanRow.recipe : 'Choose the meal in Setup' }}</h3></div><SystemBadge :theme="weeklyCapacity.ready ? 'green' : 'red'">{{ weeklyCapacity.ready ? 'Capacity ready' : 'Capacity gap' }}</SystemBadge></div>
+				<div class="weekly-position__heading"><SystemSelect :model-value="form.upcoming_recipe" label="Upcoming meal" :options="form.plan_rows.map((row) => ({ label: recipeOptions.find((item) => item.value === row.recipe)?.label || row.recipe, value: row.recipe }))" @update:model-value="selectUpcomingMeal" /><SystemBadge :theme="weeklyCapacity.ready ? 'green' : 'red'">{{ weeklyCapacity.ready ? 'Capacity ready' : 'Capacity gap' }}</SystemBadge></div>
 				<div class="weekly-position__metrics">
 					<div><span>Customers need</span><strong>{{ number(weeklyKg) }} kg</strong></div>
 					<div><span>Planned output</span><strong>{{ number(weeklyTargetOutput) }} kg</strong><small v-if="weeklyExtraOutput">Includes {{ number(weeklyExtraOutput) }} kg extra</small></div>
