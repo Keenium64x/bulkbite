@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG FRAPPE_BUILD_IMAGE=frappe/build:develop@sha256:9a1d11bad8f8668912da65552837b820e328a191417a7892c4c70624160ee76d
-ARG FRAPPE_BASE_IMAGE=frappe/base:develop@sha256:4345871bdd1a4cb50e2934ddcbedd87727a4953d567a60b9bfe4b4ae2d6bb1c8
+ARG FRAPPE_BUILD_IMAGE=docker.io/frappe/build:develop@sha256:9a1d11bad8f8668912da65552837b820e328a191417a7892c4c70624160ee76d
+ARG FRAPPE_BASE_IMAGE=docker.io/frappe/base:develop@sha256:4345871bdd1a4cb50e2934ddcbedd87727a4953d567a60b9bfe4b4ae2d6bb1c8
 
 FROM ${FRAPPE_BUILD_IMAGE} AS builder
 
@@ -35,8 +35,9 @@ RUN test -s /home/frappe/frappe-bench/apps/bulkbite/bulkbite/public/frontend/ind
     && test -s /home/frappe/frappe-bench/apps/bulkbite/bulkbite/www/bulkbite.html \
     && cd /home/frappe/frappe-bench \
     && ./env/bin/pip install --no-cache-dir -e apps/bulkbite \
-    && bench build --app frappe --app bulkbite --production \
     && printf 'frappe\nbulkbite\n' > sites/apps.txt \
+    && bench build --apps frappe,bulkbite --production \
+    && test -s sites/assets/assets.json \
     && find apps -mindepth 1 -path '*/.git' -prune -exec rm -rf {} + \
     && rm -rf apps/bulkbite/frontend
 
