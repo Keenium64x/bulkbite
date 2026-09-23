@@ -70,7 +70,7 @@ const props = defineProps({
       { label: "Finance", icon: WalletCards, href: "/bulkbite?work=finance", target: { mode: "workflow", id: "finance" } },
       { label: "Reports", icon: ReceiptText, href: "/bulkbite?work=export", target: { mode: "workflow", id: "export" } },
       { label: "Import", icon: Package, href: "/bulkbite?work=import", target: { mode: "workflow", id: "import" } },
-      { label: "Advertising", icon: Megaphone, href: "/bulkbite?work=advertising", target: { mode: "workflow", id: "advertising" } },
+      { label: "Advertising", icon: Megaphone, href: "/bulkbite/advertising", target: { mode: "route", href: "/bulkbite/advertising" } },
     ] },
   ] },
   activeSection: { type: String, required: true },

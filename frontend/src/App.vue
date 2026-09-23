@@ -50,7 +50,6 @@ const sections = [
 	{ id: "export", label: "Reports", group: "supporting" },
 	{ id: "import", label: "Import", group: "supporting" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
-	{ id: "advertising", label: "Advertising", group: "supporting" },
 ];
 const auxiliarySections = ["employees", "documents", "history", "operations", "containers"];
 const activeSectionStorageKey = "bulkbite-active-section";
@@ -68,6 +67,7 @@ const auxiliaryMode = computed(() => {
 	return "";
 });
 const kitchenPlanMode = computed(() => route.name === "BulkBiteKitchenPlan");
+const advertisingMode = computed(() => route.name === "BulkBiteAdvertising" || route.meta.advertising);
 const activeSection = ref(resolveInitialSection());
 const employeeReturnSection = ref("production");
 const snapshot = ref(null);
@@ -85,7 +85,7 @@ const currentUser = computed(
 
 function navigate(id) {
 	if (typeof id === "object") return navigateAuxiliary(id);
-	if (route.path.startsWith("/bulkbite/setup") || kitchenPlanMode.value) router.push("/bulkbite");
+	if (route.path.startsWith("/bulkbite/setup") || kitchenPlanMode.value || advertisingMode.value) router.push("/bulkbite");
 	activeSection.value = id;
 	window.localStorage.setItem(activeSectionStorageKey, id);
 	const url = new URL(window.location.href);
@@ -162,6 +162,7 @@ function refreshWorkspace() {
 }
 
 function refreshWorkspaceManually() {
+	if (advertisingMode.value) return Promise.resolve(true);
 	return loadAll(true);
 }
 
@@ -187,7 +188,7 @@ async function initialiseApplication() {
 		if (route.path === "/" || !route.path.startsWith("/bulkbite"))
 			await router.replace("/bulkbite");
 	}
-	await loadAll(true);
+	if (!advertisingMode.value) await loadAll(true);
 	applicationInitialising.value = false;
 }
 
@@ -245,6 +246,9 @@ watch(
 			initialiseApplication();
 	},
 );
+watch(advertisingMode, (isAdvertising) => {
+	if (!isAdvertising && !snapshot.value) loadAll(true);
+});
 </script>
 
 <template>
@@ -288,6 +292,7 @@ watch(
 			@open-employees="navigate('employees')"
 			@changed="refreshWorkspace"
 		/>
+		<SystemAdvertisingDashboard v-else-if="advertisingMode" />
 		<SystemStockOverview
 			v-else-if="activeSection === 'overview'"
 			mode="dashboard"
@@ -363,7 +368,6 @@ watch(
 			@changed="refreshWorkspace"
 		/>
 		<SystemAccountantExport v-else-if="activeSection === 'export'" />
-		<SystemAdvertisingDashboard v-else-if="activeSection === 'advertising'" />
 		<SystemPriceHistory
 			v-else-if="activeSection === 'import'"
 			mode="import"

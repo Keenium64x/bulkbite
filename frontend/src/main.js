@@ -16,6 +16,7 @@ const router = createRouter({
     { path: "/bulkbite/kitchen-assignment", name: "BulkBiteKitchenAssignment", component: SystemKitchenWorkerAssignment, props: () => ({ token: window.location.hash.slice(1) }) },
     { path: "/bulkbite/prices", name: "BulkBitePriceHistory", component: PriceHistoryPage },
     { path: "/bulkbite/production/:runName/kitchen-plan", name: "BulkBiteKitchenPlan", component: App, meta: { kitchenPlan: true } },
+    { path: "/bulkbite/advertising", name: "BulkBiteAdvertising", component: App, meta: { advertising: true } },
     { path: "/bulkbite/setup", name: "BulkBiteSetup", component: App, meta: { auxiliaryCatalogue: true } },
     { path: "/bulkbite/setup/:doctype", name: "BulkBiteSetupList", component: App, meta: { auxiliaryList: true } },
     { path: "/bulkbite/setup/:doctype/new", name: "AuxiliaryRecordCreate", component: App, meta: { auxiliaryRecord: true } },

@@ -150,7 +150,13 @@ export const saveProductionActualTeam = (name, employees, teamTemplate, actualEl
   saveProductionEmployees(name, employees, teamTemplate, actualElapsedHours, undefined)
 
 export const getAdvertisingLibrary = () => call("bulkbite.advertising.get_advertising_library", {}, "GET")
+export const getAdvertisingWorkspace = () => call("bulkbite.advertising.get_advertising_workspace", {}, "GET")
+export const saveAdvertisingRequest = (payload) => call("bulkbite.advertising.save_advertising_request", { payload })
+export const startAdvertisingRequest = (name) => call("bulkbite.advertising.start_advertising_request", { name })
+export const getAdvertisingRequestBrief = (name) => call("bulkbite.advertising.get_advertising_request_brief", { name }, "GET")
 export const saveAdvertisingCampaign = (payload) => call("bulkbite.advertising.save_advertising_campaign", { payload })
+export const reviewAdvertisingCampaign = (name, outcome, notes) => call("bulkbite.advertising.review_advertising_campaign", { name, outcome, notes })
+export const saveAdvertisingPlacement = (campaign, payload) => call("bulkbite.advertising.save_advertising_placement", { campaign, payload })
 
 export function priceWorkbookUrl(fields) {
   return resolveRequestUrl(`/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`)
