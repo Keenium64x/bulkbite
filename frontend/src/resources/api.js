@@ -149,6 +149,9 @@ export const saveKitchenPlanTeam = (name, employees, teamTemplate, scheduledElap
 export const saveProductionActualTeam = (name, employees, teamTemplate, actualElapsedHours) =>
   saveProductionEmployees(name, employees, teamTemplate, actualElapsedHours, undefined)
 
+export const getAdvertisingLibrary = () => call("bulkbite.advertising.get_advertising_library", {}, "GET")
+export const saveAdvertisingCampaign = (payload) => call("bulkbite.advertising.save_advertising_campaign", { payload })
+
 export function priceWorkbookUrl(fields) {
   return resolveRequestUrl(`/api/method/bulkbite.api.download_price_workbook?fields=${encodeURIComponent(JSON.stringify(fields || []))}`)
 }

@@ -1,0 +1,29 @@
+{
+ "actions": [],
+ "creation": "2026-09-23 14:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["asset_title", "asset_type", "channel", "format", "review_status", "asset_file", "file_name", "destination_url", "notes"],
+ "fields": [
+  {"fieldname": "asset_title", "fieldtype": "Data", "in_list_view": 1, "label": "Asset", "reqd": 1},
+  {"fieldname": "asset_type", "fieldtype": "Select", "in_list_view": 1, "label": "Asset Type", "options": "Poster\nPrint pack\nFeed image\nStory image\nGoogle image\nPreview\nSource\nCopy\nOther", "reqd": 1},
+  {"fieldname": "channel", "fieldtype": "Select", "in_list_view": 1, "label": "Channel", "options": "Physical poster\nInstagram feed\nInstagram story\nMeta feed\nMeta story\nGoogle Ads\nOther", "reqd": 1},
+  {"fieldname": "format", "fieldtype": "Data", "label": "Format"},
+  {"default": "Review", "fieldname": "review_status", "fieldtype": "Select", "in_list_view": 1, "label": "Review Status", "options": "Review\nChanges needed\nApproved\nSuperseded", "reqd": 1},
+  {"fieldname": "asset_file", "fieldtype": "Attach", "in_list_view": 1, "label": "Private File", "reqd": 1},
+  {"fieldname": "file_name", "fieldtype": "Data", "label": "File Name", "read_only": 1},
+  {"fieldname": "destination_url", "fieldtype": "Data", "label": "Destination URL"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-23 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Advertising Asset",
+ "owner": "Administrator",
+ "permissions": [],
+ "states": []
+}

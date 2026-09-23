@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
+	SystemAdvertisingDashboard,
 	SystemAccountantExport,
 	SystemAccordion,
 	SystemAccordionContent,
@@ -49,6 +50,7 @@ const sections = [
 	{ id: "export", label: "Reports", group: "supporting" },
 	{ id: "import", label: "Import", group: "supporting" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
+	{ id: "advertising", label: "Advertising", group: "supporting" },
 ];
 const auxiliarySections = ["employees", "documents", "history", "operations", "containers"];
 const activeSectionStorageKey = "bulkbite-active-section";
@@ -361,6 +363,7 @@ watch(
 			@changed="refreshWorkspace"
 		/>
 		<SystemAccountantExport v-else-if="activeSection === 'export'" />
+		<SystemAdvertisingDashboard v-else-if="activeSection === 'advertising'" />
 		<SystemPriceHistory
 			v-else-if="activeSection === 'import'"
 			mode="import"

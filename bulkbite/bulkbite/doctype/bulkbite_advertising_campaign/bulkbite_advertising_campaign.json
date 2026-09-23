@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BB-AD-.YYYY.-.#####",
+ "creation": "2026-09-23 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["campaign_title", "status", "project_type", "residence", "primary_channel", "initiative_date", "concept_summary", "destinations_section", "qr_destination", "digital_destination", "review_section", "reviewer", "notes", "assets"],
+ "fields": [
+  {"fieldname": "campaign_title", "fieldtype": "Data", "in_list_view": 1, "label": "Campaign Title", "reqd": 1},
+  {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nIn review\nChanges needed\nApproved\nPlaced\nArchived", "reqd": 1},
+  {"fieldname": "project_type", "fieldtype": "Select", "in_list_view": 1, "label": "Project Type", "options": "Residence\nInstagram\nMeta\nGoogle Ads\nCross-channel\nOther", "reqd": 1},
+  {"fieldname": "residence", "fieldtype": "Select", "label": "Residence", "options": "\nGoldfields\nMetanoia\nHuis Visser\nOther"},
+  {"fieldname": "primary_channel", "fieldtype": "Select", "in_list_view": 1, "label": "Primary Channel", "options": "Physical poster\nInstagram feed\nInstagram story\nMeta feed\nMeta story\nGoogle Ads\nOther", "reqd": 1},
+  {"fieldname": "initiative_date", "fieldtype": "Date", "label": "Initiative Date", "reqd": 1},
+  {"fieldname": "concept_summary", "fieldtype": "Small Text", "label": "Concept Summary"},
+  {"fieldname": "destinations_section", "fieldtype": "Section Break", "label": "Destinations"},
+  {"fieldname": "qr_destination", "fieldtype": "Data", "label": "Poster QR Destination"},
+  {"fieldname": "digital_destination", "fieldtype": "Data", "label": "Digital Destination"},
+  {"fieldname": "review_section", "fieldtype": "Section Break", "label": "Review and Files"},
+  {"fieldname": "reviewer", "fieldtype": "Data", "label": "Reviewer"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"},
+  {"fieldname": "assets", "fieldtype": "Table", "label": "Advertising Assets", "options": "BulkBite Advertising Asset"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-23 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BulkBite",
+ "name": "BulkBite Advertising Campaign",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "BulkBite Manager", "share": 1, "write": 1},
+  {"read": 1, "role": "BulkBite Worker"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

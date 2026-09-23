@@ -1,0 +1,39 @@
+{
+  "id": "advertising-dashboard",
+  "name": "Advertising Dashboard",
+  "job": "Create an uncluttered advertising dashboard block that manages campaigns, channel and review status, poster QR destinations, private asset uploads, and file downloads; integrate it into the existing BulkBite app shell as a supporting workflow.",
+  "category": "Project",
+  "source": "@/blocks/advertising-dashboard/AdvertisingDashboard.vue",
+  "public": "SystemAdvertisingDashboard",
+  "registrySource": "sources/blocks/advertising-dashboard",
+  "projectSource": "src/blocks/advertising-dashboard",
+  "components": ["badge", "form-control", "multi-file-uploader", "operational-button", "select", "textarea"],
+  "primitives": [],
+  "incomingHandoff": "A permitted staff member needs one place to find a campaign, check its review state and destination, or attach the latest artwork and print pack.",
+  "outgoingHandoff": "The campaign holds private downloadable assets, explicit channel rules, the exact poster QR or digital destination, and a review state without publishing anything automatically.",
+  "responsiveBehaviour": "Use a two-column campaign and detail workspace on wide screens, then stack filters, campaign list, details, and editing controls into one reading column on mobile without hiding file access or status.",
+  "layoutContract": {
+    "strategy": "grid",
+    "pageAlignment": "grid",
+    "padding": "var(--spacing-l) var(--spacing-m) var(--spacing-xl-2xl)",
+    "gap": "var(--spacing-m)",
+    "containment": "A compact header and status summary lead into filters and a bounded campaign-to-assets workspace. Editing stays in normal flow and never hides the campaign library."
+  },
+  "surfaceContract": {
+    "placement": "none",
+    "semanticOwner": "[data-block='advertising-dashboard']",
+    "scope": "none",
+    "edgeTreatment": "none",
+    "boundaryReason": null,
+    "contentSeparation": "Semantic component surfaces group campaign records while spacing continues to define hierarchy.",
+    "rule": "No primitive surface is mounted. Use only selected component surfaces and semantic theme tokens."
+  },
+  "actionContract": {
+    "primaryPreset": "operational-action",
+    "secondaryPreset": "secondary-action"
+  },
+  "motionContract": {
+    "mode": "still",
+    "justification": "Campaign records, destinations, status, and files must remain immediately readable; provider control feedback is sufficient."
+  }
+}
