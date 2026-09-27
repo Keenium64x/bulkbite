@@ -508,10 +508,13 @@ function printKitchenPack() {
     <div v-if="busy && !workspace" class="state-message" role="status">Building the equipment-aware cooking plan.</div>
 
     <template v-if="workspace && instructions">
-      <section class="data-section capacity-card" :class="capacityStatus === 'Under capacity' ? 'is-under' : capacityStatus === 'Ready to cook' ? 'is-ready' : 'is-neutral'">
+      <SystemAccordion type="multiple" :default-value="['capacity']" class="capacity-sections">
+        <SystemAccordionItem value="capacity" class="capacity-card" :class="capacityStatus === 'Under capacity' ? 'is-under' : capacityStatus === 'Ready to cook' ? 'is-ready' : 'is-neutral'">
+        <SystemAccordionTrigger class="section-trigger capacity-card__trigger">
+          <div><span>Practical capacity</span><strong>{{ capacityStatus }}</strong></div>
+        </SystemAccordionTrigger>
+        <SystemAccordionContent class="capacity-card__content">
         <div class="capacity-card__decision">
-          <p class="eyebrow">Practical capacity</p>
-          <h2>{{ capacityStatus }}</h2>
           <p v-if="capacityStatus === 'Capacity not ready'">Assign the team and enter the kitchen window before starting.</p>
           <p v-else-if="capacityStatus === 'Under capacity'">The method needs {{ requiredPeople }} people, {{ quantity(requiredTeamHours) }} team-hours, and {{ quantity(methodMinutes / 60) }} kitchen hours. The current setup provides {{ activeTeam.length }} people, {{ quantity(availableTeamHours) }} team-hours, and {{ quantity(kitchenWindowHours) }} kitchen hours.</p>
           <p v-else>The selected team, equipment, and kitchen window can complete this cooking plan.</p>
@@ -529,9 +532,11 @@ function printKitchenPack() {
           <div><strong>{{ requiredPeople }}</strong><span>minimum people required</span></div>
           <div><strong>{{ activeTeam.length }}</strong><span>people assigned</span></div>
         </div>
-      </section>
+        </SystemAccordionContent>
+        </SystemAccordionItem>
+      </SystemAccordion>
 
-      <SystemAccordion type="multiple" :default-value="['team', 'critical-path', 'ingredients', 'worker-lanes', 'method']" class="plan-sections">
+      <SystemAccordion type="multiple" :default-value="['team', 'critical-path', 'ingredients', 'worker-lanes', 'method', 'equipment']" class="plan-sections">
         <SystemAccordionItem value="team" class="plan-section team-section">
           <SystemAccordionTrigger class="section-trigger">
             <div class="section-heading"><div><p class="eyebrow">Team and time</p><h2>Assign the people doing this cook</h2><p>Apply a normal team and set the kitchen window. Employee availability follows it unless you enter a different value.</p></div><SystemBadge>{{ activeTeam.length }} PEOPLE</SystemBadge></div>
@@ -809,17 +814,47 @@ function printKitchenPack() {
   color: var(--theme-success);
 }
 
+.capacity-sections {
+  display: grid;
+  min-width: 0;
+}
+
 .capacity-card {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--theme-border) !important;
+  border-radius: var(--component-radius-card) !important;
+  background: var(--theme-surface-raised) !important;
+  box-shadow: var(--shadow-1) !important;
+}
+
+:deep(.capacity-card__content) {
   display: grid;
   grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.3fr);
   gap: var(--spacing-m);
-  overflow: hidden;
-  padding: var(--spacing-m);
-  border: var(--border-width-1) solid var(--theme-border);
-  border-radius: var(--component-radius-card);
-  background: var(--theme-surface-raised);
-  box-shadow: var(--shadow-1);
+  min-width: 0;
+  background: transparent;
+}
+
+:deep(.capacity-card__trigger) > div {
+  display: grid;
+  gap: var(--spacing-3xs);
+}
+
+:deep(.capacity-card__trigger) span {
+  color: var(--theme-text-muted);
+  font-size: var(--font-size--2);
+  font-weight: var(--font-weight-600);
+  letter-spacing: var(--font-letter-spacing-2);
+  text-transform: uppercase;
+}
+
+:deep(.capacity-card__trigger) strong {
+  color: var(--theme-text);
+  font-size: var(--font-size-1);
 }
 
 .capacity-card::before {
@@ -831,8 +866,8 @@ function printKitchenPack() {
 }
 
 .capacity-card.is-under {
-  border-color: color-mix(in oklch, var(--theme-error) 38%, var(--theme-border));
-  background: color-mix(in oklch, var(--theme-error) 8%, var(--theme-surface-raised));
+  border-color: color-mix(in oklch, var(--theme-error) 38%, var(--theme-border)) !important;
+  background: color-mix(in oklch, var(--theme-error) 8%, var(--theme-surface-raised)) !important;
 }
 
 .capacity-card.is-under::before {
@@ -840,8 +875,8 @@ function printKitchenPack() {
 }
 
 .capacity-card.is-ready {
-  border-color: color-mix(in oklch, var(--theme-success) 38%, var(--theme-border));
-  background: color-mix(in oklch, var(--theme-success) 8%, var(--theme-surface-raised));
+  border-color: color-mix(in oklch, var(--theme-success) 38%, var(--theme-border)) !important;
+  background: color-mix(in oklch, var(--theme-success) 8%, var(--theme-surface-raised)) !important;
 }
 
 .capacity-card.is-ready::before {
@@ -1717,7 +1752,7 @@ function printKitchenPack() {
 }
 
 @media (max-width: 75rem) {
-  .capacity-card {
+  :deep(.capacity-card__content) {
     grid-template-columns: 1fr;
   }
 

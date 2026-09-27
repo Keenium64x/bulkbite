@@ -768,7 +768,7 @@ function openRecipeRecords(create = false) {
 	>
 		<template v-if="mode === 'history'">
 			<header class="workflow-header">
-				<div><p class="eyebrow">Production truth</p><h1>Production history</h1><p>Compare customer need, planned output, actual food, labour, allocations, and reusable containers.</p></div>
+				<div><p class="eyebrow">Production truth</p><h1>Production history</h1></div>
 				<div class="button-row"><SystemOperationalButton variant="outline" :loading="busy" @click="loadHistory">Refresh</SystemOperationalButton><SystemOperationalButton variant="solid" @click="emit('close')">Record production</SystemOperationalButton></div>
 			</header>
 			<div v-if="error" class="state-message state-message--error" role="alert">{{ error }}</div>
@@ -776,16 +776,25 @@ function openRecipeRecords(create = false) {
 				<div><p class="eyebrow">Current service period</p><h2>{{ history.summary.needs_another_run ? "More production is needed" : history.summary.status === "Ahead" ? "Production is ahead" : "Production is on pace" }}</h2><p>{{ history.summary.needs_another_run ? `${quantity(history.summary.remaining_customer_qty)} kg still has to be made for customers.` : history.summary.planned_date ? `Current customer service is dated ${history.summary.planned_date}.` : "Posted output covers the current customer requirement." }}</p></div>
 				<div class="metric-board"><div><strong>{{ quantity(history.summary.customer_required_qty) }} kg</strong><span>customers need</span></div><div><strong>{{ quantity(history.summary.planned_qty) }} kg</strong><span>theory planned</span></div><div><strong>{{ quantity(history.summary.actual_qty) }} kg</strong><span>actually made</span></div><div><strong>{{ quantity(Math.abs(history.summary.output_difference_qty)) }} kg</strong><span>{{ history.summary.output_difference_qty < 0 ? "missing" : "above need" }}</span></div></div>
 			</section>
-			<section v-if="history" class="data-section">
-				<div class="section-heading"><div><p class="eyebrow">Finished food allocation</p><h2>Where the food went</h2></div></div>
+			<SystemAccordion v-if="history" type="multiple" :default-value="['food-allocation', 'run-evidence', 'container-position']" class="production-details">
+			<SystemAccordionItem value="food-allocation" class="data-section production-details__card">
+				<SystemAccordionTrigger class="production-details__trigger"><div><span>Finished food allocation</span><strong>Where the food went</strong></div></SystemAccordionTrigger>
+				<SystemAccordionContent class="production-details__content">
 				<div class="metric-board"><div v-for="(value, label) in history.summary.allocations" :key="label"><strong>{{ quantity(value) }} kg</strong><span>{{ label }}</span></div></div>
-			</section>
-			<section v-if="history" class="data-section">
-				<div class="section-heading"><div><p class="eyebrow">Run evidence</p><h2>Theory against actual</h2></div><SystemBadge>{{ history.runs.length }} posted runs</SystemBadge></div>
+				</SystemAccordionContent>
+			</SystemAccordionItem>
+			<SystemAccordionItem value="run-evidence" class="data-section production-details__card">
+				<SystemAccordionTrigger class="production-details__trigger"><div><span>Run evidence</span><strong>Theory against actual</strong></div><SystemBadge>{{ history.runs.length }} posted runs</SystemBadge></SystemAccordionTrigger>
+				<SystemAccordionContent class="production-details__content">
 				<div v-if="history.service_periods?.length" class="skipped-week-list"><article v-for="item in history.service_periods" :key="item.name" :class="`is-${item.status.toLowerCase().replaceAll(' ', '-')}`"><div><SystemBadge :theme="item.status === 'Missed' ? 'red' : item.status === 'Fulfilled' ? 'green' : undefined">{{ item.status }}</SystemBadge><strong>{{ item.finished_item }}</strong><small>{{ item.planned_date }} · cycle {{ item.cycle_number }}, meal {{ item.meal_number }}</small></div><span v-if="item.status === 'Missed'">{{ quantity(item.missing_output_qty) }} kg missing</span><span v-else-if="item.status === 'Fulfilled'">{{ quantity(item.actual_output_qty) }} kg made</span><span v-else>{{ item.resolution_reason }}</span></article></div>
 				<div class="history-run-list"><article v-for="item in history.runs" :key="item.name"><div class="history-run-heading"><div><strong>{{ item.finished_item }}</strong><small>{{ item.production_date }} · {{ item.name }}</small></div><SystemBadge :theme="item.customer_coverage_status === 'Short' ? 'red' : 'green'">{{ item.customer_coverage_status }}</SystemBadge></div><div class="metric-board"><div><strong>{{ quantity(item.planned_output_qty) }} kg</strong><span>planned</span></div><div><strong>{{ quantity(item.actual_output_qty) }} kg</strong><span>made</span></div><div><strong>{{ quantity(item.theory_customer_qty) }} kg</strong><span>customer theory</span></div><div><strong>{{ quantity(item.unallocated_output_qty) }} kg</strong><span>unallocated</span></div><div><strong>{{ item.finished_container_count }}</strong><span>containers filled</span></div><div><strong>{{ quantity(item.actual_labour_minutes_per_kg) }} min/kg</strong><span>actual labour rate</span></div></div><div v-if="item.allocations.length" class="allocation-strip"><span v-for="allocationRow in item.allocations" :key="allocationRow.name">{{ allocationRow.allocation_type }}: {{ quantity(allocationRow.quantity) }} {{ allocationRow.uom }}</span></div></article></div>
-			</section>
-			<section v-if="history" class="data-section"><div class="section-heading"><div><p class="eyebrow">Reusable containers</p><h2>Container position</h2></div></div><div class="metric-board"><div><strong>{{ history.containers.states.Clean || 0 }}</strong><span>clean</span></div><div><strong>{{ history.containers.states.Filled || 0 }}</strong><span>filled food</span></div><div><strong>{{ history.containers.states['With Customer'] || 0 }}</strong><span>with customers</span></div><div><strong>{{ history.containers.overdue || 0 }}</strong><span>overdue</span></div><div><strong>{{ history.containers.states.Maintenance || 0 }}</strong><span>maintenance</span></div></div></section>
+				</SystemAccordionContent>
+			</SystemAccordionItem>
+			<SystemAccordionItem value="container-position" class="data-section production-details__card">
+				<SystemAccordionTrigger class="production-details__trigger"><div><span>Reusable containers</span><strong>Container position</strong></div></SystemAccordionTrigger>
+				<SystemAccordionContent class="production-details__content"><div class="metric-board"><div><strong>{{ history.containers.states.Clean || 0 }}</strong><span>clean</span></div><div><strong>{{ history.containers.states.Filled || 0 }}</strong><span>filled food</span></div><div><strong>{{ history.containers.states['With Customer'] || 0 }}</strong><span>with customers</span></div><div><strong>{{ history.containers.overdue || 0 }}</strong><span>overdue</span></div><div><strong>{{ history.containers.states.Maintenance || 0 }}</strong><span>maintenance</span></div></div></SystemAccordionContent>
+			</SystemAccordionItem>
+			</SystemAccordion>
 		</template>
 		<template v-else>
 		<header class="workflow-header">
@@ -795,21 +804,13 @@ function openRecipeRecords(create = false) {
 				<p>
 					{{
 						adHocMode
-							? "Choose any approved recipe and record what was actually made. This does not move the current meal direction."
-							: "The current direction chooses the next meal. Saving keeps a draft; posting moves stock once."
+							? "Off-plan run. The meal direction does not move."
+							: "Saving keeps a draft; posting moves stock once."
 					}}
 				</p>
 			</div>
 			<div class="button-row">
-				<SystemOperationalButton
-					v-if="!run"
-					variant="outline"
-					:disabled="draftLocked"
-					@click="adHocMode ? returnToDirection() : startAdHocProduction()"
-					>{{
-					adHocMode ? "Return to direction" : "Custom run"
-				}}</SystemOperationalButton
-			><SystemOperationalButton variant="outline" @click="emit('open-history')"
+				<SystemOperationalButton variant="outline" @click="emit('open-history')"
 					>Production history</SystemOperationalButton
 				><SystemBadge v-if="selectedRow && !adHocMode"
 					>Cycle {{ station.cycle_number || 1 }} · Meal
@@ -869,6 +870,13 @@ function openRecipeRecords(create = false) {
 							step="0.1"
 						:disabled="!adHocMode || Boolean(run) || draftLocked"
 						/>
+						<SystemOperationalButton
+							v-if="!run"
+							class="custom-run-trigger"
+							variant="subtle"
+							:disabled="draftLocked"
+							@click="adHocMode ? returnToDirection() : startAdHocProduction()"
+						>{{ adHocMode ? "Return to direction" : "Custom run" }}</SystemOperationalButton>
 					</div>
 				<div v-if="!adHocMode && selectedRow.remaining_output_qty" class="direction-note">
 					<strong
@@ -908,6 +916,14 @@ function openRecipeRecords(create = false) {
 								size="lg"
 								:disabled="draftLocked"
 								@update:model-value="setFinishedContainerCount"
+							/><SystemFormControl
+								v-model="actualElapsedHours"
+								type="number"
+								label="Actual elapsed time (hours)"
+								min="0"
+								step="0.1"
+								size="lg"
+								:disabled="draftLocked"
 							/>
 						</div>
 					<div class="button-row">
@@ -998,24 +1014,17 @@ function openRecipeRecords(create = false) {
 					</SystemAccordionContent>
 				</SystemAccordionItem>
 				</SystemAccordion>
-				<section class="data-section actual-timing-section">
-					<div class="section-heading">
+				<SystemAccordion type="multiple" :default-value="['actual-timing']" class="production-details">
+				<SystemAccordionItem value="actual-timing" class="data-section actual-timing-section production-details__card">
+					<SystemAccordionTrigger class="production-details__trigger"><div class="section-heading">
 						<div>
 							<p class="eyebrow">Actual timing</p>
-							<h2>Record how long the cook actually took</h2>
-							<p>This is production evidence. Each completed team member receives the same elapsed time, while absent or cancelled people contribute no labour hours.</p>
+							<h2>Who worked the cook</h2>
 						</div>
 						<SystemBadge>{{ completedTeam.length }} COMPLETED</SystemBadge>
-					</div>
+					</div></SystemAccordionTrigger>
+					<SystemAccordionContent class="production-details__content">
 					<div class="actual-timing-grid">
-						<SystemFormControl
-							v-model="actualElapsedHours"
-							type="number"
-							label="Actual elapsed time (hours)"
-							min="0"
-							step="0.1"
-							:disabled="draftLocked"
-						/>
 						<div class="calculated-hours"><span>Actual team-hours</span><strong>{{ quantity(actualTeamHours) }} h</strong></div>
 						<div class="calculated-hours"><span>Actual labour rate</span><strong>{{ quantity(actualLabourPace) }} min/kg</strong></div>
 					</div>
@@ -1027,7 +1036,9 @@ function openRecipeRecords(create = false) {
 						</article>
 					</div>
 					<div v-else class="direction-note">No planned team is attached to this run yet.</div>
-				</section>
+					</SystemAccordionContent>
+				</SystemAccordionItem>
+				</SystemAccordion>
 				<footer v-if="run?.docstatus" class="posting-bar">
 					<div>
 						<SystemBadge>STOCK UPDATED</SystemBadge>
@@ -1292,6 +1303,10 @@ function openRecipeRecords(create = false) {
 	gap: var(--spacing-xs);
 	margin-top: var(--spacing-s);
 }
+.custom-run-trigger {
+	align-self: end;
+}
+
 .actual-timing-section > .direction-note {
 	margin-top: var(--spacing-s);
 }

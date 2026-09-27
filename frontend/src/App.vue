@@ -263,13 +263,31 @@ watch(
 		@refresh="refreshWorkspaceManually"
 		@logout="handleLogout"
 	>
-		<SystemAuxiliaryRecords
-			v-if="auxiliaryMode"
-			:mode="auxiliaryMode"
-			:doctype="String(route.params.doctype || '')"
-			:record-name="String(route.params.name || '')"
-			@navigate="navigateAuxiliary"
-		/>
+		<template v-if="auxiliaryMode">
+			<SystemAuxiliaryRecords
+				:mode="auxiliaryMode"
+				:doctype="String(route.params.doctype || '')"
+				:record-name="String(route.params.name || '')"
+				@navigate="navigateAuxiliary"
+			/>
+			<div v-if="auxiliaryMode === 'catalogue'" class="setup-support">
+				<SystemAccordion type="multiple" :default-value="[]" class="stock-support-sections">
+					<SystemAccordionItem value="import" class="stock-support-section">
+						<SystemAccordionTrigger class="stock-support-section__trigger">
+							<div><span>Spreadsheets</span><strong>Import and export records</strong></div>
+						</SystemAccordionTrigger>
+						<SystemAccordionContent class="stock-support-section__content">
+							<SystemPriceHistory
+								mode="import"
+								:snapshot="snapshot"
+								:inventory="inventory"
+								@changed="refreshWorkspace"
+							/>
+						</SystemAccordionContent>
+					</SystemAccordionItem>
+				</SystemAccordion>
+			</div>
+		</template>
 		<SystemKitchenExecutionPlan
 			v-else-if="kitchenPlanMode"
 			:run-name="String(route.params.runName || '')"
@@ -389,6 +407,14 @@ watch(
 </template>
 
 <style scoped>
+.setup-support {
+	width: min(100%, 90rem);
+	max-width: 100%;
+	min-width: 0;
+	margin: 0 auto;
+	padding: 0 var(--spacing-m) var(--spacing-xl-2xl);
+}
+
 .stock-workspace {
 	display: flex;
 	width: min(100%, 90rem);

@@ -52,7 +52,6 @@ import { syncOfflineMutation } from "@/resources/api"
 
 const props = defineProps({
   sections: { type: Array, required: true },
-  theoreticalContextSections: { type: Array, default: () => ["prices"] },
   sidebarGroups: { type: Array, default: () => [
     { label: "Daily operations", links: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/bulkbite?work=overview", target: { mode: "workflow", id: "overview" } },
@@ -84,7 +83,7 @@ let mobileShellQuery = null
 let unregisterNativeBackConsumer = null
 const primarySections = computed(() => props.sections.filter(section => !section.group))
 const theoreticalSections = computed(() => props.sections.filter(section => section.group === "theoretical"))
-const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
+const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection))
 const theoreticalLinksVisible = computed(() => theoreticalExpanded.value)
 const primarySidebarGroup = computed(() => props.sidebarGroups[0] || null)
 const mobileDrawerOpen = ref(false)
