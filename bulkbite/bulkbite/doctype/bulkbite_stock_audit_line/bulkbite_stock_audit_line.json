@@ -1,10 +1,11 @@
 {
  "actions": [], "creation": "2026-08-20 18:00:00.000000", "doctype": "DocType", "editable_grid": 1, "engine": "InnoDB",
- "field_order": ["item_code", "location", "expected_qty", "counted_qty", "variance_qty", "uom", "valuation_rate", "stock_event"],
+ "field_order": ["item_code", "location", "expected_qty", "counted_containers", "counted_qty", "variance_qty", "uom", "valuation_rate", "stock_event"],
  "fields": [
   {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Item", "options": "BulkBite Item", "reqd": 1},
   {"fieldname": "location", "fieldtype": "Link", "in_list_view": 1, "label": "Location", "options": "BulkBite Location", "reqd": 1},
   {"fieldname": "expected_qty", "fieldtype": "Float", "in_list_view": 1, "label": "System Quantity", "read_only": 1},
+  {"description": "Whole containers counted. Only used when the item has a container size; converted into Counted Quantity on save.", "fieldname": "counted_containers", "fieldtype": "Float", "label": "Counted Containers", "non_negative": 1},
   {"fieldname": "counted_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Counted Quantity", "non_negative": 1, "reqd": 1},
   {"fieldname": "variance_qty", "fieldtype": "Float", "in_list_view": 1, "label": "Variance", "read_only": 1},
   {"fieldname": "uom", "fieldtype": "Data", "label": "Unit", "read_only": 1},

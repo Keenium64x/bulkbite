@@ -15,6 +15,9 @@ class BulkBiteStockAudit(Document):
 				if identity in seen:
 					frappe.throw(_("Count each item once per location. Duplicate: {0} at {1}.").format(*identity))
 				seen.add(identity)
+				container_size = flt(frappe.get_cached_value("BulkBite Item", row.item_code, "stock_container_size_qty"))
+				if container_size:
+					row.counted_qty = flt(row.counted_containers) * container_size
 				if flt(row.counted_qty) < 0:
 					frappe.throw(_("Counted stock cannot be negative for {0}.").format(row.item_code))
 				row.expected_qty = get_stock_balance(row.item_code, row.location)

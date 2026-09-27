@@ -83,6 +83,16 @@ class TestFinishedFoodBuyingCoverage(TestCase):
 		self.assertEqual(weeks[1]["planned_output_qty"], 5)
 		self.assertEqual(weeks[1]["closing_output_balance_qty"], 5)
 
+	def test_forecast_wraps_at_the_real_rotation_length_not_a_hardcoded_four(self):
+		mix = [{"plan_type": "Proof", "customer_count": 10, "meals_per_day": 1, "days_per_week": 1, "serving_size_g": 1000}]
+		runs = [{"week_number": 5, "run_number": 1, "output_mode": "Fixed", "planned_output_qty": 30, "scheduled_elapsed_hours": 5, "planned_people": 5}]
+		weeks = calculate_capacity_forecast(mix, mix, 5, [], 60, runs, rotation_weeks=5)
+
+		self.assertEqual([row["run_count"] for row in weeks[:4]], [0, 0, 0, 0])
+		self.assertEqual(weeks[4]["cycle_week"], 5)
+		self.assertEqual(weeks[4]["planned_output_qty"], 30.0)
+		self.assertEqual(weeks[4]["run_count"], 1)
+
 	def test_supplier_deadline_uses_first_saved_cooking_session(self):
 		plan = SimpleNamespace(
 			period_start=date(2026, 8, 24),

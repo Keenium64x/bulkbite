@@ -1,14 +1,8 @@
 <script setup>
 import { computed, ref } from "vue"
 import { useRouter } from "vue-router"
-import { BarChart } from "echarts/charts"
-import { GridComponent, TooltipComponent } from "echarts/components"
-import { use } from "echarts/core"
-import { CanvasRenderer } from "echarts/renderers"
-import { SystemAccordion, SystemAccordionContent, SystemAccordionItem, SystemAccordionTrigger, SystemBadge, SystemCalendar, SystemCard, SystemChart, SystemDatePicker, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemScanCodeField, SystemSelect, SystemStat, SystemTextarea } from "@/desyium"
+import { SystemAccordion, SystemAccordionContent, SystemAccordionItem, SystemAccordionTrigger, SystemBadge, SystemCalendar, SystemCard, SystemDatePicker, SystemFormControl, SystemLinkedRecordField, SystemOperationalButton, SystemScanCodeField, SystemSelect, SystemTextarea } from "@/desyium"
 import { createCustomOperationalAction, recordContainerMovement, updateOperationalAction } from "@/resources/api"
-
-use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
 
 const props = defineProps({
   mode: { type: String, default: "dashboard" },
@@ -24,7 +18,6 @@ const emit = defineEmits(["scan", "map-scan", "open-workflow", "changed"])
 const router = useRouter()
 const scanCode = ref("")
 const mappingItem = ref("")
-const costBasis = ref("expected")
 const actionBusy = ref("")
 const actionEditors = ref({})
 const customActionOpen = ref(false)
@@ -55,10 +48,6 @@ const nextWeek = computed(() => props.plan?.next_production?.row || props.plan?.
 const stockEnough = computed(() => (props.plan?.total_requirements || []).filter((item) => item.shortage_qty <= 0).length)
 const requirementCount = computed(() => (props.plan?.total_requirements || []).length)
 const currentShortageCount = computed(() => Math.max(requirementCount.value - stockEnough.value, 0))
-const stockCoverage = computed(() => requirementCount.value ? Math.round((stockEnough.value / requirementCount.value) * 100) : 0)
-const stockValue = computed(() => (props.inventory?.items || []).reduce((total, item) => total + Number(item.stock_value || 0), 0))
-const latestReceipt = computed(() => props.snapshot?.recent_receipts?.[0] || null)
-const latestRun = computed(() => props.snapshot?.recent_runs?.[0] || null)
 const operations = computed(() => props.plan?.operations || props.snapshot?.operations || {})
 const primaryAction = computed(() => operations.value?.primary || null)
 const calendarActions = computed(() => operations.value?.calendar?.actions || [])
@@ -78,10 +67,6 @@ const calendarEvents = computed(() => calendarActions.value.map((item) => ({
 const containers = computed(() => operations.value?.containers || {})
 const containerOptions = computed(() => (containers.value?.assets || []).filter((item) => !["Lost", "Retired"].includes(item.lifecycle_state)).map((item) => ({ label: `${item.asset_code} · ${item.lifecycle_state}`, value: item.name })))
 const movementOptions = ["Filled for Production", "Issued to Customer", "Returned by Customer", "Sent to Maintenance", "Returned from Maintenance", "Marked Lost", "Retired"].map((value) => ({ label: value, value }))
-const latestRunName = computed(() => {
-  const itemCode = latestRun.value?.finished_item
-  return props.snapshot?.options?.recipes?.find((recipe) => recipe.item === itemCode)?.recipe_name || itemCode || "No production recorded"
-})
 
 const nextWork = computed(() => [
   {
@@ -93,11 +78,11 @@ const nextWork = computed(() => [
     variant: currentShortageCount.value ? "solid" : "outline",
   },
   {
-    key: "receipts",
+    key: "stock",
     eyebrow: "Receive",
-    title: latestReceipt.value ? `${latestReceipt.value.supplier} receipt is ${String(latestReceipt.value.status || "recorded").toLowerCase()}` : "Record food that arrived",
-    detail: latestReceipt.value ? `${latestReceipt.value.invoice_date} · ${money(latestReceipt.value.total_amount)}` : "Upload and review the supplier receipt, then add the food to stock.",
-    action: "Add receipt",
+    title: "Record food that arrived",
+    detail: "Count what came in and reconcile it into stock.",
+    action: "Reconcile stock",
     variant: "outline",
   },
   {
@@ -109,48 +94,13 @@ const nextWork = computed(() => [
     variant: "outline",
     disabled: !nextWeek.value,
   },
-  {
-    key: "export",
-    eyebrow: "Review",
-    title: "Compare theory with actual spend",
-    detail: "Check receipt spend, production usage, price changes, and accountant exports.",
-    action: "View reports",
-    variant: "ghost",
-  },
 ])
-const finances = computed(() => props.plan?.financial_summary || null)
-const actualAvailable = computed(() => Boolean(finances.value?.actual))
-const selectedPosition = computed(() => {
-  if (costBasis.value === "actual" && actualAvailable.value) return finances.value.actual
-  return finances.value?.expected || { food_cost: 0, gross_profit: 0, margin_percent: 0 }
-})
-const basisLabel = computed(() => costBasis.value === "actual" && actualAvailable.value ? "Actual production cost" : "Expected recipe cost")
-const chartOption = computed(() => ({
-  animation: false,
-  aria: { enabled: true, label: { description: `${basisLabel.value}. Four-week revenue ${money(finances.value?.revenue)}, food cost ${money(selectedPosition.value.food_cost)}, and gross profit before overheads ${money(selectedPosition.value.gross_profit)}.` } },
-  grid: { left: 8, right: 8, top: 16, bottom: 38, containLabel: true },
-  tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (value) => money(value) },
-  xAxis: { type: "category", data: ["Revenue", "Food cost", "Gross profit"], axisLine: { lineStyle: { color: themeColor("--theme-border") } }, axisTick: { show: false }, axisLabel: { color: themeColor("--theme-text-muted"), fontSize: 12 } },
-  yAxis: { type: "value", axisLabel: { color: themeColor("--theme-text-muted"), formatter: (value) => `R${compactNumber(value)}` }, splitLine: { lineStyle: { color: themeColor("--theme-border") } } },
-  series: [{
-    type: "bar",
-    barMaxWidth: 54,
-    data: [
-      { value: Number(finances.value?.revenue || 0), itemStyle: { color: themeColor("--theme-text"), borderRadius: [7, 7, 0, 0] } },
-      { value: Number(selectedPosition.value.food_cost || 0), itemStyle: { color: themeColor("--theme-text-muted"), borderRadius: [7, 7, 0, 0] } },
-      { value: Number(selectedPosition.value.gross_profit || 0), itemStyle: { color: themeColor("--theme-primary"), borderRadius: [7, 7, 0, 0] } },
-    ],
-  }],
-}))
 
 function submitScan(code) { if (String(code || "").trim()) emit("scan", String(code).trim()) }
 function assignCode() { if (mappingItem.value && props.scanResult?.scan_code) emit("map-scan", mappingItem.value, props.scanResult.scan_code) }
-function selectCostBasis(value) { if (value !== "actual" || actualAvailable.value) costBasis.value = value }
 function number(value, digits = 2) { return Number(value || 0).toLocaleString("en-ZA", { maximumFractionDigits: digits }) }
 function dateLabel(value) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }) : "No date" }
-function compactNumber(value) { return Number(value || 0).toLocaleString("en-ZA", { notation: "compact", maximumFractionDigits: 1 }) }
 function money(value) { return `R ${Number(value || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
-function themeColor(name) { return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim() }
 async function changeAction(item, action) {
   const editor = actionEditors.value[item.name] || {}
   const newDate = action === "reschedule" ? editor.newDate : null
@@ -200,7 +150,7 @@ async function saveContainerMovement() {
 <template>
   <section data-block="stock-overview" class="workflow-block">
     <header v-if="mode === 'dashboard'" class="workflow-header dashboard-header">
-      <div><p class="eyebrow">Dashboard</p><h1>BulkBite at a glance</h1><p>See the current four-week food economics and move straight to the next job.</p></div>
+      <div><p class="eyebrow">Dashboard</p><h1>BulkBite at a glance</h1><p>See current stock position and move straight to the next job.</p></div>
       <SystemBadge>{{ plan?.customer_demand?.total_customers || 0 }} customers planned</SystemBadge>
     </header>
 
@@ -209,32 +159,10 @@ async function saveContainerMovement() {
 
     <template v-if="mode === 'dashboard'">
       <div v-if="!plan" class="dashboard-empty">
-        <SystemCard class="dashboard-empty__card"><p class="panel-index">Start here</p><h2>Set the current customer and meal direction</h2><p>The Dashboard can calculate revenue, buying cost, and gross profit as soon as a plan exists.</p><SystemOperationalButton variant="solid" @click="emit('open-workflow', 'planning')">Set direction</SystemOperationalButton></SystemCard>
+        <SystemCard class="dashboard-empty__card"><p class="panel-index">Start here</p><h2>Set the current customer and meal direction</h2><p>The Dashboard tracks stock and buying as soon as a plan exists.</p><SystemOperationalButton variant="solid" @click="emit('open-workflow', 'planning')">Set direction</SystemOperationalButton></SystemCard>
       </div>
 
       <div v-else class="dashboard-grid">
-        <SystemCard class="financial-panel">
-          <div class="financial-panel__header">
-            <div><p class="panel-index">Four-week position</p><h2>Gross profit before overheads</h2><p>{{ finances?.qualification }}</p></div>
-            <div class="basis-control" role="group" aria-label="Food cost basis">
-              <SystemOperationalButton :variant="costBasis === 'expected' ? 'solid' : 'outline'" size="sm" :aria-pressed="costBasis === 'expected'" @click="selectCostBasis('expected')">Expected</SystemOperationalButton>
-              <SystemOperationalButton :variant="costBasis === 'actual' ? 'solid' : 'outline'" size="sm" :disabled="!actualAvailable" :aria-pressed="costBasis === 'actual'" @click="selectCostBasis('actual')">Actual production</SystemOperationalButton>
-            </div>
-          </div>
-
-          <div class="financial-panel__body">
-            <div class="financial-chart" role="img" :aria-label="`${basisLabel}: revenue ${money(finances?.revenue)}, food cost ${money(selectedPosition.food_cost)}, gross profit ${money(selectedPosition.gross_profit)}`"><SystemChart autoresize :option="chartOption" /></div>
-            <div class="financial-stats">
-              <SystemStat :value="money(finances?.revenue)" label="Expected revenue" qualification="Current customer mix for one four-week cycle" />
-              <SystemStat :value="money(selectedPosition.food_cost)" :label="costBasis === 'actual' && actualAvailable ? 'Actual food used' : 'Expected food cost'" :qualification="costBasis === 'actual' && actualAvailable ? 'Latest four posted meals in this direction' : 'Four planned recipes at current ingredient valuation'" />
-              <SystemStat :value="money(selectedPosition.gross_profit)" label="Gross profit" qualification="Before overheads, labour, packaging, and tax" />
-              <SystemStat :value="number(selectedPosition.margin_percent, 1)" suffix="%" label="Gross margin" :qualification="basisLabel" />
-            </div>
-          </div>
-
-          <table class="desyium-block__visually-hidden"><caption>{{ basisLabel }} financial chart values</caption><thead><tr><th>Measure</th><th>Amount</th></tr></thead><tbody><tr><td>Revenue</td><td>{{ money(finances?.revenue) }}</td></tr><tr><td>Food cost</td><td>{{ money(selectedPosition.food_cost) }}</td></tr><tr><td>Gross profit before overheads</td><td>{{ money(selectedPosition.gross_profit) }}</td></tr></tbody></table>
-        </SystemCard>
-
 		<SystemCard v-if="primaryAction" class="next-action-panel" :class="`is-${primaryAction.severity}`">
 		  <div class="next-action-panel__marker" aria-hidden="true"><span>{{ primaryAction.severity === 'ready' ? '✓' : '!' }}</span></div>
 		  <div class="next-action-panel__message"><div class="next-action-panel__topline"><p class="panel-index">What needs to happen next</p><button type="button" class="queue-indicator" @click="emit('open-workflow', 'operations')">{{ actionQueueCount }} {{ actionQueueCount === 1 ? 'action' : 'actions' }} waiting</button></div><h2>{{ primaryAction.title }}</h2><p>{{ primaryAction.reason }}</p><small v-if="primaryAction.due_date">Due {{ dateLabel(primaryAction.due_date) }}</small></div>
@@ -242,27 +170,11 @@ async function saveContainerMovement() {
 		  <div class="next-action-panel__actions"><SystemOperationalButton variant="solid" @click="emit('open-workflow', primaryAction.action_section)">{{ primaryAction.action_label }}</SystemOperationalButton><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'operations')">Operations calendar</SystemOperationalButton></div>
 		</SystemCard>
 
-        <SystemCard class="operating-panel">
+        <SystemCard class="operating-panel operating-panel--full">
           <p class="panel-index">Current direction</p><h2>{{ plan.plan_title }}</h2>
           <div class="operating-figures"><div><strong>{{ plan.customer_demand.total_customers }}</strong><span>customers</span></div><div><strong>{{ number(plan.customer_demand.weekly_output_qty, 1) }} kg</strong><span>food per week</span></div><div><strong>{{ currentShortageCount }}</strong><span>items to buy</span></div></div>
           <div class="next-production"><span>Next production</span><strong>{{ nextWeek?.finished_item_name || "No meal scheduled" }}</strong><small v-if="nextWeek">Meal {{ nextWeek.week_number }} · {{ number(nextWeek.planned_output_qty, 1) }} kg planned</small></div>
           <SystemOperationalButton variant="outline" @click="emit('open-workflow', 'planning')">Update direction</SystemOperationalButton>
-        </SystemCard>
-
-        <SystemCard class="activity-panel">
-          <div class="panel-heading"><div><p class="panel-index">Latest activity</p><h2>What has been recorded</h2></div><SystemBadge>{{ snapshot?.counts?.posted_production_runs || 0 }} runs posted</SystemBadge></div>
-          <div class="activity-list">
-            <article class="activity-item"><span>Latest receipt</span><template v-if="latestReceipt"><strong>{{ latestReceipt.supplier }}</strong><small>{{ latestReceipt.invoice_date }} · {{ latestReceipt.status }}</small><b>{{ money(latestReceipt.total_amount) }}</b></template><template v-else><strong>No receipt recorded</strong><small>Add the first supplier receipt after buying.</small></template></article>
-            <article class="activity-item"><span>Latest production</span><template v-if="latestRun"><strong>{{ latestRunName }}</strong><small>{{ latestRun.production_date }} · {{ latestRun.docstatus ? "Posted" : "Draft" }}</small><b>{{ number(latestRun.actual_output_qty, 1) }} kg</b></template><template v-else><strong>No production recorded</strong><small>Open production when the next meal is ready.</small></template></article>
-          </div>
-		  <div class="panel-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'receipts')">Open receipts</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="emit('open-workflow', 'history')">Production history</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="emit('open-workflow', 'operations')">Operations calendar</SystemOperationalButton></div>
-        </SystemCard>
-
-        <SystemCard class="readiness-panel">
-          <div class="panel-heading"><div><p class="panel-index">Stock readiness</p><h2>{{ stockCoverage }}% of planned ingredients covered</h2></div><SystemBadge>{{ currentShortageCount }} short</SystemBadge></div>
-          <div class="readiness-meter" role="meter" aria-label="Planned ingredient stock coverage" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="stockCoverage"><span :style="{ width: `${stockCoverage}%` }" /></div>
-          <div class="operating-figures readiness-figures"><div><strong>{{ stockEnough }} of {{ requirementCount }}</strong><span>ingredients covered</span></div><div><strong>{{ money(stockValue) }}</strong><span>stock on hand value</span></div></div>
-          <div class="panel-actions"><SystemOperationalButton variant="outline" @click="emit('open-workflow', 'buying')">Open buying</SystemOperationalButton><SystemOperationalButton variant="ghost" @click="emit('open-workflow', 'stock')">View stock</SystemOperationalButton></div>
         </SystemCard>
 
       </div>
@@ -304,7 +216,7 @@ async function saveContainerMovement() {
 
 <style scoped>
 .stock-sections{display:grid;gap:var(--spacing-s);margin-top:var(--spacing-m)}
-.stock-section{overflow:hidden;padding:0!important}
+.stock-section{overflow:hidden}
 .stock-section__trigger{width:100%;text-align:left;text-decoration:none!important}
 .stock-section__trigger .section-heading{width:100%;padding-right:var(--spacing-xs)}
 .stock-section__content{display:grid;gap:var(--spacing-m)}
@@ -316,13 +228,9 @@ async function saveContainerMovement() {
 @media(max-width:54rem){.next-action-panel{grid-template-columns:auto minmax(0,1fr)}.next-action-panel__steps,.next-action-panel__actions{grid-column:1/-1}.next-action-panel__steps{padding-left:0;border-left:0}.operations-calendar{height:30rem;min-width:0}.calendar-section{min-width:0;overflow-x:hidden}.custom-action-form__fields{grid-template-columns:1fr}}
 .container-movement-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;align-items:end;gap:var(--spacing-xs);margin:var(--spacing-s) 0;padding:var(--spacing-s);border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}
 @media(max-width:54rem){.container-movement-form{grid-template-columns:1fr}.container-movement-form :deep(button){width:100%}}
-.dashboard-header{align-items:end}.dashboard-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--spacing-m)}.financial-panel,.operating-panel,.readiness-panel,.activity-panel,.action-panel,.dashboard-empty__card{border:var(--border-width-1) solid var(--theme-border)!important;border-radius:var(--component-radius-block)!important;background:var(--theme-surface)!important;box-shadow:0 1px 2px color-mix(in oklch,var(--theme-text) 5%,transparent)!important}.financial-panel,.operating-panel,.readiness-panel,.activity-panel,.action-panel{padding:var(--spacing-m)}.financial-panel{grid-column:span 8}.operating-panel{grid-column:span 4}.readiness-panel,.activity-panel{grid-column:span 6}.financial-panel__header,.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--spacing-m)}.financial-panel__header h2,.operating-panel h2,.readiness-panel h2,.activity-panel h2,.action-panel h2,.dashboard-empty__card h2{margin:var(--spacing-3xs) 0;font:var(--font-weight-700) var(--font-size-1)/1.3 var(--font-family-b)}.financial-panel__header p:not(.panel-index),.action-panel p:not(.panel-index),.dashboard-empty__card p:not(.panel-index){margin:var(--spacing-2xs) 0 0;color:var(--theme-text-muted)}.basis-control{display:flex;flex-wrap:wrap;gap:var(--spacing-2xs);padding:var(--spacing-3xs);overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.financial-panel__body{display:grid;gap:var(--spacing-m);margin-top:var(--spacing-m)}.financial-chart{height:20rem;min-width:0}.financial-chart :deep(.system-chart){display:block;width:100%;height:100%}.financial-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-content:start;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);overflow:hidden;background:var(--theme-surface-raised)}.financial-stats :deep(.system-stat){min-width:0;padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:last-child){border-right:0}.financial-stats :deep(.system-stat__value){font-size:var(--font-size-1)}.evidence-note{margin:var(--spacing-s) 0 0;padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-control);background:color-mix(in oklch,var(--theme-primary) 8%,var(--theme-surface-raised));color:var(--theme-text-muted);font-size:var(--font-size--1)}.operating-panel,.readiness-panel,.activity-panel{display:grid;align-content:start;gap:var(--spacing-s)}.operating-figures{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.operating-figures div{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.operating-figures div:last-child{border-right:0}.operating-figures strong{font-size:var(--font-size-1);font-variant-numeric:tabular-nums}.operating-figures span,.next-production span,.next-production small,.activity-item span,.activity-item small{color:var(--theme-text-muted);font-size:var(--font-size--2)}.next-production{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border-left:3px solid var(--theme-primary);border-radius:0 var(--component-radius-control) var(--component-radius-control) 0;background:var(--theme-surface-raised)}.readiness-meter{height:.55rem;overflow:hidden;border-radius:999px;background:var(--theme-secondary)}.readiness-meter span{display:block;height:100%;border-radius:inherit;background:var(--theme-primary)}.readiness-figures strong{font-size:var(--font-size-0)}.panel-actions{display:flex;flex-wrap:wrap;gap:var(--spacing-xs);margin-top:auto}.activity-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.activity-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--spacing-3xs) var(--spacing-xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.activity-item:last-child{border-right:0}.activity-item>span,.activity-item>small{grid-column:1/-1}.activity-item strong{min-width:0;overflow-wrap:anywhere}.activity-item b{font-variant-numeric:tabular-nums}.action-panel{display:grid;gap:var(--spacing-m);margin-top:var(--spacing-m)}.action-panel__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.work-action{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:var(--spacing-xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.work-action:last-child{border-right:0}.work-action h3{margin:0;font-size:var(--font-size-0);line-height:1.35}.work-action>p:not(.panel-index){min-height:3.9em;margin:0;color:var(--theme-text-muted);font-size:var(--font-size--1);line-height:1.45}.work-action :deep(button){width:100%;margin-top:auto}.dashboard-empty{display:grid;grid-template-columns:minmax(0,42rem);justify-content:center}.dashboard-empty__card{display:grid;gap:var(--spacing-s);padding:var(--spacing-l)}
-.financial-panel{grid-column:1/-1}.operating-panel,.readiness-panel,.activity-panel{grid-column:span 4}.readiness-figures{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-list{grid-template-columns:1fr}.activity-item{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.activity-item:last-child{border-bottom:0}
-@media(max-width:72rem){.financial-panel{grid-column:1/-1}.operating-panel,.readiness-panel,.activity-panel{grid-column:span 6}.financial-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.financial-stats :deep(.system-stat){border-bottom:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:nth-child(2n)){border-right:0}.financial-stats :deep(.system-stat:nth-last-child(-n+2)){border-bottom:0}.action-panel__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.work-action:nth-child(2n){border-right:0}.work-action:nth-child(-n+2){border-bottom:var(--border-width-1) solid var(--theme-border)}}
-@media(max-width:54rem){.operating-panel,.readiness-panel,.activity-panel{grid-column:1/-1}.financial-chart{height:17rem}.activity-list{grid-template-columns:1fr}.activity-item{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.activity-item:last-child{border-bottom:0}}
-@media(max-width:44rem){.financial-panel,.operating-panel,.readiness-panel,.activity-panel,.action-panel,.dashboard-empty__card{padding:var(--spacing-s)}.financial-panel__header,.panel-heading{flex-direction:column}.basis-control{width:100%}.basis-control :deep(button){flex:1}.financial-stats{grid-template-columns:1fr}.financial-stats :deep(.system-stat){border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:nth-last-child(2)){border-bottom:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:last-child){border-bottom:0}.operating-figures{grid-template-columns:1fr}.operating-figures div{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.operating-figures div:last-child{border-bottom:0}.action-panel__grid{grid-template-columns:1fr}.work-action,.work-action:nth-child(2n),.work-action:nth-child(-n+2){border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.work-action:last-child{border-bottom:0}.work-action>p:not(.panel-index){min-height:0}.panel-actions{display:grid;grid-template-columns:1fr}.panel-actions :deep(button){width:100%}.financial-chart{height:15rem}}
-@media(max-width:44rem){.next-action-panel{grid-template-columns:1fr;padding:var(--spacing-s)}.next-action-panel__marker{width:2.75rem;height:2.75rem}.next-action-panel__topline{align-items:flex-start;flex-direction:column}.next-action-panel__steps,.next-action-panel>:deep(button){grid-column:auto}.financial-panel,.operating-panel,.readiness-panel,.activity-panel,.action-panel,.dashboard-empty__card{padding:var(--spacing-s)}.financial-panel__header,.panel-heading{flex-direction:column}.basis-control{width:100%}.basis-control :deep(button){flex:1}.financial-stats{grid-template-columns:1fr}.financial-stats :deep(.system-stat){border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:nth-last-child(2)){border-bottom:var(--border-width-1) solid var(--theme-border)}.financial-stats :deep(.system-stat:last-child){border-bottom:0}.operating-figures{grid-template-columns:1fr}.operating-figures div{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.operating-figures div:last-child{border-bottom:0}.action-panel__grid{grid-template-columns:1fr}.work-action,.work-action:nth-child(2n),.work-action:nth-child(-n+2){border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.work-action:last-child{border-bottom:0}.work-action>p:not(.panel-index){min-height:0}.panel-actions{display:grid;grid-template-columns:1fr}.panel-actions :deep(button){width:100%}.financial-chart{height:15rem}}
+.dashboard-header{align-items:end}.dashboard-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--spacing-m)}.operating-panel,.action-panel,.dashboard-empty__card{border:var(--border-width-1) solid var(--theme-border)!important;border-radius:var(--component-radius-block)!important;background:var(--theme-surface)!important;box-shadow:0 1px 2px color-mix(in oklch,var(--theme-text) 5%,transparent)!important}.operating-panel,.action-panel{padding:var(--spacing-m)}.operating-panel--full{grid-column:1/-1}.operating-panel h2,.action-panel h2,.dashboard-empty__card h2{margin:var(--spacing-3xs) 0;font:var(--font-weight-700) var(--font-size-1)/1.3 var(--font-family-b)}.action-panel p:not(.panel-index),.dashboard-empty__card p:not(.panel-index){margin:var(--spacing-2xs) 0 0;color:var(--theme-text-muted)}.evidence-note{margin:var(--spacing-s) 0 0;padding:var(--spacing-xs) var(--spacing-s);border-radius:var(--component-radius-control);background:color-mix(in oklch,var(--theme-primary) 8%,var(--theme-surface-raised));color:var(--theme-text-muted);font-size:var(--font-size--1)}.operating-panel{display:grid;align-content:start;gap:var(--spacing-s)}.operating-figures{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.operating-figures div{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.operating-figures div:last-child{border-right:0}.operating-figures strong{font-size:var(--font-size-1);font-variant-numeric:tabular-nums}.operating-figures span,.next-production span,.next-production small{color:var(--theme-text-muted);font-size:var(--font-size--2)}.next-production{display:grid;gap:var(--spacing-3xs);padding:var(--spacing-s);border-left:3px solid var(--theme-primary);border-radius:0 var(--component-radius-control) var(--component-radius-control) 0;background:var(--theme-surface-raised)}.action-panel{display:grid;gap:var(--spacing-m);margin-top:var(--spacing-m)}.action-panel__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:hidden;border:var(--border-width-1) solid var(--theme-border);border-radius:var(--component-radius-card);background:var(--theme-surface-raised)}.work-action{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:var(--spacing-xs);padding:var(--spacing-s);border-right:var(--border-width-1) solid var(--theme-border)}.work-action:last-child{border-right:0}.work-action h3{margin:0;font-size:var(--font-size-0);line-height:1.35}.work-action>p:not(.panel-index){min-height:3.9em;margin:0;color:var(--theme-text-muted);font-size:var(--font-size--1);line-height:1.45}.work-action :deep(button){width:100%;margin-top:auto}.dashboard-empty{display:grid;grid-template-columns:minmax(0,42rem);justify-content:center}.dashboard-empty__card{display:grid;gap:var(--spacing-s);padding:var(--spacing-l)}
+@media(max-width:72rem){.action-panel__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.work-action:nth-child(2n){border-right:0}.work-action:nth-child(-n+2){border-bottom:var(--border-width-1) solid var(--theme-border)}}
+@media(max-width:44rem){.operating-panel,.action-panel,.dashboard-empty__card{padding:var(--spacing-s)}.operating-figures{grid-template-columns:1fr}.operating-figures div{border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.operating-figures div:last-child{border-bottom:0}.action-panel__grid{grid-template-columns:1fr}.work-action,.work-action:nth-child(2n),.work-action:nth-child(-n+2){border-right:0;border-bottom:var(--border-width-1) solid var(--theme-border)}.work-action:last-child{border-bottom:0}.work-action>p:not(.panel-index){min-height:0}}
+@media(max-width:44rem){.next-action-panel{grid-template-columns:1fr;padding:var(--spacing-s)}.next-action-panel__marker{width:2.75rem;height:2.75rem}.next-action-panel__topline{align-items:flex-start;flex-direction:column}.next-action-panel__steps,.next-action-panel>:deep(button){grid-column:auto}}
 .operating-figures div,.operating-figures strong{min-width:0}.operating-figures strong{overflow-wrap:anywhere}
-.desyium-block__visually-hidden{position:fixed!important;inset:0 auto auto 0!important;display:block!important;width:1px!important;min-width:1px!important;max-width:1px!important;height:1px!important;min-height:1px!important;max-height:1px!important;margin:0!important;padding:0!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;contain:strict!important;border:0!important}
-.desyium-block__visually-hidden :is(caption,thead,tbody,tr,th,td){display:block!important;width:1px!important;min-width:0!important;max-width:1px!important;height:1px!important;min-height:0!important;max-height:1px!important;margin:0!important;padding:0!important;overflow:hidden!important;border:0!important}
 </style>

@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-	SystemAccountantExport,
 	SystemAccordion,
 	SystemAccordionContent,
 	SystemAccordionItem,
@@ -17,7 +16,6 @@ import {
 	SystemNativeAvailabilityState,
 	SystemProductionMeasurement,
 	SystemPriceHistory,
-	SystemReceiptIntake,
 	SystemStockOverview,
 	SystemStockReconciliation,
 } from "@/desyium";
@@ -40,14 +38,9 @@ import {
 
 const sections = [
 	{ id: "overview", label: "Dashboard" },
-	{ id: "receipts", label: "Receipts" },
 	{ id: "production", label: "Production" },
 	{ id: "planning", label: "Planning", group: "theoretical" },
-	{ id: "forecasting", label: "Forecasting", group: "supporting" },
 	{ id: "buying", label: "Buying", group: "theoretical" },
-	{ id: "finance", label: "Finance", group: "supporting" },
-	{ id: "export", label: "Reports", group: "supporting" },
-	{ id: "import", label: "Import", group: "supporting" },
 	{ id: "stock", label: "Stock", group: "theoretical" },
 ];
 const auxiliarySections = ["employees", "documents", "history", "operations", "containers"];
@@ -100,9 +93,7 @@ async function closeKitchenPlan() {
 }
 
 function openEmployees(origin) {
-	employeeReturnSection.value = ["planning", "forecasting"].includes(origin)
-		? origin
-		: "production";
+	employeeReturnSection.value = origin === "planning" ? origin : "production";
 	navigate("employees");
 }
 
@@ -296,13 +287,6 @@ watch(
 			:error="error"
 			@open-workflow="navigate"
 		/>
-		<SystemReceiptIntake
-			v-else-if="activeSection === 'receipts'"
-			:snapshot="snapshot"
-			:inventory="inventory"
-			:plan="plan"
-			@changed="refreshWorkspace"
-		/>
 		<SystemProductionMeasurement
 			v-else-if="activeSection === 'production'"
 			:snapshot="snapshot"
@@ -331,14 +315,6 @@ watch(
 			@changed="refreshWorkspace"
 			@open-employees="openEmployees('planning')"
 		/>
-		<SystemMonthlyPlanning
-			v-else-if="activeSection === 'forecasting'"
-			mode="forecasting"
-			:snapshot="snapshot"
-			:plan="plan"
-			@changed="refreshWorkspace"
-			@open-employees="openEmployees('forecasting')"
-		/>
 		<SystemBuyingPlan
 			v-else-if="activeSection === 'buying'"
 			:snapshot="snapshot"
@@ -348,22 +324,6 @@ watch(
 		/>
 		<SystemDocumentReview
 			v-else-if="activeSection === 'documents'"
-			:snapshot="snapshot"
-			:inventory="inventory"
-			@changed="refreshWorkspace"
-		/>
-		<SystemPriceHistory
-			v-else-if="activeSection === 'finance'"
-			mode="finance"
-			:snapshot="snapshot"
-			:inventory="inventory"
-			@open-workflow="navigate"
-			@changed="refreshWorkspace"
-		/>
-		<SystemAccountantExport v-else-if="activeSection === 'export'" />
-		<SystemPriceHistory
-			v-else-if="activeSection === 'import'"
-			mode="import"
 			:snapshot="snapshot"
 			:inventory="inventory"
 			@changed="refreshWorkspace"

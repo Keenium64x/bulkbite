@@ -200,7 +200,7 @@ def get_inventory_snapshot(location=None):
 	items = frappe.get_all(
 		"BulkBite Item",
 		filters={"item_type": "Ingredient", "track_stock": 1, "enabled": 1},
-		fields=["item_code", "item_name", "stock_uom", "theory_valuation_rate"],
+		fields=["item_code", "item_name", "stock_uom", "theory_valuation_rate", "stock_container_size_qty", "stock_container_uom"],
 		order_by="item_name",
 	)
 	for item in items:
@@ -1985,6 +1985,7 @@ def get_production_plan_snapshot(plan_name=None, location=None):
 		"period_end": plan.period_end,
 		"date_note": plan.date_note,
 		"location": location,
+		"storage_capacity_qty": flt(frappe.db.get_single_value("BulkBite Settings", "freezer_capacity_qty")),
 		"customer_demand": demand,
 		"customer_mix": [{
 			"plan_type": row.plan_type,
@@ -2046,8 +2047,9 @@ def get_buying_recommendation(plan_name=None, location="Ingredients", horizon_we
 def _build_capacity_plan(plan, current_mix, workforce):
 	"""Resolve saved weekly windows and return the rolling workforce forecast."""
 	templates = {row["name"]: row for row in _get_team_templates()}
+	rotation_weeks = len(plan.plan_rows or []) or 4
 	windows = []
-	for week in range(1, 5):
+	for week in range(1, rotation_weeks + 1):
 		saved = next((row for row in plan.capacity_windows if int(row.week_number or 0) == week), None)
 		template_name = (saved.team_template if saved else None) or plan.default_team_template
 		template = templates.get(template_name) or {}
@@ -2097,6 +2099,7 @@ def _build_capacity_plan(plan, current_mix, workforce):
 				{"week_number": row.week_number, "required_output_qty": flt(row.planned_output_qty)}
 				for row in plan.plan_rows or []
 			],
+			rotation_weeks,
 		),
 	}
 
@@ -2115,6 +2118,7 @@ def calculate_capacity_scenario(payload=None):
 			flt(data.get("labour_minutes_per_kg")),
 			_as_list(data.get("capacity_runs")),
 			_as_list(data.get("required_output_by_week")),
+			data.get("rotation_weeks"),
 		)
 	}
 	weekly = data.get("weekly_capacity")
@@ -2955,6 +2959,7 @@ def create_stock_count_draft(payload=None):
 				"item_code": row.get("item_code"),
 				"location": row.get("location"),
 				"counted_qty": flt(row.get("qty")),
+				"counted_containers": flt(row.get("containers")),
 			},
 		)
 	doc.insert()

@@ -385,13 +385,14 @@ def calculate_run_performance(actual_output_qty, actual_elapsed_hours, employees
 	}
 
 
-def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg, capacity_runs=None, required_output_by_week=None):
+def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacity_windows, labour_minutes_per_kg, capacity_runs=None, required_output_by_week=None, rotation_weeks=None):
 	"""Compare food coverage and labour capacity for an explicit repeating schedule."""
 	forecast_weeks = max(int(forecast_weeks or 4), 1)
+	rotation_weeks = max(int(rotation_weeks or 4), 1)
 	current_by_plan = {row.get("plan_type"): row for row in current_mix or []}
 	target_by_plan = {row.get("plan_type"): row for row in target_mix or []}
 	windows = {int(row.get("week_number") or 0): row for row in capacity_windows or []}
-	runs_by_week = _group_capacity_runs(capacity_runs)
+	runs_by_week = _group_capacity_runs(capacity_runs, rotation_weeks)
 	required_by_cycle_week = {int(row.get("week_number") or 0): flt(row.get("required_output_qty")) for row in required_output_by_week or []}
 	has_explicit_run_schedule = bool(runs_by_week)
 	rows = []
@@ -406,7 +407,7 @@ def calculate_capacity_forecast(current_mix, target_mix, forecast_weeks, capacit
 			target_customers = flt(target.get("target_customers")) if target.get("target_customers") is not None else current_customers
 			mix.append({**current, "customer_count": round(current_customers + (target_customers - current_customers) * progress)})
 		demand = _forecast_demand(mix)
-		cycle_week = ((week - 1) % 4) + 1
+		cycle_week = ((week - 1) % rotation_weeks) + 1
 		available_schedule = (
 			runs_by_week.get(cycle_week, [])
 			if has_explicit_run_schedule
@@ -524,12 +525,12 @@ def _run_output_capacity(run, labour_minutes_per_kg):
 	return max(flt(run.get("planned_output_qty")), 0)
 
 
-def _group_capacity_runs(capacity_runs):
+def _group_capacity_runs(capacity_runs, rotation_weeks=4):
 	grouped = {}
 	for supplied in capacity_runs or []:
 		run = dict(supplied)
 		week = int(run.get("week_number") or 0)
-		if week not in range(1, 5) or flt(run.get("scheduled_elapsed_hours")) <= 0:
+		if week not in range(1, max(int(rotation_weeks or 4), 1) + 1) or flt(run.get("scheduled_elapsed_hours")) <= 0:
 			continue
 		grouped.setdefault(week, []).append(run)
 	for runs in grouped.values():

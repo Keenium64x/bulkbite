@@ -2,11 +2,12 @@
  "actions": [],
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["kitchen_default_slack_minutes", "use_ai_kitchen_instructions", "kitchen_settings_note"],
+ "field_order": ["kitchen_default_slack_minutes", "use_ai_kitchen_instructions", "kitchen_settings_note", "freezer_capacity_qty"],
  "fields": [
   {"default": "10", "description": "Operational buffer shown in CPM calculations. It does not change task durations.", "fieldname": "kitchen_default_slack_minutes", "fieldtype": "Float", "label": "Default Kitchen Slack (Minutes)", "non_negative": 1, "reqd": 1},
   {"default": "1", "fieldname": "use_ai_kitchen_instructions", "fieldtype": "Check", "label": "Generate Kitchen Methods with AI"},
-  {"description": "Recipe quantities remain authoritative. AI may propose method tasks and substeps only.", "fieldname": "kitchen_settings_note", "fieldtype": "Small Text", "label": "Kitchen Planning Note"}
+  {"description": "Recipe quantities remain authoritative. AI may propose method tasks and substeps only.", "fieldname": "kitchen_settings_note", "fieldtype": "Small Text", "label": "Kitchen Planning Note"},
+  {"default": "0", "description": "Total finished-food freezer space, in kg. Leave zero to skip the freezer capacity check in Planning.", "fieldname": "freezer_capacity_qty", "fieldtype": "Float", "label": "Freezer Capacity (Kg)", "non_negative": 1}
  ],
  "index_web_pages_for_search": 0,
  "issingle": 1,

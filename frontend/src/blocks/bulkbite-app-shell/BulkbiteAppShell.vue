@@ -1,22 +1,18 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
+  CalendarRange,
   ChevronLeft,
   ChevronRight,
   CookingPot,
-  Ellipsis,
   LayoutDashboard,
   LogIn,
   LogOut,
   Menu,
-  Package,
   PanelLeftClose,
   PanelLeftOpen,
-  ReceiptText,
   Settings,
-  TrendingUp,
   UserRound,
-  WalletCards,
   Warehouse,
   X,
 } from "lucide-vue-next"
@@ -60,15 +56,9 @@ const props = defineProps({
   sidebarGroups: { type: Array, default: () => [
     { label: "Daily operations", links: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/bulkbite?work=overview", target: { mode: "workflow", id: "overview" } },
-      { label: "Receipt", icon: ReceiptText, href: "/bulkbite?work=receipts", target: { mode: "workflow", id: "receipts" } },
       { label: "Production", icon: CookingPot, href: "/bulkbite?work=production", target: { mode: "workflow", id: "production" } },
       { label: "Stock", icon: Warehouse, href: "/bulkbite?work=stock", target: { mode: "workflow", id: "stock" } },
-    ] },
-    { label: "More", links: [
-      { label: "Forecasting", icon: TrendingUp, href: "/bulkbite?work=forecasting", target: { mode: "workflow", id: "forecasting" } },
-      { label: "Finance", icon: WalletCards, href: "/bulkbite?work=finance", target: { mode: "workflow", id: "finance" } },
-      { label: "Reports", icon: ReceiptText, href: "/bulkbite?work=export", target: { mode: "workflow", id: "export" } },
-      { label: "Import", icon: Package, href: "/bulkbite?work=import", target: { mode: "workflow", id: "import" } },
+      { label: "Planning", icon: CalendarRange, href: "/bulkbite?work=planning", target: { mode: "workflow", id: "planning" } },
     ] },
   ] },
   activeSection: { type: String, required: true },
@@ -87,7 +77,6 @@ const emit = defineEmits(["navigate", "refresh", "logout"])
 // =============================================================================
 
 const sidebarCollapsed = ref(window.localStorage.getItem("bulkbite-sidebar") === "collapsed")
-const sidebarMoreExpanded = ref(false)
 const navGroupsRoot = ref(null)
 const theoreticalExpanded = ref(false)
 let flipExperience = null
@@ -98,14 +87,13 @@ const theoreticalSections = computed(() => props.sections.filter(section => sect
 const theoreticalActive = computed(() => theoreticalSections.value.some(section => section.id === props.activeSection) || props.theoreticalContextSections.includes(props.activeSection))
 const theoreticalLinksVisible = computed(() => theoreticalExpanded.value)
 const primarySidebarGroup = computed(() => props.sidebarGroups[0] || null)
-const secondarySidebarGroups = computed(() => props.sidebarGroups.slice(1))
 const mobileDrawerOpen = ref(false)
 const mobileCloseButton = ref(null)
 const conflictBusy = ref(false)
 const conflictError = ref("")
 const conflictDetails = computed(() => offlineConflictDetails())
-const mobilePrimaryIds = ["overview", "receipts", "production"]
-const mobileSectionIcons = { overview: LayoutDashboard, receipts: ReceiptText, production: CookingPot }
+const mobilePrimaryIds = ["overview", "production"]
+const mobileSectionIcons = { overview: LayoutDashboard, production: CookingPot }
 const mobilePrimarySections = computed(() => mobilePrimaryIds
   .map(id => props.sections.find(section => section.id === id))
   .filter(Boolean)
@@ -115,10 +103,6 @@ const mobileSecondarySections = computed(() => theoreticalSections.value)
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
   window.localStorage.setItem("bulkbite-sidebar", sidebarCollapsed.value ? "collapsed" : "expanded")
-}
-
-function toggleSidebarMore() {
-  sidebarMoreExpanded.value = !sidebarMoreExpanded.value
 }
 
 async function toggleTheoretical() {
@@ -256,23 +240,6 @@ useNativePullToRefresh(refreshCurrentWorkflow)
             <ChevronRight class="app-shell__utility-arrow" aria-hidden="true" />
           </SystemLink>
         </nav>
-
-        <SystemOperationalButton v-if="secondarySidebarGroups.length" class="app-shell__sidebar-action app-shell__more-toggle" variant="ghost" :label="sidebarMoreExpanded ? 'Collapse more navigation' : 'More navigation'" :tooltip="sidebarCollapsed ? (sidebarMoreExpanded ? 'Collapse' : 'More') : undefined" :aria-expanded="sidebarMoreExpanded" aria-controls="sidebar-more-navigation" @click="toggleSidebarMore">
-          <Ellipsis aria-hidden="true" />
-          <span class="app-shell__utility-label">{{ sidebarMoreExpanded ? 'Collapse' : 'More' }}</span>
-          <ChevronRight class="app-shell__more-arrow" aria-hidden="true" />
-        </SystemOperationalButton>
-
-        <div v-if="sidebarMoreExpanded" id="sidebar-more-navigation" class="app-shell__more-navigation">
-          <nav v-for="group in secondarySidebarGroups" :key="group.label" class="app-shell__utility-nav" :aria-label="group.label">
-            <p class="app-shell__nav-label">{{ group.label }}</p>
-            <SystemLink v-for="link in group.links" :key="link.href" :href="link.href" class="app-shell__utility-link" :class="{ 'is-active': sidebarLinkIsActive(link) }" :title="sidebarCollapsed ? link.label : undefined" :aria-label="sidebarCollapsed ? link.label : undefined" @click.prevent="navigateSidebar(link.target)">
-              <span class="app-shell__sidebar-icon" aria-hidden="true"><component :is="link.icon || Settings" /></span>
-              <span class="app-shell__utility-label">{{ link.label }}</span>
-              <ChevronRight class="app-shell__utility-arrow" aria-hidden="true" />
-            </SystemLink>
-          </nav>
-        </div>
       </div>
 
       <footer class="app-shell__sidebar-footer">
@@ -387,7 +354,7 @@ useNativePullToRefresh(refreshCurrentWorkflow)
             </SystemDrawerClose>
           </div>
           <SystemDrawerTitle>All operations</SystemDrawerTitle>
-          <SystemDrawerDescription>Open planning, stock, finance, setup, or account actions.</SystemDrawerDescription>
+          <SystemDrawerDescription>Open planning, stock, setup, or account actions.</SystemDrawerDescription>
         </SystemDrawerHeader>
 
         <div class="app-shell__mobile-drawer-scroll">
@@ -396,16 +363,6 @@ useNativePullToRefresh(refreshCurrentWorkflow)
             <SystemDrawerClose v-for="section in mobileSecondarySections" :key="section.id" as-child>
               <SystemLink :href="`/bulkbite?work=${section.id}`" class="app-shell__mobile-drawer-link" :class="{ 'is-active': activeSection === section.id }" :aria-current="activeSection === section.id ? 'page' : undefined" @click.prevent="navigateMobile(section.id)">
                 <span>{{ section.label }}</span><ChevronRight aria-hidden="true" />
-              </SystemLink>
-            </SystemDrawerClose>
-          </nav>
-
-          <nav v-for="group in secondarySidebarGroups" :key="group.label" class="app-shell__mobile-drawer-group" :aria-label="group.label">
-            <p class="app-shell__mobile-group-label">{{ group.label }}</p>
-            <SystemDrawerClose v-for="link in group.links" :key="link.href" as-child>
-              <SystemLink :href="link.href" class="app-shell__mobile-drawer-link" @click.prevent="navigateMobile(link.target)">
-                <span class="app-shell__mobile-link-label"><component :is="link.icon || Settings" aria-hidden="true" /><span>{{ link.label }}</span></span>
-                <ChevronRight aria-hidden="true" />
               </SystemLink>
             </SystemDrawerClose>
           </nav>
@@ -486,13 +443,6 @@ useNativePullToRefresh(refreshCurrentWorkflow)
 .app-shell__sidebar-navigation::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:999px;background:var(--theme-navigation-sidebar-control);background-clip:padding-box}
 .app-shell__sidebar-navigation::-webkit-scrollbar-thumb:hover{background:var(--theme-navigation-sidebar-hover);background-clip:padding-box}
 .app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{margin-top:var(--spacing-s);padding-top:var(--spacing-s);border-top:var(--border-width-1) solid var(--theme-navigation-sidebar-border)}
-.app-shell__sidebar-navigation :deep(.app-shell__more-toggle){display:flex!important;align-items:center!important;justify-content:flex-start!important;width:100%!important;max-width:100%!important;gap:0!important;margin-top:var(--spacing-s);padding:0 var(--spacing-2xs)!important;border:0!important;border-radius:var(--component-radius-button)!important;background:transparent!important;color:var(--theme-navigation-sidebar-muted)!important}
-.app-shell__sidebar-navigation :deep(.app-shell__more-toggle:hover){background:var(--theme-navigation-sidebar-hover)!important;color:var(--theme-navigation-sidebar-text)!important}
-.app-shell__sidebar-navigation :deep(.app-shell__more-toggle:focus-visible){outline:2px solid var(--theme-navigation-sidebar-text)!important;outline-offset:2px!important;box-shadow:none!important}
-.app-shell__more-toggle :deep(> span.truncate){display:grid!important;grid-template-columns:2.25rem minmax(0,1fr) 1rem;align-items:center;gap:var(--spacing-2xs);width:100%;overflow:visible;text-align:left}
-.app-shell__more-arrow{width:.9rem!important;height:.9rem!important;transition:transform .18s ease}
-.app-shell__more-toggle[aria-expanded="true"] .app-shell__more-arrow{transform:rotate(90deg)}
-.app-shell__more-navigation{display:grid}
 .app-shell__fixed-setup{padding:var(--spacing-2xs);border:var(--border-width-1) solid var(--theme-navigation-sidebar-border);border-radius:var(--component-radius-card);background:var(--theme-navigation-sidebar-panel)}
 .app-shell__fixed-setup .app-shell__sidebar-icon{color:var(--theme-navigation-sidebar-text)}
 .app-shell__fixed-setup .app-shell__sidebar-icon svg{color:var(--theme-navigation-sidebar-text);stroke:var(--theme-navigation-sidebar-text)}
@@ -507,8 +457,8 @@ useNativePullToRefresh(refreshCurrentWorkflow)
 .app-shell__nav :deep(.app-shell__nav-category .app-shell__nav-button > span.truncate){display:flex!important;align-items:center!important;height:100%!important;padding-block:1px!important;overflow:visible!important;line-height:1.25!important}
 .app-shell__nav :deep(.app-shell__expand-button),.app-shell__nav :deep(.app-shell__expand-button.is-active){min-width:6.5rem!important;border-color:var(--theme-navigation-header-border)!important;background:var(--theme-navigation-header-control)!important;color:var(--theme-navigation-header-text)!important}
 .app-shell__expand-icon{flex:0 0 .95rem!important;width:.95rem!important;height:.95rem!important;stroke:currentColor!important;stroke-width:2.2!important}
-@media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;align-items:flex-end;overflow-x:auto;overflow-y:hidden;gap:var(--spacing-xs);padding-bottom:var(--spacing-2xs)}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__more-toggle{flex:0 0 auto!important;width:auto!important;margin:0!important;border-top:0!important}.app-shell__more-navigation{display:flex;gap:var(--spacing-xs)}.app-shell__sidebar-footer{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.app-shell__fixed-setup{align-self:stretch}.app-shell__nav-groups{width:max-content;min-width:100%}}
-@media(min-width:64.0625rem){.app-shell--collapsed :deep(.app-shell__more-toggle){justify-content:center!important;padding-inline:0!important}.app-shell--collapsed :deep(.app-shell__more-toggle > span.truncate){display:flex!important;justify-content:center!important;width:100%!important;gap:0!important}.app-shell--collapsed :deep(.app-shell__more-toggle > span.truncate > :not(:first-child)){display:none!important;width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important}.app-shell--collapsed .app-shell__more-toggle .app-shell__more-arrow{display:none!important}.app-shell--collapsed .app-shell__fixed-setup,.app-shell--collapsed .app-shell__account{box-sizing:border-box;width:100%}.app-shell--collapsed .app-shell__fixed-setup{padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__fixed-setup .app-shell__utility-link{width:100%}}
+@media(max-width:64rem){.app-shell__sidebar-navigation{display:flex;align-items:flex-end;overflow-x:auto;overflow-y:hidden;gap:var(--spacing-xs);padding-bottom:var(--spacing-2xs)}.app-shell__sidebar-navigation .app-shell__utility-nav,.app-shell__sidebar-navigation .app-shell__utility-nav + .app-shell__utility-nav{flex:0 0 auto;margin:0;padding-top:var(--spacing-xs);border-top:0}.app-shell__sidebar-footer{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.app-shell__fixed-setup{align-self:stretch}.app-shell__nav-groups{width:max-content;min-width:100%}}
+@media(min-width:64.0625rem){.app-shell--collapsed .app-shell__fixed-setup,.app-shell--collapsed .app-shell__account{box-sizing:border-box;width:100%}.app-shell--collapsed .app-shell__fixed-setup{padding:var(--spacing-2xs)}.app-shell--collapsed .app-shell__fixed-setup .app-shell__utility-link{width:100%}}
 @media(max-width:44rem){.app-shell__nav{overflow-x:hidden}.app-shell__nav-groups{display:grid;width:100%;min-width:0}.app-shell__nav-category{width:100%}.app-shell__category-controls,.app-shell__theoretical-controls{flex-wrap:wrap}.app-shell__theoretical-controls{display:contents}.app-shell__nav :deep(.app-shell__nav-button){flex:1 1 auto;min-width:5.5rem!important;padding-inline:var(--spacing-xs)!important}.app-shell__category-card{width:100%}}
 .app-shell__mobile-nav,.app-shell__mobile-drawer{display:none}
 .app-shell__visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);white-space:nowrap}

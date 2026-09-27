@@ -7,7 +7,7 @@
  "engine": "InnoDB",
  "field_order": ["week_number", "run_number", "day_of_week", "output_mode", "planned_output_qty", "scheduled_elapsed_hours", "team_template", "planned_people"],
  "fields": [
-  {"fieldname": "week_number", "fieldtype": "Int", "in_list_view": 1, "label": "Cycle Week", "reqd": 1},
+  {"fieldname": "week_number", "fieldtype": "Int", "in_list_view": 1, "label": "Week", "reqd": 1},
   {"fieldname": "run_number", "fieldtype": "Int", "in_list_view": 1, "label": "Run Number", "reqd": 1},
   {"fieldname": "day_of_week", "fieldtype": "Select", "in_list_view": 1, "label": "Day", "options": "Monday\nTuesday\nWednesday\nThursday\nFriday\nSaturday\nSunday", "reqd": 1},
   {"default": "Auto", "fieldname": "output_mode", "fieldtype": "Select", "in_list_view": 1, "label": "Output Allocation", "options": "Auto\nFixed", "reqd": 1},

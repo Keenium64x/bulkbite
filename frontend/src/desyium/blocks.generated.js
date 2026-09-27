@@ -420,7 +420,7 @@ export const installedBlocks = Object.freeze([
   {
     "id": "monthly-planning",
     "name": "Rolling Meal Direction",
-    "job": "Own the editable current customer mix, four repeating meals, calculated weekly demand, and employee-hours-based workforce capacity with one period total followed by its weekly breakdown.",
+    "job": "Own the editable current customer mix, the repeating meal rotation, named future vacation ranges, and the upcoming week's cooking sessions with the capacity, efficiency, takt, and freezer position that result from them.",
     "category": "Project",
     "source": "@/blocks/monthly-planning/MonthlyPlanning.vue",
     "public": "SystemMonthlyPlanning",
@@ -436,7 +436,7 @@ export const installedBlocks = Object.freeze([
     "primitives": [],
     "incomingHandoff": "The manager knows the current customers or repeating meals have changed.",
     "outgoingHandoff": "The updated direction recalculates future demand and buying while existing production drafts keep their frozen theory. Manage employees opens the workforce page and returns the manager to Planning.",
-    "responsiveBehaviour": "Show four repeating meals in four, two, then one column while preserving labels, calculated units, capacity controls, and action order.",
+    "responsiveBehaviour": "Fit the repeating meals and the weekly capacity metrics to the available width down to one column while preserving labels, calculated units, capacity controls, and action order.",
     "layoutContract": {
       "strategy": "flow",
       "pageAlignment": "grid",
