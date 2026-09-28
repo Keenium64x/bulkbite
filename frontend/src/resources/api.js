@@ -61,6 +61,7 @@ export const savePlanningVacation = (planName, vacationName, fromDate, toDate, n
 export const deletePlanningVacation = (name) => call("bulkbite.api.delete_planning_vacation", { name })
 export const resolveScanCode = (code) => call("bulkbite.api.resolve_scan_code", { code }, "GET")
 export const assignScanCode = (itemCode, code) => call("bulkbite.api.assign_scan_code", { item_code: itemCode, code })
+export const setItemContainer = (itemCode, containerSizeQty, containerLabel) => call("bulkbite.api.set_item_container", { item_code: itemCode, container_size_qty: containerSizeQty, container_label: containerLabel })
 export const getAuxiliaryCatalogue = () => call("bulkbite.api.get_auxiliary_form_catalogue", {}, "GET")
 export const getAuxiliaryRecordList = (doctype) => call("bulkbite.api.get_auxiliary_record_list", { doctype }, "GET")
 export const getAuxiliaryRecordWorkspace = (doctype, query = {}) => call("bulkbite.api.get_auxiliary_record_workspace", { doctype, ...query, filters: query.filters?.length ? JSON.stringify(query.filters) : undefined, sort: query.sort ? JSON.stringify(query.sort) : undefined }, "GET")

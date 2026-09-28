@@ -65,6 +65,13 @@ const calendarEvents = computed(() => calendarActions.value.map((item) => ({
   operationalAction: item,
 })))
 const containers = computed(() => operations.value?.containers || {})
+
+function inContainers(item, qty) {
+  const size = Number(item.stock_container_size_qty)
+  if (!(size > 0)) return `${number(qty, 2)} ${item.stock_uom}`
+  const whole = Math.round((Number(qty) / size) * 10) / 10
+  return `${number(whole, 1)} × ${item.stock_container_uom || `${size} ${item.stock_uom}`}`
+}
 const containerOptions = computed(() => (containers.value?.assets || []).filter((item) => !["Lost", "Retired"].includes(item.lifecycle_state)).map((item) => ({ label: `${item.asset_code} · ${item.lifecycle_state}`, value: item.name })))
 const movementOptions = ["Filled for Production", "Issued to Customer", "Returned by Customer", "Sent to Maintenance", "Returned from Maintenance", "Marked Lost", "Retired"].map((value) => ({ label: value, value }))
 
@@ -219,7 +226,7 @@ async function saveContainerMovement() {
 	            <div v-if="scanResult?.matched" class="scan-result" aria-live="polite"><SystemBadge class="status-badge">MATCHED</SystemBadge><strong>{{ scanResult.item_name }}</strong><span>{{ scanResult.item_code }} · {{ scanResult.uom }}</span></div>
 	            <div v-else-if="scanResult && !scanResult.matched" class="scan-result scan-result--unknown" aria-live="polite"><SystemBadge>NOT MAPPED</SystemBadge><strong>{{ scanResult.scan_code }}</strong><span>{{ scanResult.reason }}</span><SystemLinkedRecordField v-model="mappingItem" label="Assign to item" :options="itemOptions" placeholder="Choose an ingredient" create-label="Add item" manage-label="Manage items" @create="router.push({ name: 'AuxiliaryRecordCreate', params: { doctype: 'BulkBite Item' } })" @manage="router.push({ name: 'BulkBiteSetupList', params: { doctype: 'BulkBite Item' } })" /><SystemOperationalButton variant="outline" :disabled="!mappingItem" @click="assignCode">Save code mapping</SystemOperationalButton></div>
 	          </div>
-	          <div class="table-wrap"><table><thead><tr><th>Ingredient</th><th>On hand</th><th>Planned need</th><th>Unit</th></tr></thead><tbody><tr v-for="item in stockRows" :key="item.item_code" :class="item.requirement?.shortage_qty > 0 ? 'is-short' : item.requirement ? 'is-ready' : ''"><td><strong>{{ item.item_name }}</strong><small>{{ item.item_code }}</small></td><td class="number-cell"><strong>{{ number(item.actual_qty, 3) }}</strong><small v-if="item.requirement?.shortage_qty > 0">{{ number(item.requirement.shortage_qty, 3) }} short</small><small v-else-if="item.requirement">Enough for the plan</small></td><td class="number-cell">{{ item.requirement ? number(item.requirement.required_qty, 3) : "Not planned" }}</td><td>{{ item.stock_uom }}</td></tr><tr v-if="!stockRows.length"><td colspan="4">No ingredient records are available.</td></tr></tbody></table></div>
+	          <div class="table-wrap"><table><thead><tr><th>Ingredient</th><th>On hand</th><th>Planned need</th></tr></thead><tbody><tr v-for="item in stockRows" :key="item.item_code" :class="item.requirement?.shortage_qty > 0 ? 'is-short' : item.requirement ? 'is-ready' : ''"><td><strong>{{ item.item_name }}</strong><small>{{ item.item_code }}</small></td><td class="number-cell"><strong>{{ inContainers(item, item.actual_qty) }}</strong><small v-if="item.requirement?.shortage_qty > 0">{{ inContainers(item, item.requirement.shortage_qty) }} short</small><small v-else-if="item.requirement">Enough for the plan</small></td><td class="number-cell">{{ item.requirement ? inContainers(item, item.requirement.required_qty) : "Not planned" }}</td></tr><tr v-if="!stockRows.length"><td colspan="3">No ingredient records are available.</td></tr></tbody></table></div>
 	        </SystemAccordionContent>
 	      </SystemAccordionItem>
 	    </SystemAccordion>

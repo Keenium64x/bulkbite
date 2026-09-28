@@ -1503,6 +1503,25 @@ def assign_scan_code(item_code, code):
 	item.save()
 	return resolve_scan_code(value)
 
+@frappe.whitelist(methods=["POST"])
+def set_item_container(item_code, container_size_qty, container_label=None):
+	"""Set how much stock one whole container holds so counting happens in containers, not kg."""
+	_require_roles("BulkBite Manager")
+	item = frappe.get_doc("BulkBite Item", item_code)
+	item.check_permission("write")
+	size = flt(container_size_qty)
+	if size < 0:
+		frappe.throw(_("Container size cannot be negative."))
+	item.stock_container_size_qty = size
+	item.stock_container_uom = (container_label or "").strip() or None
+	item.save()
+	return {
+		"item_code": item.item_code,
+		"stock_uom": item.stock_uom,
+		"stock_container_size_qty": item.stock_container_size_qty,
+		"stock_container_uom": item.stock_container_uom,
+	}
+
 
 # endregion ITEM IDENTITY
 

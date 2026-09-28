@@ -37,13 +37,12 @@ import {
 } from "@/native/availability";
 
 const sections = [
-	{ id: "overview", label: "Dashboard" },
 	{ id: "production", label: "Production" },
-	{ id: "planning", label: "Planning", group: "theoretical" },
-	{ id: "buying", label: "Buying", group: "theoretical" },
-	{ id: "stock", label: "Stock", group: "theoretical" },
+	{ id: "stock", label: "Stock" },
+	{ id: "planning", label: "Planning" },
 ];
-const auxiliarySections = ["employees", "documents", "history", "operations", "containers"];
+// Reachable by URL/deep link but no longer top-level tabs.
+const auxiliarySections = ["overview", "buying", "employees", "documents", "history", "operations", "containers"];
 const activeSectionStorageKey = "bulkbite-active-section";
 const allowedSectionIds = new Set([
 	...sections.map((section) => section.id),
@@ -80,7 +79,7 @@ function navigate(id) {
 	activeSection.value = id;
 	window.localStorage.setItem(activeSectionStorageKey, id);
 	const url = new URL(window.location.href);
-	id === "overview" ? url.searchParams.delete("work") : url.searchParams.set("work", id);
+	id === "production" ? url.searchParams.delete("work") : url.searchParams.set("work", id);
 	window.history.replaceState({}, "", url);
 	requestAnimationFrame(() => document.querySelector(".app-shell__work")?.focus());
 }
@@ -101,7 +100,7 @@ function resolveInitialSection() {
 	const urlSection = new URLSearchParams(window.location.search).get("work");
 	if (allowedSectionIds.has(urlSection)) return urlSection;
 	const storedSection = window.localStorage.getItem(activeSectionStorageKey);
-	return allowedSectionIds.has(storedSection) ? storedSection : "overview";
+	return allowedSectionIds.has(storedSection) ? storedSection : "production";
 }
 
 function navigateAuxiliary(target) {
@@ -305,15 +304,25 @@ watch(
 			:error="error"
 			@open-workflow="navigate"
 		/>
-		<SystemProductionMeasurement
-			v-else-if="activeSection === 'production'"
+		<template v-else-if="activeSection === 'production'">
+			<SystemStockOverview
+				mode="dashboard"
+				:snapshot="snapshot"
+				:inventory="inventory"
+				:plan="plan"
+				:loading="loading"
+				:error="error"
+				@open-workflow="navigate"
+			/>
+			<SystemProductionMeasurement
 			:snapshot="snapshot"
 			:plan="plan"
 			@changed="refreshWorkspace"
 			@open-worker-sheets="navigate('documents')"
 			@open-employees="openEmployees('production')"
 			@open-history="navigate('history')"
-		/>
+			/>
+		</template>
 		<SystemProductionMeasurement
 			v-else-if="activeSection === 'history'"
 			mode="history"
@@ -378,6 +387,19 @@ watch(
 								mode="catalogue"
 								:snapshot="snapshot"
 								:inventory="inventory"
+								@changed="refreshWorkspace"
+							/>
+						</SystemAccordionContent>
+					</SystemAccordionItem>
+					<SystemAccordionItem value="buying" class="stock-support-section">
+						<SystemAccordionTrigger class="stock-support-section__trigger">
+							<div><span>Shopping</span><strong>What to buy</strong></div>
+						</SystemAccordionTrigger>
+						<SystemAccordionContent class="stock-support-section__content">
+							<SystemBuyingPlan
+								:snapshot="snapshot"
+								:plan="plan"
+								@open-workflow="navigate"
 								@changed="refreshWorkspace"
 							/>
 						</SystemAccordionContent>
