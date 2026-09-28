@@ -1,0 +1,25 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "websocket"
+    },
+    "name": "websocket",
+    "namespace": "app-bulkbite"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "socketio",
+        "port": 9000,
+        "protocol": "TCP",
+        "targetPort": "socketio"
+      }
+    ],
+    "selector": {
+      "app.kubernetes.io/name": "websocket"
+    },
+    "type": "ClusterIP"
+  }
+}

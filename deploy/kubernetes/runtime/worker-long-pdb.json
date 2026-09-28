@@ -1,0 +1,19 @@
+{
+  "apiVersion": "policy/v1",
+  "kind": "PodDisruptionBudget",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "worker-long"
+    },
+    "name": "worker-long-availability",
+    "namespace": "app-bulkbite"
+  },
+  "spec": {
+    "minAvailable": 1,
+    "selector": {
+      "matchLabels": {
+        "app.kubernetes.io/name": "worker-long"
+      }
+    }
+  }
+}
